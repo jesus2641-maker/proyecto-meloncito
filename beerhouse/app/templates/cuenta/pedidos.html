@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Mis Pedidos — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <div>
+        <h2>Historial de Pedidos</h2>
+        <p class="bh-meta-label">Consulta tus pedidos realizados y su estado actual</p>
+    </div>
+    <div>
+        <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Hacer un nuevo pedido</a>
+        <a href="{{ url_for('cuenta.index') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Volver a Mi Cuenta</a>
+    </div>
+</div>
+
+{% if pedidos %}
+<div class="bh-table-container">
+    <table class="bh-table">
+        <thead>
+            <tr>
+                <th>N° Pedido</th>
+                <th>Fecha</th>
+                <th>Dirección de Envío</th>
+                <th>Método de Pago</th>
+                <th>Estado</th>
+                <th>Total</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ped in pedidos %}
+            <tr>
+                <td><strong>#{{ ped.id_pedido }}</strong></td>
+                <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                <td>{{ ped.linea_direccion or '—' }}, {{ ped.ciudad or '' }}</td>
+                <td>{{ ped.tipo_pago or '—' }}</td>
+                <td>
+                    <span class="bh-status-badge bh-status-{{ ped.nombre_estado }}">{{ ped.nombre_estado|capitalize }}</span>
+                </td>
+                <td class="bh-mono"><strong>${{ "{:,.2f}".format(ped.total) }}</strong></td>
+                <td style="text-align: right;">
+                    <a href="{{ url_for('cuenta.detalle_pedido', id_pedido=ped.id_pedido) }}" class="bh-btn bh-btn-sm bh-btn-outline">Ver Detalle</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bh-empty-state">
+    <p class="bh-empty">Aún no has realizado ningún pedido.</p>
+    <a href="{{ url_for('productos.catalogo') }}" class="bh-btn" style="margin-top: 15px;">Explorar el Catálogo</a>
+</div>
+{% endif %}
+{% endblock %}

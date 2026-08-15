@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Gestión de Categorías — Admin — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Gestión de Categorías</h2>
+        <p class="bh-meta-label">Organiza los tipos de bebidas del catálogo de Beer House</p>
+    </div>
+</div>
+
+<div class="bh-checkout-grid">
+    <!-- COLUMNA IZQUIERDA: LISTA DE CATEGORÍAS -->
+    <div>
+        <h3 class="bh-subtitle">Categorías Registradas ({{ categorias|length }})</h3>
+
+        <div class="bh-table-container">
+            <table class="bh-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Productos</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categorias %}
+                    <tr>
+                        <form method="POST" action="{{ url_for('admin.editar_categoria', id_categoria=cat.id_categoria) }}">
+                            <td><strong>#{{ cat.id_categoria }}</strong></td>
+                            <td>
+                                <input type="text" name="nombre_categoria" value="{{ cat.nombre_categoria }}" required class="bh-input-sm" style="min-width: 140px;">
+                            </td>
+                            <td>
+                                <input type="text" name="descripcion" value="{{ cat.descripcion or '' }}" placeholder="Descripción" class="bh-input-sm" style="min-width: 180px;">
+                            </td>
+                            <td>
+                                <span class="bh-badge-tag">{{ cat.total_productos }} producto(s)</span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button type="submit" class="bh-btn bh-btn-sm bh-btn-primary" title="Guardar cambios">Guardar</button>
+                        </form>
+                                <form method="POST" action="{{ url_for('admin.eliminar_categoria', id_categoria=cat.id_categoria) }}" style="display: inline; margin-left: 4px;" onsubmit="return confirm('¿Eliminar esta categoría?');">
+                                    <button type="submit" class="bh-btn-danger" title="Eliminar Categoría">🗑️</button>
+                                </form>
+                            </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="bh-empty" style="text-align: center; padding: 30px;">No hay categorías registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: CREAR NUEVA CATEGORÍA -->
+    <div>
+        <div class="bh-section-box">
+            <h3 class="bh-subtitle" style="margin-top: 0;">+ Nueva Categoría</h3>
+            <p class="bh-helper-text">Crea una nueva clasificación para agrupar productos:</p>
+
+            <form method="POST" action="{{ url_for('admin.nueva_categoria') }}">
+                <div class="bh-field">
+                    <label for="nombre_categoria">Nombre de la Categoría *</label>
+                    <input type="text" id="nombre_categoria" name="nombre_categoria" placeholder="Ej. Licores Nacionales, Vinos Importados" required>
+                </div>
+
+                <div class="bh-field">
+                    <label for="descripcion">Descripción (opcional)</label>
+                    <textarea id="descripcion" name="descripcion" rows="3" class="bh-textarea" placeholder="Descripción breve de la categoría..."></textarea>
+                </div>
+
+                <button type="submit" class="bh-btn bh-btn-primary bh-btn-block">Crear Categoría</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Carrito — Beer House{% endblock %}
+{% block content %}
+<div class="bh-page-header">
+    <h2>Tu carrito</h2>
+    <a href="{{ url_for('productos.catalogo') }}" class="bh-btn-link">&larr; Seguir comprando</a>
+</div>
+
+{% if items %}
+<div class="bh-table-container">
+    <table class="bh-table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Presentación</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Subtotal</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><strong>{{ item.nombre_producto }}</strong></td>
+                <td><span class="bh-badge-tag">{{ item.presentacion }}</span></td>
+                <td>{{ item.cantidad }}</td>
+                <td class="bh-mono">${{ "{:,.2f}".format(item.precio) }}</td>
+                <td class="bh-mono">${{ "{:,.2f}".format(item.precio * item.cantidad) }}</td>
+                <td style="text-align: right;">
+                    <form method="POST" action="{{ url_for('carrito.eliminar') }}" style="display: inline;">
+                        <input type="hidden" name="id_item" value="{{ item.id_item }}">
+                        <button type="submit" class="bh-btn-danger" title="Eliminar del carrito">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="bh-cart-actions">
+    <div class="bh-table-total">
+        <span>Total a pagar:</span>
+        <strong class="bh-total-amount">${{ "{:,.2f}".format(total) }}</strong>
+    </div>
+    <div class="bh-cart-buttons">
+        <a href="{{ url_for('carrito.checkout') }}" class="bh-btn bh-btn-primary bh-btn-lg">Proceder al Checkout &rarr;</a>
+    </div>
+</div>
+{% else %}
+<div class="bh-empty-state">
+    <p class="bh-empty">Tu carrito está vacío.</p>
+    <a href="{{ url_for('productos.catalogo') }}" class="bh-btn" style="margin-top: 15px;">Explorar el Catálogo</a>
+</div>
+{% endif %}
+{% endblock %}

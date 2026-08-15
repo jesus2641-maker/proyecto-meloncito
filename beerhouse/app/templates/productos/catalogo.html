@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Catálogo — Beer House{% endblock %}
+{% block content %}
+<h2>Nuestros productos</h2>
+<div class="bh-grid">
+    {% for producto in productos %}
+    <div class="bh-card">
+        {% if producto.imagen_url %}
+        <img src="{{ producto.imagen_url }}" class="bh-card-img" alt="{{ producto.nombre_producto }}">
+        {% endif %}
+        <div class="bh-card-body">
+            <h3 class="bh-card-title">{{ producto.nombre_producto }}</h3>
+            <div class="bh-card-meta">{{ producto.marca }} &middot; {{ producto.nombre_categoria }}</div>
+            <p class="bh-card-desc">{{ producto.descripcion }}</p>
+            <ul class="bh-variant-list">
+                {% for v in producto.variantes %}
+                <li><span>{{ v.presentacion }}</span> <span class="bh-price">${{ v.precio }}</span></li>
+                {% endfor %}
+            </ul>
+            <a href="{{ url_for('productos.detalle', producto_id=producto.id_producto) }}" class="bh-btn bh-btn-outline">Ver detalle</a>
+        </div>
+    </div>
+    {% else %}
+    <p class="bh-empty">Aún no hay productos disponibles.</p>
+    {% endfor %}
+</div>
+{% endblock %}

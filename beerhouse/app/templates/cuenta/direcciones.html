@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Mis Direcciones — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <div>
+        <h2>Mis Direcciones</h2>
+        <p class="bh-meta-label">Direcciones registradas para el envío de tus pedidos</p>
+    </div>
+    <div>
+        <a href="{{ url_for('cuenta.nueva_direccion') }}" class="bh-btn bh-btn-primary">+ Agregar Dirección</a>
+        <a href="{{ url_for('cuenta.index') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Volver a Mi Cuenta</a>
+    </div>
+</div>
+
+{% if direcciones %}
+<div class="bh-grid-cards">
+    {% for dir in direcciones %}
+    <div class="bh-item-box">
+        <div class="bh-item-header">
+            <div class="bh-item-title-group">
+                <h4>{{ dir.alias or 'Dirección' }}</h4>
+                {% if dir.es_principal %}
+                <span class="bh-badge-tag">Principal</span>
+                {% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('cuenta.eliminar_direccion') }}" onsubmit="return confirm('¿Estás seguro de eliminar esta dirección?');">
+                <input type="hidden" name="id_direccion" value="{{ dir.id_direccion }}">
+                <button type="submit" class="bh-btn-danger">Eliminar</button>
+            </form>
+        </div>
+        <div class="bh-item-content">
+            <p><strong>Dirección:</strong> {{ dir.linea_direccion }}</p>
+            <p><strong>Ciudad:</strong> {{ dir.ciudad }}{% if dir.departamento %}, {{ dir.departamento }}{% endif %}</p>
+            {% if dir.codigo_postal %}
+            <p><strong>Código Postal:</strong> {{ dir.codigo_postal }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bh-empty-state">
+    <p class="bh-empty">No tienes ninguna dirección registrada.</p>
+    <a href="{{ url_for('cuenta.nueva_direccion') }}" class="bh-btn" style="margin-top: 15px;">Registrar mi primera dirección</a>
+</div>
+{% endif %}
+{% endblock %}

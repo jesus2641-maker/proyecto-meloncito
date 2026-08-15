@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Error del servidor — Beer House{% endblock %}
+{% block content %}
+<section class="bh-error-page">
+    <div class="bh-error-code bh-mono">500</div>
+    <h2>Algo salió mal en la taberna</h2>
+    <p class="bh-error-text">
+        Ocurrió un error inesperado en el servidor. Intenta de nuevo en unos momentos
+        o regresa al inicio.
+    </p>
+    <div class="bh-error-actions">
+        <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Volver al inicio</a>
+    </div>
+</section>
+{% endblock %}

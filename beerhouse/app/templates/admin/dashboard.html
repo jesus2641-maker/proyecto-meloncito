@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Panel Administrador — Dashboard — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Dashboard Administrativo</h2>
+        <p class="bh-meta-label">Métricas globales y control de operaciones de Beer House</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.nuevo_producto') }}" class="bh-btn bh-btn-primary">+ Nuevo Producto</a>
+        <a href="{{ url_for('admin.pedidos') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Ver Todos los Pedidos</a>
+    </div>
+</div>
+
+<!-- KPI CARDS -->
+<div class="bh-kpi-grid">
+    <div class="bh-kpi-card bh-kpi-sales">
+        <span class="bh-kpi-label">Ventas Totales</span>
+        <strong class="bh-kpi-value bh-mono">${{ "{:,.2f}".format(metricas.total_ventas) }}</strong>
+        <span class="bh-kpi-sub">Ingresos acumulados (pedidos activos)</span>
+    </div>
+
+    <div class="bh-kpi-card">
+        <span class="bh-kpi-label">Total de Pedidos</span>
+        <strong class="bh-kpi-value">{{ metricas.total_pedidos }}</strong>
+        <span class="bh-kpi-sub">Registrados en plataforma</span>
+    </div>
+
+    <div class="bh-kpi-card bh-kpi-warning">
+        <span class="bh-kpi-label">Pedidos Pendientes</span>
+        <strong class="bh-kpi-value">{{ metricas.pedidos_pendientes }}</strong>
+        <span class="bh-kpi-sub">Requieren atención / despacho</span>
+    </div>
+
+    <div class="bh-kpi-card">
+        <span class="bh-kpi-label">Catálogo de Productos</span>
+        <strong class="bh-kpi-value">{{ metricas.total_productos }}</strong>
+        <span class="bh-kpi-sub">Productos en inventario</span>
+    </div>
+
+    <div class="bh-kpi-card">
+        <span class="bh-kpi-label">Usuarios Registrados</span>
+        <strong class="bh-kpi-value">{{ metricas.total_usuarios }}</strong>
+        <span class="bh-kpi-sub">Clientes y administradores</span>
+    </div>
+</div>
+
+<!-- ÚLTIMOS PEDIDOS -->
+<div class="bh-section-box" style="margin-top: 30px;">
+    <div class="bh-section-title" style="justify-content: space-between;">
+        <h3>Últimos Pedidos Recientes</h3>
+        <a href="{{ url_for('admin.pedidos') }}" class="bh-btn-link">Ver historial completo &rarr;</a>
+    </div>
+
+    {% if ultimos_pedidos %}
+    <div class="bh-table-container">
+        <table class="bh-table">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Total</th>
+                    <th>Método</th>
+                    <th>Estado Actual</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ped in ultimos_pedidos %}
+                <tr>
+                    <td><strong>#{{ ped.id_pedido }}</strong></td>
+                    <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                    <td>
+                        <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong><br>
+                        <small class="bh-meta-label">{{ ped.usuario_email }}</small>
+                    </td>
+                    <td class="bh-mono">${{ "{:,.2f}".format(ped.total) }}</td>
+                    <td>{{ ped.tipo_pago or '—' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="bh-inline-form">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <select name="id_estado" onchange="this.form.submit()" class="bh-select-sm bh-status-select-{{ ped.nombre_estado }}">
+                                {% for est in estados %}
+                                <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
+                                    {{ est.nombre_estado|capitalize }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="bh-btn bh-btn-sm bh-btn-outline">Detalle</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="bh-empty">No hay pedidos registrados en la plataforma.</p>
+    {% endif %}
+</div>
+{% endblock %}

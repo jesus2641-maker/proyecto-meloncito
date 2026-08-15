@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Usuarios Registrados — Admin — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Usuarios Registrados</h2>
+        <p class="bh-meta-label">Administra clientes, administradores y permisos de acceso</p>
+    </div>
+    <div class="bh-meta-label">
+        Total registrados: <strong>{{ usuarios|length }}</strong>
+    </div>
+</div>
+
+<div class="bh-table-container">
+    <table class="bh-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre y Apellido</th>
+                <th>Correo Electrónico</th>
+                <th>Teléfono</th>
+                <th>Rol</th>
+                <th>Pedidos</th>
+                <th>Fecha Registro</th>
+                <th>Estado</th>
+                <th style="text-align: right;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr class="{% if not u.activo %}bh-row-inactive{% endif %}">
+                <td><strong>#{{ u.id_usuario }}</strong></td>
+                <td><strong>{{ u.nombre }} {{ u.apellido }}</strong></td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.telefono or '—' }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.cambiar_rol_usuario', id_usuario=u.id_usuario) }}" class="bh-inline-form">
+                        <select name="id_rol" onchange="this.form.submit()" class="bh-select-sm" {% if u.id_usuario == session.get('id_usuario') %}disabled title="No puedes cambiar tu propio rol"{% endif %}>
+                            {% for r in roles %}
+                            <option value="{{ r.id_rol }}" {% if r.id_rol == u.id_rol %}selected{% endif %}>
+                                {{ r.nombre_rol|capitalize }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td>
+                    <span class="bh-badge-tag">{{ u.total_pedidos }} pedido(s)</span>
+                </td>
+                <td>{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
+                <td>
+                    <span class="bh-status-badge {% if u.activo %}bh-status-confirmado{% else %}bh-status-cancelado{% endif %}">
+                        {{ 'Activo' if u.activo else 'Inactivo' }}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    {% if u.id_usuario != session.get('id_usuario') %}
+                    <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" style="display: inline;">
+                        <button type="submit" class="bh-btn bh-btn-sm {% if u.activo %}bh-btn-danger{% else %}bh-btn-outline{% endif %}">
+                            {{ 'Desactivar' if u.activo else 'Activar' }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="bh-meta-label">Tu cuenta</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="bh-empty" style="text-align: center; padding: 40px;">No hay usuarios registrados en la base de datos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Gestión de Pedidos — Admin — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Gestión de Pedidos</h2>
+        <p class="bh-meta-label">Monitorea y actualiza el estado de las órdenes de los clientes</p>
+    </div>
+</div>
+
+<!-- FILTROS POR ESTADO -->
+<div class="bh-filter-bar">
+    <span>Filtrar por estado:</span>
+    <a href="{{ url_for('admin.pedidos') }}" class="bh-filter-chip {% if not filtro_actual %}active{% endif %}">Todos</a>
+    {% for est in estados %}
+    <a href="{{ url_for('admin.pedidos', estado=est.nombre_estado) }}" class="bh-filter-chip {% if filtro_actual == est.nombre_estado %}active{% endif %}">
+        {{ est.nombre_estado|capitalize }}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="bh-table-container" style="margin-top: 20px;">
+    <table class="bh-table">
+        <thead>
+            <tr>
+                <th>N° Pedido</th>
+                <th>Fecha y Hora</th>
+                <th>Cliente</th>
+                <th>Destino</th>
+                <th>Método Pago</th>
+                <th>Total</th>
+                <th>Estado del Pedido</th>
+                <th style="text-align: right;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ped in pedidos %}
+            <tr>
+                <td><strong>#{{ ped.id_pedido }}</strong></td>
+                <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                <td>
+                    <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong><br>
+                    <small class="bh-meta-label">{{ ped.usuario_email }}</small>
+                </td>
+                <td>{{ ped.linea_direccion or '—' }} ({{ ped.ciudad or '' }})</td>
+                <td>{{ ped.tipo_pago or '—' }}</td>
+                <td class="bh-mono"><strong>${{ "{:,.2f}".format(ped.total) }}</strong></td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="bh-inline-form">
+                        <input type="hidden" name="next" value="{{ request.full_path }}">
+                        <select name="id_estado" onchange="this.form.submit()" class="bh-select-sm bh-status-select-{{ ped.nombre_estado }}">
+                            {% for est in estados %}
+                            <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
+                                {{ est.nombre_estado|capitalize }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td style="text-align: right;">
+                    <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="bh-btn bh-btn-sm bh-btn-outline">Ver Detalle</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="bh-empty" style="text-align: center; padding: 40px;">No se encontraron pedidos con el filtro seleccionado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

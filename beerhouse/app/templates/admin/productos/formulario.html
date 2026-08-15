@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{% if producto %}Editar Producto: {{ producto.nombre_producto }}{% else %}Nuevo Producto{% endif %} — Admin — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>{% if producto %}Editar Producto #{{ producto.id_producto }}{% else %}Crear Nuevo Producto{% endif %}</h2>
+        <p class="bh-meta-label">{% if producto %}Modifica los detalles generales del producto{% else %}Registra una nueva bebida en el catálogo general{% endif %}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.productos') }}" class="bh-btn bh-btn-outline">&larr; Volver al Listado</a>
+    </div>
+</div>
+
+<div class="bh-form-container" style="max-width: 700px;">
+    <form method="POST" action="{% if producto %}{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}{% else %}{{ url_for('admin.nuevo_producto') }}{% endif %}" class="bh-form-card">
+        
+        <h3 class="bh-subtitle">1. Información General</h3>
+        <div class="bh-form-row">
+            <div class="bh-field bh-col-6">
+                <label for="nombre_producto">Nombre del Producto *</label>
+                <input type="text" id="nombre_producto" name="nombre_producto" value="{{ producto.nombre_producto if producto else '' }}" placeholder="Ej. Corona Extra 355ml" required>
+            </div>
+            <div class="bh-field bh-col-6">
+                <label for="id_categoria">Categoría *</label>
+                <select id="id_categoria" name="id_categoria" required>
+                    <option value="">-- Seleccionar Categoría --</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id_categoria }}" {% if producto and producto.id_categoria == cat.id_categoria %}selected{% endif %}>
+                        {{ cat.nombre_categoria }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="bh-form-row">
+            <div class="bh-field bh-col-6">
+                <label for="marca">Marca</label>
+                <input type="text" id="marca" name="marca" value="{{ producto.marca if producto and producto.marca else '' }}" placeholder="Ej. Heineken, Club Colombia, Johnnie Walker">
+            </div>
+            <div class="bh-field bh-col-6">
+                <label for="imagen_url">URL de Imagen (opcional)</label>
+                <input type="text" id="imagen_url" name="imagen_url" value="{{ producto.imagen_url if producto and producto.imagen_url else '' }}" placeholder="https://ejemplo.com/cerveza.jpg">
+            </div>
+        </div>
+
+        <div class="bh-field">
+            <label for="descripcion">Descripción</label>
+            <textarea id="descripcion" name="descripcion" rows="3" class="bh-textarea" placeholder="Breve descripción de notas de sabor, origen o graduación alcohólica...">{{ producto.descripcion if producto and producto.descripcion else '' }}</textarea>
+        </div>
+
+        {% if producto %}
+        <div class="bh-field bh-checkbox-field">
+            <label>
+                <input type="checkbox" name="activo" value="1" {% if producto.activo %}checked{% endif %}>
+                Producto Activo (visible en el catálogo para clientes)
+            </label>
+        </div>
+        {% else %}
+        <!-- Si es nuevo producto, permitir crear la primera variante de inmediato -->
+        <h3 class="bh-subtitle" style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px;">2. Primera Variante / Presentación (Opcional)</h3>
+        <p class="bh-helper-text">Puedes ingresar la primera presentación de este producto ahora (o agregar más después):</p>
+        
+        <div class="bh-form-row">
+            <div class="bh-field bh-col-6">
+                <label for="presentacion">Presentación</label>
+                <input type="text" id="presentacion" name="presentacion" placeholder="Ej. 330ml, Pack x6, 750ml">
+            </div>
+            <div class="bh-field bh-col-6">
+                <label for="precio">Precio Unitario ($)</label>
+                <input type="number" step="0.01" id="precio" name="precio" placeholder="Ej. 8500.00">
+            </div>
+        </div>
+
+        <div class="bh-form-row">
+            <div class="bh-field bh-col-6">
+                <label for="stock">Stock Inicial</label>
+                <input type="number" id="stock" name="stock" value="0" min="0">
+            </div>
+            <div class="bh-field bh-col-6">
+                <label for="sku">SKU / Código Referencia (opcional)</label>
+                <input type="text" id="sku" name="sku" placeholder="Ej. COR-355">
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bh-form-actions" style="margin-top: 28px;">
+            <button type="submit" class="bh-btn bh-btn-primary">
+                {% if producto %}Guardar Cambios del Producto{% else %}Crear Producto en Catálogo{% endif %}
+            </button>
+            <a href="{{ url_for('admin.productos') }}" class="bh-btn bh-btn-outline">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

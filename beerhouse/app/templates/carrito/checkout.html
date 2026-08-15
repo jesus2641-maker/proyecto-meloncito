@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Checkout — Confirmar Pedido — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <h2>Confirmar Pedido</h2>
+    <a href="{{ url_for('carrito.ver_carrito') }}" class="bh-btn-link">&larr; Volver al Carrito</a>
+</div>
+
+{% if problemas_stock %}
+<div class="bh-alert bh-alert-danger" style="margin-bottom: 20px;">
+    <strong>No puedes confirmar el pedido:</strong>
+    <ul style="margin: 8px 0 0; padding-left: 20px;">
+        {% for problema in problemas_stock %}
+        <li>{{ problema }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('carrito.checkout') }}" class="bh-checkout-grid">
+    <div class="bh-checkout-main">
+        <!-- SECCIÓN 1: DIRECCIÓN DE ENTREGA -->
+        <div class="bh-section-box">
+            <div class="bh-section-title">
+                <span class="bh-step-number">1</span>
+                <h3>Dirección de Entrega</h3>
+            </div>
+
+            {% if direcciones %}
+            <div class="bh-saved-options">
+                <p class="bh-helper-text">Selecciona una de tus direcciones registradas:</p>
+                {% for dir in direcciones %}
+                <label class="bh-option-card">
+                    <input type="radio" name="opcion_direccion" value="guardada" {% if loop.first %}checked{% endif %} onchange="toggleNuevaDireccion(false)">
+                    <input type="radio" name="id_direccion" value="{{ dir.id_direccion }}" {% if loop.first %}checked{% endif %} style="display:none;" id="dir_radio_{{ dir.id_direccion }}">
+                    <div class="bh-option-content" onclick="document.getElementById('dir_radio_{{ dir.id_direccion }}').checked = true;">
+                        <div class="bh-option-header">
+                            <strong>{{ dir.alias or 'Dirección' }}</strong>
+                            {% if dir.es_principal %}
+                            <span class="bh-badge-tag">Principal</span>
+                            {% endif %}
+                        </div>
+                        <p class="bh-option-desc">{{ dir.linea_direccion }}, {{ dir.ciudad }}{% if dir.departamento %}, {{ dir.departamento }}{% endif %}</p>
+                    </div>
+                </label>
+                {% endfor %}
+
+                <label class="bh-option-card bh-option-new">
+                    <input type="radio" name="opcion_direccion" value="nueva" id="opcion_dir_nueva" onchange="toggleNuevaDireccion(true)">
+                    <div class="bh-option-content">
+                        <strong>+ Usar otra dirección</strong>
+                    </div>
+                </label>
+            </div>
+            {% endif %}
+
+            <div id="nueva-direccion-fields" class="bh-new-fields" style="{% if direcciones %}display: none;{% endif %}">
+                <h4 class="bh-subtitle">{% if direcciones %}Nueva dirección de entrega:{% else %}Ingresa tu dirección de entrega:{% endif %}</h4>
+                <div class="bh-form-row">
+                    <div class="bh-field bh-col-6">
+                        <label for="alias_direccion">Alias (opcional)</label>
+                        <input type="text" id="alias_direccion" name="alias_direccion" placeholder="Ej. Casa, Oficina, Bar">
+                    </div>
+                    <div class="bh-field bh-col-6">
+                        <label for="ciudad">Ciudad *</label>
+                        <input type="text" id="ciudad" name="ciudad" placeholder="Ej. Bogotá, Medellín, Cali" {% if not direcciones %}required{% endif %}>
+                    </div>
+                </div>
+
+                <div class="bh-field">
+                    <label for="linea_direccion">Dirección completa *</label>
+                    <input type="text" id="linea_direccion" name="linea_direccion" placeholder="Calle / Carrera / Avenida # - Apto o Casa" {% if not direcciones %}required{% endif %}>
+                </div>
+
+                <div class="bh-form-row">
+                    <div class="bh-field bh-col-6">
+                        <label for="departamento">Departamento / Estado</label>
+                        <input type="text" id="departamento" name="departamento" placeholder="Ej. Cundinamarca, Antioquia">
+                    </div>
+                    <div class="bh-field bh-col-6">
+                        <label for="codigo_postal">Código Postal (opcional)</label>
+                        <input type="text" id="codigo_postal" name="codigo_postal" placeholder="Ej. 110111">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: MÉTODO DE PAGO -->
+        <div class="bh-section-box">
+            <div class="bh-section-title">
+                <span class="bh-step-number">2</span>
+                <h3>Método de Pago</h3>
+            </div>
+
+            {% if metodos_pago %}
+            <div class="bh-saved-options">
+                <p class="bh-helper-text">Selecciona uno de tus métodos de pago guardados:</p>
+                {% for mp in metodos_pago %}
+                <label class="bh-option-card">
+                    <input type="radio" name="opcion_pago" value="guardado" {% if loop.first %}checked{% endif %} onchange="toggleNuevoPago(false)">
+                    <input type="radio" name="id_metodo_pago" value="{{ mp.id_metodo_pago }}" {% if loop.first %}checked{% endif %} style="display:none;" id="mp_radio_{{ mp.id_metodo_pago }}">
+                    <div class="bh-option-content" onclick="document.getElementById('mp_radio_{{ mp.id_metodo_pago }}').checked = true;">
+                        <div class="bh-option-header">
+                            <strong>{{ mp.tipo }}</strong>
+                            {% if mp.es_predeterminado %}
+                            <span class="bh-badge-tag">Predeterminado</span>
+                            {% endif %}
+                        </div>
+                        {% if mp.detalle %}
+                        <p class="bh-option-desc">{{ mp.detalle }}</p>
+                        {% endif %}
+                    </div>
+                </label>
+                {% endfor %}
+
+                <label class="bh-option-card bh-option-new">
+                    <input type="radio" name="opcion_pago" value="nuevo" id="opcion_pago_nuevo" onchange="toggleNuevoPago(true)">
+                    <div class="bh-option-content">
+                        <strong>+ Usar otro método de pago</strong>
+                    </div>
+                </label>
+            </div>
+            {% endif %}
+
+            <div id="nuevo-pago-fields" class="bh-new-fields" style="{% if metodos_pago %}display: none;{% endif %}">
+                <h4 class="bh-subtitle">{% if metodos_pago %}Nuevo método de pago:{% else %}Selecciona tu método de pago:{% endif %}</h4>
+                <div class="bh-field">
+                    <label for="tipo_pago">Tipo de Pago *</label>
+                    <select id="tipo_pago" name="tipo_pago" {% if not metodos_pago %}required{% endif %}>
+                        <option value="">-- Selecciona una opción --</option>
+                        <option value="Tarjeta de crédito">Tarjeta de Crédito</option>
+                        <option value="Tarjeta de débito">Tarjeta de Débito</option>
+                        <option value="Transferencia Bancaria (PSE)">Transferencia Bancaria (PSE)</option>
+                        <option value="Nequi / Daviplata">Nequi / Daviplata</option>
+                        <option value="Efectivo contra entrega">Efectivo contra entrega</option>
+                    </select>
+                </div>
+
+                <div class="bh-field">
+                    <label for="detalle_pago">Detalle o Referencia (opcional)</label>
+                    <input type="text" id="detalle_pago" name="detalle_pago" placeholder="Ej. Terminada en 4242, Celular Nequi, etc.">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: RESUMEN Y CONFIRMACIÓN -->
+    <div class="bh-checkout-sidebar">
+        <div class="bh-summary-box">
+            <h3>Resumen del Pedido</h3>
+
+            <div class="bh-summary-items">
+                {% for item in items %}
+                <div class="bh-summary-row">
+                    <div class="bh-summary-info">
+                        <span class="bh-summary-name">{{ item.nombre_producto }}</span>
+                        <span class="bh-summary-meta">{{ item.cantidad }}x {{ item.presentacion }} (${{ "{:,.2f}".format(item.precio) }})</span>
+                    </div>
+                    <span class="bh-summary-price bh-mono">${{ "{:,.2f}".format(item.precio * item.cantidad) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="bh-summary-divider"></div>
+
+            <div class="bh-summary-total">
+                <span>Total a Pagar</span>
+                <strong class="bh-total-amount bh-mono">${{ "{:,.2f}".format(total) }}</strong>
+            </div>
+
+            <button type="submit" class="bh-btn bh-btn-primary bh-btn-block bh-btn-lg" style="margin-top: 20px;"
+                {% if problemas_stock %}disabled{% endif %}>
+                {% if problemas_stock %}Revisa el stock en tu carrito{% else %}Confirmar y Realizar Pedido{% endif %}
+            </button>
+
+            <p class="bh-secure-note">
+                🔒 Compra 100% segura con Beer House
+            </p>
+        </div>
+    </div>
+</form>
+
+<script>
+function toggleNuevaDireccion(mostrar) {
+    const contenedor = document.getElementById('nueva-direccion-fields');
+    const inputDir = document.getElementById('linea_direccion');
+    const inputCiudad = document.getElementById('ciudad');
+    if (contenedor) {
+        contenedor.style.display = mostrar ? 'block' : 'none';
+        if (inputDir && inputCiudad) {
+            inputDir.required = mostrar;
+            inputCiudad.required = mostrar;
+        }
+    }
+}
+
+function toggleNuevoPago(mostrar) {
+    const contenedor = document.getElementById('nuevo-pago-fields');
+    const selectTipo = document.getElementById('tipo_pago');
+    if (contenedor) {
+        contenedor.style.display = mostrar ? 'block' : 'none';
+        if (selectTipo) {
+            selectTipo.required = mostrar;
+        }
+    }
+}
+</script>
+{% endblock %}

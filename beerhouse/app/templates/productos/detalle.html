@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ producto.nombre_producto }} — Beer House{% endblock %}
+{% block content %}
+<h2>{{ producto.nombre_producto }}</h2>
+<div class="bh-card-meta" style="margin-bottom:14px;">{{ producto.marca }}</div>
+<p>{{ producto.descripcion }}</p>
+
+<form method="POST" action="{{ url_for('carrito.agregar') }}" class="bh-form">
+    <div class="bh-field">
+        <label>Presentación</label>
+        <select name="id_variante">
+            {% for v in variantes %}
+            <option value="{{ v.id_variante }}">{{ v.presentacion }} — ${{ v.precio }} ({{ v.stock }} disponibles)</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="bh-field" style="max-width:120px;">
+        <label>Cantidad</label>
+        <input type="number" name="cantidad" value="1" min="1">
+    </div>
+    <button type="submit" class="bh-btn">Agregar al carrito</button>
+</form>
+{% endblock %}

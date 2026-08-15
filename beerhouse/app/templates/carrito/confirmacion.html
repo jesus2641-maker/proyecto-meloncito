@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Pedido Confirmado #{{ pedido.id_pedido }} — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-confirmation-wrapper">
+    <div class="bh-confirmation-badge">
+        <span class="bh-check-icon">✓</span>
+        <h2>¡Pedido Confirmado con Éxito!</h2>
+        <p class="bh-confirmation-subtitle">Gracias por tu compra. Hemos registrado tu pedido y estamos preparándolo.</p>
+    </div>
+
+    <div class="bh-confirmation-grid">
+        <div class="bh-order-card">
+            <div class="bh-order-header">
+                <div>
+                    <span class="bh-meta-label">Número de Pedido</span>
+                    <h3>#{{ pedido.id_pedido }}</h3>
+                </div>
+                <div style="text-align: right;">
+                    <span class="bh-meta-label">Estado</span>
+                    <div><span class="bh-status-badge bh-status-{{ pedido.nombre_estado }}">{{ pedido.nombre_estado|capitalize }}</span></div>
+                </div>
+            </div>
+
+            <div class="bh-order-meta-grid">
+                <div>
+                    <span class="bh-meta-label">Fecha del Pedido:</span>
+                    <p>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'Hoy' }}</p>
+                </div>
+                <div>
+                    <span class="bh-meta-label">Cliente:</span>
+                    <p>{{ pedido.usuario_nombre }} ({{ pedido.usuario_email }})</p>
+                </div>
+                <div>
+                    <span class="bh-meta-label">Dirección de Entrega:</span>
+                    <p>
+                        {% if pedido.dir_alias %}<strong>{{ pedido.dir_alias }}: </strong>{% endif %}
+                        {{ pedido.linea_direccion }}, {{ pedido.ciudad }}
+                        {% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}
+                    </p>
+                </div>
+                <div>
+                    <span class="bh-meta-label">Método de Pago:</span>
+                    <p>
+                        {{ pedido.tipo_pago or 'No especificado' }}
+                        {% if pedido.detalle_pago %} ({{ pedido.detalle_pago }}){% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <h4 class="bh-subtitle" style="margin-top: 24px;">Productos en este pedido</h4>
+            <div class="bh-table-container">
+                <table class="bh-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Presentación</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unitario</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in detalles %}
+                        <tr>
+                            <td><strong>{{ item.nombre_producto }}</strong></td>
+                            <td><span class="bh-badge-tag">{{ item.presentacion }}</span></td>
+                            <td>{{ item.cantidad }}</td>
+                            <td class="bh-mono">${{ "{:,.2f}".format(item.precio_unitario) }}</td>
+                            <td class="bh-mono">${{ "{:,.2f}".format(item.subtotal) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bh-table-total" style="margin-top: 20px;">
+                <span>Total pagado:</span>
+                <strong class="bh-total-amount">${{ "{:,.2f}".format(pedido.total) }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="bh-confirmation-actions">
+        <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Seguir Explorando el Catálogo</a>
+        <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn bh-btn-outline">Ver Historial de Mis Pedidos</a>
+    </div>
+</div>
+{% endblock %}

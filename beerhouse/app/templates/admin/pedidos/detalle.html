@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Detalle de Pedido #{{ pedido.id_pedido }} — Admin — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Pedido #{{ pedido.id_pedido }}</h2>
+        <p class="bh-meta-label">Fecha: {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—' }}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.pedidos') }}" class="bh-btn bh-btn-outline">&larr; Volver a Pedidos</a>
+    </div>
+</div>
+
+<div class="bh-checkout-grid">
+    <!-- COLUMNA IZQUIERDA: DETALLE DE PRODUCTOS -->
+    <div>
+        <div class="bh-section-box">
+            <h3 class="bh-subtitle" style="margin-top: 0;">Productos Solicitados ({{ detalles|length }})</h3>
+
+            <div class="bh-table-container">
+                <table class="bh-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Presentación</th>
+                            <th>SKU</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unitario</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in detalles %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.nombre_producto }}</strong>
+                                {% if item.marca %}<br><small class="bh-meta-label">{{ item.marca }}</small>{% endif %}
+                            </td>
+                            <td><span class="bh-badge-tag">{{ item.presentacion }}</span></td>
+                            <td class="bh-mono"><small>{{ item.sku or '—' }}</small></td>
+                            <td><strong>{{ item.cantidad }}</strong></td>
+                            <td class="bh-mono">${{ "{:,.2f}".format(item.precio_unitario) }}</td>
+                            <td class="bh-mono">${{ "{:,.2f}".format(item.subtotal) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bh-table-total" style="margin-top: 24px;">
+                <span>Total de la Orden:</span>
+                <strong class="bh-total-amount">${{ "{:,.2f}".format(pedido.total) }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: INFORMACIÓN DEL CLIENTE Y GESTIÓN DE ESTADO -->
+    <div>
+        <!-- CAMBIAR ESTADO -->
+        <div class="bh-section-box" style="border-color: var(--amber);">
+            <h3 class="bh-subtitle" style="margin-top: 0;">Estado del Pedido</h3>
+            
+            <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}">
+                <input type="hidden" name="next" value="{{ url_for('admin.detalle_pedido', id_pedido=pedido.id_pedido) }}">
+                <div class="bh-field">
+                    <label for="id_estado">Modificar Estado</label>
+                    <select id="id_estado" name="id_estado" class="bh-select-lg">
+                        {% for est in estados %}
+                        <option value="{{ est.id_estado }}" {% if est.id_estado == pedido.id_estado %}selected{% endif %}>
+                            {{ est.nombre_estado|capitalize }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="bh-btn bh-btn-primary bh-btn-block">Actualizar Estado</button>
+            </form>
+        </div>
+
+        <!-- DATOS DEL CLIENTE Y ENTREGA -->
+        <div class="bh-section-box">
+            <h3 class="bh-subtitle" style="margin-top: 0;">Datos del Cliente</h3>
+            <p><strong>Nombre:</strong> {{ pedido.usuario_nombre }} {{ pedido.usuario_apellido }}</p>
+            <p><strong>Email:</strong> {{ pedido.usuario_email }}</p>
+            <p><strong>Teléfono:</strong> {{ pedido.usuario_telefono or 'No registrado' }}</p>
+
+            <h3 class="bh-subtitle" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 14px;">Dirección de Entrega</h3>
+            <p><strong>Alias:</strong> {{ pedido.dir_alias or 'Sin alias' }}</p>
+            <p><strong>Dirección:</strong> {{ pedido.linea_direccion or 'No especificada' }}</p>
+            <p><strong>Ciudad:</strong> {{ pedido.ciudad or '' }}{% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}</p>
+            {% if pedido.codigo_postal %}
+            <p><strong>Código Postal:</strong> {{ pedido.codigo_postal }}</p>
+            {% endif %}
+
+            <h3 class="bh-subtitle" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 14px;">Método de Pago</h3>
+            <p><strong>Tipo:</strong> {{ pedido.tipo_pago or 'No especificado' }}</p>
+            {% if pedido.detalle_pago %}
+            <p><strong>Detalle:</strong> {{ pedido.detalle_pago }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

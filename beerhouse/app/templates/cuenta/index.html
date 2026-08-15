@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Mi Cuenta — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <h2>Mi Cuenta</h2>
+    <p class="bh-meta-label">Administra tus datos, direcciones, métodos de pago y pedidos</p>
+</div>
+
+<div class="bh-account-dashboard">
+    <!-- Card Direcciones -->
+    <div class="bh-account-card">
+        <div class="bh-card-header">
+            <h3>Mis Direcciones</h3>
+            <a href="{{ url_for('cuenta.nueva_direccion') }}" class="bh-btn-sm bh-btn">+ Nueva</a>
+        </div>
+        <div class="bh-card-body">
+            {% if direcciones %}
+                <p>{{ direcciones|length }} dirección(es) registrada(s).</p>
+                <div class="bh-mini-list">
+                    {% for dir in direcciones[:2] %}
+                    <div class="bh-mini-item">
+                        <strong>{{ dir.alias or 'Dirección' }}</strong>: {{ dir.linea_direccion }}, {{ dir.ciudad }}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="bh-empty">No tienes direcciones registradas aún.</p>
+            {% endif %}
+        </div>
+        <div class="bh-card-footer">
+            <a href="{{ url_for('cuenta.direcciones') }}" class="bh-btn-link">Gestionar Direcciones &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Card Métodos de Pago -->
+    <div class="bh-account-card">
+        <div class="bh-card-header">
+            <h3>Métodos de Pago</h3>
+            <a href="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="bh-btn-sm bh-btn">+ Nuevo</a>
+        </div>
+        <div class="bh-card-body">
+            {% if metodos_pago %}
+                <p>{{ metodos_pago|length }} método(s) registrado(s).</p>
+                <div class="bh-mini-list">
+                    {% for mp in metodos_pago[:2] %}
+                    <div class="bh-mini-item">
+                        <strong>{{ mp.tipo }}</strong>{% if mp.detalle %} - {{ mp.detalle }}{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="bh-empty">No tienes métodos de pago guardados.</p>
+            {% endif %}
+        </div>
+        <div class="bh-card-footer">
+            <a href="{{ url_for('cuenta.metodos_pago') }}" class="bh-btn-link">Gestionar Métodos de Pago &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Card Pedidos -->
+    <div class="bh-account-card">
+        <div class="bh-card-header">
+            <h3>Mis Pedidos</h3>
+            <a href="{{ url_for('productos.catalogo') }}" class="bh-btn-sm bh-btn">Comprar</a>
+        </div>
+        <div class="bh-card-body">
+            {% if pedidos %}
+                <p>{{ pedidos|length }} pedido(s) realizado(s).</p>
+                <div class="bh-mini-list">
+                    {% for ped in pedidos[:2] %}
+                    <div class="bh-mini-item">
+                        <strong>Pedido #{{ ped.id_pedido }}</strong> - ${{ "{:,.2f}".format(ped.total) }} ({{ ped.nombre_estado }})
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="bh-empty">No has realizado pedidos aún.</p>
+            {% endif %}
+        </div>
+        <div class="bh-card-footer">
+            <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn-link">Ver Historial de Pedidos &rarr;</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

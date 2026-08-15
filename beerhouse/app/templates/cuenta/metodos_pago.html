@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Mis Métodos de Pago — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <div>
+        <h2>Mis Métodos de Pago</h2>
+        <p class="bh-meta-label">Métodos de pago guardados para agilizar tus compras</p>
+    </div>
+    <div>
+        <a href="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="bh-btn bh-btn-primary">+ Agregar Método de Pago</a>
+        <a href="{{ url_for('cuenta.index') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Volver a Mi Cuenta</a>
+    </div>
+</div>
+
+{% if metodos_pago %}
+<div class="bh-grid-cards">
+    {% for mp in metodos_pago %}
+    <div class="bh-item-box">
+        <div class="bh-item-header">
+            <div class="bh-item-title-group">
+                <h4>{{ mp.tipo }}</h4>
+                {% if mp.es_predeterminado %}
+                <span class="bh-badge-tag">Predeterminado</span>
+                {% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('cuenta.eliminar_metodo_pago') }}" onsubmit="return confirm('¿Estás seguro de eliminar este método de pago?');">
+                <input type="hidden" name="id_metodo_pago" value="{{ mp.id_metodo_pago }}">
+                <button type="submit" class="bh-btn-danger">Eliminar</button>
+            </form>
+        </div>
+        <div class="bh-item-content">
+            {% if mp.detalle %}
+            <p><strong>Detalle:</strong> {{ mp.detalle }}</p>
+            {% else %}
+            <p class="bh-empty">Sin detalles adicionales especificados</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bh-empty-state">
+    <p class="bh-empty">No tienes métodos de pago guardados.</p>
+    <a href="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="bh-btn" style="margin-top: 15px;">Agregar mi primer método de pago</a>
+</div>
+{% endif %}
+{% endblock %}

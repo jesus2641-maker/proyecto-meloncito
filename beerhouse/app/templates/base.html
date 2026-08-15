@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Beer House{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <header class="bh-nav">
+        <div class="bh-container bh-nav-inner">
+            <a class="bh-logo" href="{{ url_for('productos.catalogo') }}">
+                <span class="bh-cap">BH</span>
+                <span class="bh-logo-text">Beer House</span>
+            </a>
+            <nav class="bh-nav-links">
+                <a href="{{ url_for('productos.catalogo') }}">Catálogo</a>
+                <a href="{{ url_for('carrito.ver_carrito') }}">Carrito</a>
+                {% if session.get('id_usuario') %}
+                    <a href="{{ url_for('cuenta.index') }}">Mi Cuenta</a>
+                    {% if session.get('id_rol') == 2 %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="bh-nav-admin">⚡ Panel Admin</a>
+                    {% endif %}
+                    <span class="bh-nav-user">Hola, {{ session.get('nombre') }}</span>
+                    <a href="{{ url_for('auth.logout') }}" class="bh-nav-exit">Salir</a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}">Ingresar</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="bh-container bh-main">
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+            {% if mensajes %}
+                <div class="bh-flash-stack">
+                {% for categoria, mensaje in mensajes %}
+                    <div class="bh-alert bh-alert-{{ categoria }}">{{ mensaje }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bh-footer">
+        <div class="bh-container">Beer House &middot; Proyecto ADSO SENA</div>
+    </footer>
+</body>
+</html>

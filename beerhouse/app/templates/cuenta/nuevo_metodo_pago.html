@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Método de Pago — Beer House{% endblock %}
+
+{% block content %}
+<div class="bh-page-header">
+    <h2>Agregar Nuevo Método de Pago</h2>
+    <a href="{{ url_for('cuenta.metodos_pago') }}" class="bh-btn-link">&larr; Volver a Mis Métodos de Pago</a>
+</div>
+
+<div class="bh-form-container">
+    <form method="POST" action="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="bh-form-card">
+        <div class="bh-field">
+            <label for="tipo">Tipo de Método de Pago *</label>
+            <select id="tipo" name="tipo" required>
+                <option value="">-- Selecciona una opción --</option>
+                <option value="Tarjeta de crédito">Tarjeta de Crédito</option>
+                <option value="Tarjeta de débito">Tarjeta de Débito</option>
+                <option value="Transferencia Bancaria (PSE)">Transferencia Bancaria (PSE)</option>
+                <option value="Nequi / Daviplata">Nequi / Daviplata</option>
+                <option value="Efectivo contra entrega">Efectivo contra entrega</option>
+            </select>
+        </div>
+
+        <div class="bh-field">
+            <label for="detalle">Detalle o Identificador (opcional)</label>
+            <input type="text" id="detalle" name="detalle" placeholder="Ej. Visa terminada en 4242, Celular 3001234567, etc.">
+        </div>
+
+        <div class="bh-field bh-checkbox-field">
+            <label>
+                <input type="checkbox" name="es_predeterminado" value="1">
+                Establecer como método de pago predeterminado
+            </label>
+        </div>
+
+        <div class="bh-form-actions">
+            <button type="submit" class="bh-btn bh-btn-primary">Guardar Método de Pago</button>
+            <a href="{{ url_for('cuenta.metodos_pago') }}" class="bh-btn bh-btn-outline">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Administración de Productos — Beer House{% endblock %}
+
+{% block content %}
+{% include "admin/nav_admin.html" %}
+
+<div class="bh-page-header">
+    <div>
+        <h2>Gestión de Productos</h2>
+        <p class="bh-meta-label">Administra el catálogo de bebidas, precios, existencias y variantes</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.nuevo_producto') }}" class="bh-btn bh-btn-primary">+ Nuevo Producto</a>
+    </div>
+</div>
+
+<div class="bh-table-container">
+    <table class="bh-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Marca</th>
+                <th>Variantes</th>
+                <th>Rango de Precio</th>
+                <th>Stock Total</th>
+                <th>Estado</th>
+                <th style="text-align: right;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for prod in productos %}
+            <tr class="{% if not prod.activo %}bh-row-inactive{% endif %}">
+                <td><strong>#{{ prod.id_producto }}</strong></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        {% if prod.imagen_url %}
+                        <img src="{{ prod.imagen_url }}" alt="{{ prod.nombre_producto }}" class="bh-table-thumb">
+                        {% endif %}
+                        <div>
+                            <strong>{{ prod.nombre_producto }}</strong>
+                            {% if prod.descripcion %}
+                            <p class="bh-table-desc-sub">{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td><span class="bh-badge-tag">{{ prod.nombre_categoria or 'Sin categoría' }}</span></td>
+                <td>{{ prod.marca or '—' }}</td>
+                <td>
+                    <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="bh-btn-link" title="Gestionar Variantes">
+                        <strong>{{ prod.total_variantes }} variante(s)</strong> &rarr;
+                    </a>
+                </td>
+                <td class="bh-mono">
+                    {% if prod.precio_minimo %}
+                        {% if prod.precio_minimo == prod.precio_maximo %}
+                            ${{ "{:,.2f}".format(prod.precio_minimo) }}
+                        {% else %}
+                            ${{ "{:,.2f}".format(prod.precio_minimo) }} - ${{ "{:,.2f}".format(prod.precio_maximo) }}
+                        {% endif %}
+                    {% else %}
+                        <span class="bh-empty">Sin variantes</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if prod.stock_total > 10 %}
+                        <span class="bh-stock-ok">{{ prod.stock_total }} uds</span>
+                    {% elif prod.stock_total > 0 %}
+                        <span class="bh-stock-low">{{ prod.stock_total }} uds (Bajo)</span>
+                    {% else %}
+                        <span class="bh-stock-out">Agotado (0)</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.toggle_producto', id_producto=prod.id_producto) }}" style="display: inline;">
+                        <button type="submit" class="bh-toggle-btn {% if prod.activo %}bh-toggle-on{% else %}bh-toggle-off{% endif %}" title="Clic para alternar estado">
+                            {{ 'Activo' if prod.activo else 'Inactivo' }}
+                        </button>
+                    </form>
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="bh-btn bh-btn-sm bh-btn-outline" title="Gestionar Variantes / Stock">Variantes</a>
+                    <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="bh-btn bh-btn-sm bh-btn-outline" style="margin: 0 4px;" title="Editar">Editar</a>
+                    <form method="POST" action="{{ url_for('admin.eliminar_producto', id_producto=prod.id_producto) }}" style="display: inline;" onsubmit="return confirm('¿Seguro que deseas eliminar este producto?');">
+                        <button type="submit" class="bh-btn-danger" title="Eliminar">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="bh-empty" style="text-align: center; padding: 40px;">No hay productos registrados en la base de datos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

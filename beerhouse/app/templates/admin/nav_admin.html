@@ -1,0 +1,12 @@
+<div class="bh-admin-subnav">
+    <div class="bh-admin-title-badge">
+        <span class="bh-admin-indicator">●</span> ADMINISTRACIÓN
+    </div>
+    <div class="bh-admin-links">
+        <a href="{{ url_for('admin.dashboard') }}" class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">📊 Dashboard</a>
+        <a href="{{ url_for('admin.productos') }}" class="{% if 'admin.producto' in request.endpoint or 'admin.variante' in request.endpoint %}active{% endif %}">📦 Productos & Variantes</a>
+        <a href="{{ url_for('admin.categorias') }}" class="{% if 'admin.categoria' in request.endpoint %}active{% endif %}">🏷️ Categorías</a>
+        <a href="{{ url_for('admin.pedidos') }}" class="{% if 'admin.pedido' in request.endpoint %}active{% endif %}">🛒 Pedidos</a>
+        <a href="{{ url_for('admin.usuarios') }}" class="{% if 'admin.usuario' in request.endpoint %}active{% endif %}">👥 Usuarios</a>
+    </div>
+</div>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta — Beer House{% endblock %}
+{% block content %}
+<h2>Crear cuenta</h2>
+<form method="POST" class="bh-form">
+    <div class="bh-field">
+        <label>Nombre</label>
+        <input type="text" name="nombre" required>
+    </div>
+    <div class="bh-field">
+        <label>Apellido</label>
+        <input type="text" name="apellido" required>
+    </div>
+    <div class="bh-field">
+        <label>Correo</label>
+        <input type="email" name="email" required>
+    </div>
+    <div class="bh-field">
+        <label>Teléfono</label>
+        <input type="text" name="telefono">
+    </div>
+    <div class="bh-field">
+        <label>Contraseña</label>
+        <input type="password" name="password" required minlength="{{ min_password|default(6) }}">
+        <small class="bh-helper-text">Mínimo {{ min_password|default(6) }} caracteres</small>
+    </div>
+    <button type="submit" class="bh-btn">Registrarme</button>
+</form>
+{% endblock %}
