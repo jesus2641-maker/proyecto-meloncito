@@ -1,0 +1,55 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Variantes de {{ producto.nombre_producto }} — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Variantes</p>
+            <h1>{{ producto.nombre_producto }}</h1>
+            <p>Marca: {{ producto.marca or '—' }} | Categoría: {{ producto.nombre_categoria }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('trabajador.productos') }}" class="btn btn-outline">Volver a Productos</a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Variantes Registradas ({{ variantes|length }})</h2>
+        </div>
+
+        {% if variantes %}
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Presentación</th>
+                        <th>Precio ($)</th>
+                        <th>Stock</th>
+                        <th>SKU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in variantes %}
+                    <tr>
+                        <td>{{ v.presentacion }}</td>
+                        <td>${{ "{:,.2f}".format(v.precio) }}</td>
+                        <td>{{ v.stock }}</td>
+                        <td>{{ v.sku or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>Este producto aún no tiene variantes</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

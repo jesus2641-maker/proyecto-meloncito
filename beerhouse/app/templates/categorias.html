@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Categorías — Beer House Premium{% endblock %}
+{% block content %}
+<!-- Categories Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Explora por Tipo</p>
+            <h1>Categorías Premium</h1>
+            <p>Descubre nuestra selección de licores organizada por categorías para encontrar exactamente lo que buscas.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Grid -->
+<section class="container">
+    {% if categorias %}
+    <div class="grid grid-3">
+        {% for cat in categorias %}
+        <div class="card category-card">
+            <div class="card-image" style="
+                {% if cat.imagen_url %}
+                background-image: url('{{ cat.imagen_url }}');
+                {% else %}
+                background: linear-gradient(135deg, var(--gold-primary) 0%, #b8860b 100%);
+                {% endif %}
+                background-size: cover;
+                background-position: center;
+                height: 250px;
+            "></div>
+            <div class="card-content">
+                <h3 class="card-title">{{ cat.nombre_categoria }}</h3>
+                <p class="card-description">{{ cat.descripcion or 'Explora nuestra selección de ' + cat.nombre_categoria }}</p>
+                <a href="{{ url_for('productos.catalogo', categoria=cat.id_categoria) }}" class="btn btn-outline">Explorar {{ cat.nombre_categoria }}</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+        <p>No hay categorías disponibles en este momento.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,48 +1,105 @@
 {% extends "base.html" %}
-{% block title %}Mis Direcciones — Beer House{% endblock %}
+{% block title %}Mis Direcciones — Beer House Premium{% endblock %}
 
 {% block content %}
-<div class="bh-page-header">
-    <div>
-        <h2>Mis Direcciones</h2>
-        <p class="bh-meta-label">Direcciones registradas para el envío de tus pedidos</p>
+<!-- Addresses Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Ubicaciones de Entrega</p>
+            <h1>Mis Direcciones</h1>
+            <p>Gestiona las direcciones donde deseas recibir tus licores premium.</p>
+        </div>
     </div>
-    <div>
-        <a href="{{ url_for('cuenta.nueva_direccion') }}" class="bh-btn bh-btn-primary">+ Agregar Dirección</a>
-        <a href="{{ url_for('cuenta.index') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Volver a Mi Cuenta</a>
-    </div>
-</div>
+</section>
 
-{% if direcciones %}
-<div class="bh-grid-cards">
-    {% for dir in direcciones %}
-    <div class="bh-item-box">
-        <div class="bh-item-header">
-            <div class="bh-item-title-group">
-                <h4>{{ dir.alias or 'Dirección' }}</h4>
-                {% if dir.es_principal %}
-                <span class="bh-badge-tag">Principal</span>
-                {% endif %}
-            </div>
-            <form method="POST" action="{{ url_for('cuenta.eliminar_direccion') }}" onsubmit="return confirm('¿Estás seguro de eliminar esta dirección?');">
-                <input type="hidden" name="id_direccion" value="{{ dir.id_direccion }}">
-                <button type="submit" class="bh-btn-danger">Eliminar</button>
-            </form>
-        </div>
-        <div class="bh-item-content">
-            <p><strong>Dirección:</strong> {{ dir.linea_direccion }}</p>
-            <p><strong>Ciudad:</strong> {{ dir.ciudad }}{% if dir.departamento %}, {{ dir.departamento }}{% endif %}</p>
-            {% if dir.codigo_postal %}
-            <p><strong>Código Postal:</strong> {{ dir.codigo_postal }}</p>
-            {% endif %}
-        </div>
+<section class="container">
+    <div class="page-actions">
+        <a href="{{ url_for('cuenta.index') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Mi Cuenta
+        </a>
+        <a href="{{ url_for('cuenta.nueva_direccion') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Agregar Dirección
+        </a>
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="bh-empty-state">
-    <p class="bh-empty">No tienes ninguna dirección registrada.</p>
-    <a href="{{ url_for('cuenta.nueva_direccion') }}" class="bh-btn" style="margin-top: 15px;">Registrar mi primera dirección</a>
-</div>
-{% endif %}
+
+    {% if direcciones %}
+    <div class="addresses-grid">
+        {% for dir in direcciones %}
+        <div class="address-card">
+            <div class="address-card-header">
+                <div class="address-title-group">
+                    <h3>{{ dir.alias or 'Dirección' }}</h3>
+                    {% if dir.es_principal %}
+                    <span class="badge badge-category">Principal</span>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('cuenta.eliminar_direccion') }}" onsubmit="return confirm('¿Estás seguro de eliminar esta dirección?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id_direccion" value="{{ dir.id_direccion }}">
+                    <button type="submit" class="address-delete-btn" title="Eliminar dirección">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="address-card-body">
+                <div class="address-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                
+                <div class="address-details">
+                    <div class="address-detail-row">
+                        <span class="address-detail-label">Dirección:</span>
+                        <span class="address-detail-value">{{ dir.linea_direccion }}</span>
+                    </div>
+                    <div class="address-detail-row">
+                        <span class="address-detail-label">Ciudad:</span>
+                        <span class="address-detail-value">{{ dir.ciudad }}{% if dir.departamento %}, {{ dir.departamento }}{% endif %}</span>
+                    </div>
+                    {% if dir.codigo_postal %}
+                    <div class="address-detail-row">
+                        <span class="address-detail-label">Código Postal:</span>
+                        <span class="address-detail-value">{{ dir.codigo_postal }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-addresses">
+        <div class="empty-addresses-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        </div>
+        <h2>No Tienes Direcciones Registradas</h2>
+        <p>Agrega tu primera dirección para comenzar a recibir tus pedidos premium.</p>
+        <a href="{{ url_for('cuenta.nueva_direccion') }}" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Registrar Primera Dirección
+        </a>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

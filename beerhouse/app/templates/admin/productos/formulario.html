@@ -1,98 +1,132 @@
-{% extends "base.html" %}
-{% block title %}{% if producto %}Editar Producto: {{ producto.nombre_producto }}{% else %}Nuevo Producto{% endif %} — Admin — Beer House{% endblock %}
+{% extends "admin/base_admin.html" %}
+{% block title %}{% if producto %}Editar Producto: {{ producto.nombre_producto }}{% else %}Nuevo Producto{% endif %} — Admin — Beer House Premium{% endblock %}
 
-{% block content %}
-{% include "admin/nav_admin.html" %}
-
-<div class="bh-page-header">
-    <div>
-        <h2>{% if producto %}Editar Producto #{{ producto.id_producto }}{% else %}Crear Nuevo Producto{% endif %}</h2>
-        <p class="bh-meta-label">{% if producto %}Modifica los detalles generales del producto{% else %}Registra una nueva bebida en el catálogo general{% endif %}</p>
+{% block admin_content %}
+<!-- Admin Product Form Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Catálogo</p>
+            <h1>{% if producto %}Editar Producto #{{ producto.id_producto }}{% else %}Crear Nuevo Producto{% endif %}</h1>
+            <p>{% if producto %}Modifica los detalles generales del producto{% else %}Registra una nueva bebida premium en el catálogo{% endif %}</p>
+        </div>
     </div>
-    <div>
-        <a href="{{ url_for('admin.productos') }}" class="bh-btn bh-btn-outline">&larr; Volver al Listado</a>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al Listado
+        </a>
     </div>
-</div>
 
-<div class="bh-form-container" style="max-width: 700px;">
-    <form method="POST" action="{% if producto %}{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}{% else %}{{ url_for('admin.nuevo_producto') }}{% endif %}" class="bh-form-card">
-        
-        <h3 class="bh-subtitle">1. Información General</h3>
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="nombre_producto">Nombre del Producto *</label>
-                <input type="text" id="nombre_producto" name="nombre_producto" value="{{ producto.nombre_producto if producto else '' }}" placeholder="Ej. Corona Extra 355ml" required>
+    <div class="form-container">
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </div>
+                <h2>Información del Producto</h2>
             </div>
-            <div class="bh-field bh-col-6">
-                <label for="id_categoria">Categoría *</label>
-                <select id="id_categoria" name="id_categoria" required>
-                    <option value="">-- Seleccionar Categoría --</option>
-                    {% for cat in categorias %}
-                    <option value="{{ cat.id_categoria }}" {% if producto and producto.id_categoria == cat.id_categoria %}selected{% endif %}>
-                        {{ cat.nombre_categoria }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
+            
+            <form method="POST" action="{% if producto %}{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}{% else %}{{ url_for('admin.nuevo_producto') }}{% endif %}" class="premium-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-section">
+                    <h3 class="form-section-title">1. Información General</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nombre del Producto *</label>
+                            <input type="text" id="nombre_producto" name="nombre_producto" class="form-input" value="{{ producto.nombre_producto if producto else '' }}" placeholder="Ej. Corona Extra 355ml" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categorías * (puedes seleccionar varias)</label>
+                            <select id="categorias" name="categorias" class="filter-select" multiple required>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id_categoria }}" {% if producto and producto.categoria_ids and cat.id_categoria|string in producto.categoria_ids %}selected{% endif %}>
+                                    {{ cat.nombre_categoria }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-helper">Mantén presionada Ctrl (o Cmd en Mac) para seleccionar múltiples categorías</small>
+                        </div>
+                    </div>
 
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="marca">Marca</label>
-                <input type="text" id="marca" name="marca" value="{{ producto.marca if producto and producto.marca else '' }}" placeholder="Ej. Heineken, Club Colombia, Johnnie Walker">
-            </div>
-            <div class="bh-field bh-col-6">
-                <label for="imagen_url">URL de Imagen (opcional)</label>
-                <input type="text" id="imagen_url" name="imagen_url" value="{{ producto.imagen_url if producto and producto.imagen_url else '' }}" placeholder="https://ejemplo.com/cerveza.jpg">
-            </div>
-        </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Marca</label>
+                            <input type="text" id="marca" name="marca" class="form-input" value="{{ producto.marca if producto and producto.marca else '' }}" placeholder="Ej. Heineken, Club Colombia, Johnnie Walker">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">URL de Imagen (opcional)</label>
+                            <input type="text" id="imagen_url" name="imagen_url" class="form-input" value="{{ producto.imagen_url if producto and producto.imagen_url else '' }}" placeholder="https://ejemplo.com/cerveza.jpg">
+                        </div>
+                    </div>
 
-        <div class="bh-field">
-            <label for="descripcion">Descripción</label>
-            <textarea id="descripcion" name="descripcion" rows="3" class="bh-textarea" placeholder="Breve descripción de notas de sabor, origen o graduación alcohólica...">{{ producto.descripcion if producto and producto.descripcion else '' }}</textarea>
-        </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción</label>
+                        <textarea id="descripcion" name="descripcion" class="form-input" rows="3" placeholder="Breve descripción de notas de sabor, origen o graduación alcohólica...">{{ producto.descripcion if producto and producto.descripcion else '' }}</textarea>
+                    </div>
 
-        {% if producto %}
-        <div class="bh-field bh-checkbox-field">
-            <label>
-                <input type="checkbox" name="activo" value="1" {% if producto.activo %}checked{% endif %}>
-                Producto Activo (visible en el catálogo para clientes)
-            </label>
-        </div>
-        {% else %}
-        <!-- Si es nuevo producto, permitir crear la primera variante de inmediato -->
-        <h3 class="bh-subtitle" style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px;">2. Primera Variante / Presentación (Opcional)</h3>
-        <p class="bh-helper-text">Puedes ingresar la primera presentación de este producto ahora (o agregar más después):</p>
-        
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="presentacion">Presentación</label>
-                <input type="text" id="presentacion" name="presentacion" placeholder="Ej. 330ml, Pack x6, 750ml">
-            </div>
-            <div class="bh-field bh-col-6">
-                <label for="precio">Precio Unitario ($)</label>
-                <input type="number" step="0.01" id="precio" name="precio" placeholder="Ej. 8500.00">
-            </div>
-        </div>
+                    {% if producto %}
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="activo" value="1" {% if producto.activo %}checked{% endif %}>
+                            <span>Producto Activo (visible en el catálogo para clientes)</span>
+                        </label>
+                    </div>
+                    {% endif %}
+                </div>
 
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="stock">Stock Inicial</label>
-                <input type="number" id="stock" name="stock" value="0" min="0">
-            </div>
-            <div class="bh-field bh-col-6">
-                <label for="sku">SKU / Código Referencia (opcional)</label>
-                <input type="text" id="sku" name="sku" placeholder="Ej. COR-355">
-            </div>
-        </div>
-        {% endif %}
+                {% if not producto %}
+                <div class="form-section">
+                    <h3 class="form-section-title">2. Primera Variante / Presentación (Opcional)</h3>
+                    <p class="form-helper">Puedes ingresar la primera presentación de este producto ahora (o agregar más después):</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Presentación</label>
+                            <input type="text" id="presentacion" name="presentacion" class="form-input" placeholder="Ej. 330ml, Pack x6, 750ml">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Precio Unitario ($)</label>
+                            <input type="number" step="0.01" id="precio" name="precio" class="form-input" placeholder="Ej. 8500.00">
+                        </div>
+                    </div>
 
-        <div class="bh-form-actions" style="margin-top: 28px;">
-            <button type="submit" class="bh-btn bh-btn-primary">
-                {% if producto %}Guardar Cambios del Producto{% else %}Crear Producto en Catálogo{% endif %}
-            </button>
-            <a href="{{ url_for('admin.productos') }}" class="bh-btn bh-btn-outline">Cancelar</a>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Stock Inicial</label>
+                            <input type="number" id="stock" name="stock" class="form-input" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">SKU / Código Referencia (opcional)</label>
+                            <input type="text" id="sku" name="sku" class="form-input" placeholder="Ej. COR-355">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 13 7 21"></polyline>
+                        </svg>
+                        {% if producto %}Guardar Cambios del Producto{% else %}Crear Producto en Catálogo{% endif %}
+                    </button>
+                    <a href="{{ url_for('admin.productos') }}" class="btn btn-outline btn-lg">Cancelar</a>
+                </div>
+            </form>
         </div>
-    </form>
-</div>
+    </div>
+</section>
 {% endblock %}

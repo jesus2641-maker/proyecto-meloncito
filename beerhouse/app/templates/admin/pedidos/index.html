@@ -1,75 +1,113 @@
-{% extends "base.html" %}
-{% block title %}Gestión de Pedidos — Admin — Beer House{% endblock %}
+{% extends "admin/base_admin.html" %}
+{% block title %}Gestión de Pedidos — Admin — Beer House Premium{% endblock %}
 
-{% block content %}
-{% include "admin/nav_admin.html" %}
-
-<div class="bh-page-header">
-    <div>
-        <h2>Gestión de Pedidos</h2>
-        <p class="bh-meta-label">Monitorea y actualiza el estado de las órdenes de los clientes</p>
+{% block admin_content %}
+<!-- Admin Orders Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Control de Órdenes</p>
+            <h1>Gestión de Pedidos</h1>
+            <p>Monitorea y actualiza el estado de las órdenes de los clientes premium</p>
+        </div>
     </div>
-</div>
+</section>
 
-<!-- FILTROS POR ESTADO -->
-<div class="bh-filter-bar">
-    <span>Filtrar por estado:</span>
-    <a href="{{ url_for('admin.pedidos') }}" class="bh-filter-chip {% if not filtro_actual %}active{% endif %}">Todos</a>
-    {% for est in estados %}
-    <a href="{{ url_for('admin.pedidos', estado=est.nombre_estado) }}" class="bh-filter-chip {% if filtro_actual == est.nombre_estado %}active{% endif %}">
-        {{ est.nombre_estado|capitalize }}
-    </a>
-    {% endfor %}
-</div>
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Dashboard
+        </a>
+        <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Productos
+        </a>
+    </div>
 
-<div class="bh-table-container" style="margin-top: 20px;">
-    <table class="bh-table">
-        <thead>
-            <tr>
-                <th>N° Pedido</th>
-                <th>Fecha y Hora</th>
-                <th>Cliente</th>
-                <th>Destino</th>
-                <th>Método Pago</th>
-                <th>Total</th>
-                <th>Estado del Pedido</th>
-                <th style="text-align: right;">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ped in pedidos %}
-            <tr>
-                <td><strong>#{{ ped.id_pedido }}</strong></td>
-                <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
-                <td>
-                    <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong><br>
-                    <small class="bh-meta-label">{{ ped.usuario_email }}</small>
-                </td>
-                <td>{{ ped.linea_direccion or '—' }} ({{ ped.ciudad or '' }})</td>
-                <td>{{ ped.tipo_pago or '—' }}</td>
-                <td class="bh-mono"><strong>${{ "{:,.2f}".format(ped.total) }}</strong></td>
-                <td>
-                    <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="bh-inline-form">
-                        <input type="hidden" name="next" value="{{ request.full_path }}">
-                        <select name="id_estado" onchange="this.form.submit()" class="bh-select-sm bh-status-select-{{ ped.nombre_estado }}">
-                            {% for est in estados %}
-                            <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
-                                {{ est.nombre_estado|capitalize }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </form>
-                </td>
-                <td style="text-align: right;">
-                    <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="bh-btn bh-btn-sm bh-btn-outline">Ver Detalle</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="8" class="bh-empty" style="text-align: center; padding: 40px;">No se encontraron pedidos con el filtro seleccionado.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    <!-- FILTROS POR ESTADO -->
+    <div class="admin-filter-bar">
+        <span class="filter-label">Filtrar por estado:</span>
+        <a href="{{ url_for('admin.pedidos') }}" class="filter-chip {% if not filtro_actual %}active{% endif %}">Todos</a>
+        {% for est in estados %}
+        <a href="{{ url_for('admin.pedidos', estado=est.nombre_estado) }}" class="filter-chip {% if filtro_actual == est.nombre_estado %}active{% endif %}">
+            {{ est.nombre_estado|capitalize }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>N° Pedido</th>
+                        <th>Fecha y Hora</th>
+                        <th>Cliente</th>
+                        <th>Destino</th>
+                        <th>Método Pago</th>
+                        <th>Total</th>
+                        <th>Estado del Pedido</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ped in pedidos %}
+                    <tr>
+                        <td><strong>#{{ ped.id_pedido }}</strong></td>
+                        <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                        <td>
+                            <div class="customer-info">
+                                <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong>
+                                <small>{{ ped.usuario_email }}</small>
+                            </div>
+                        </td>
+                        <td>{{ ped.linea_direccion or '—' }} ({{ ped.ciudad or '' }})</td>
+                        <td>{{ ped.tipo_pago or '—' }}</td>
+                        <td class="table-amount">${{ "{:,.2f}".format(ped.total) }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="next" value="{{ request.full_path }}">
+                                <select name="id_estado" onchange="this.form.submit()" class="status-select status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">
+                                    {% for est in estados %}
+                                    <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
+                                        {{ est.nombre_estado|capitalize }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Ver Detalle</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state-admin">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                                </svg>
+                                <p>No se encontraron pedidos con el filtro seleccionado</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
 {% endblock %}

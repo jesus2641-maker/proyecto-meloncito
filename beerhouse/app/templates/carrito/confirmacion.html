@@ -1,89 +1,107 @@
 {% extends "base.html" %}
-{% block title %}Pedido Confirmado #{{ pedido.id_pedido }} — Beer House{% endblock %}
+{% block title %}Pedido Confirmado #{{ pedido.id_pedido }} — Beer House Premium{% endblock %}
 
 {% block content %}
-<div class="bh-confirmation-wrapper">
-    <div class="bh-confirmation-badge">
-        <span class="bh-check-icon">✓</span>
-        <h2>¡Pedido Confirmado con Éxito!</h2>
-        <p class="bh-confirmation-subtitle">Gracias por tu compra. Hemos registrado tu pedido y estamos preparándolo.</p>
+<!-- Confirmation Hero Section -->
+<section class="confirmation-hero">
+    <div class="container">
+        <div class="confirmation-content">
+            <div class="success-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11 6"></polyline>
+                </svg>
+            </div>
+            <h1>¡Pedido Confirmado con Éxito!</h1>
+            <p>Gracias por tu compra premium. Hemos registrado tu pedido y estamos preparándolo con el mayor cuidado.</p>
+        </div>
     </div>
+</section>
 
-    <div class="bh-confirmation-grid">
-        <div class="bh-order-card">
-            <div class="bh-order-header">
-                <div>
-                    <span class="bh-meta-label">Número de Pedido</span>
-                    <h3>#{{ pedido.id_pedido }}</h3>
+<section class="container">
+    <div class="confirmation-wrapper">
+        <div class="order-confirmation-card">
+            <div class="order-confirmation-header">
+                <div class="order-number-badge">
+                    <span class="order-label">Pedido</span>
+                    <span class="order-id">#{{ pedido.id_pedido }}</span>
                 </div>
-                <div style="text-align: right;">
-                    <span class="bh-meta-label">Estado</span>
-                    <div><span class="bh-status-badge bh-status-{{ pedido.nombre_estado }}">{{ pedido.nombre_estado|capitalize }}</span></div>
+                <div class="order-status">
+                    <span class="status-badge status-{{ pedido.nombre_estado|replace(' ', '-')|lower }}">{{ pedido.nombre_estado|capitalize }}</span>
                 </div>
             </div>
 
-            <div class="bh-order-meta-grid">
-                <div>
-                    <span class="bh-meta-label">Fecha del Pedido:</span>
-                    <p>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'Hoy' }}</p>
+            <div class="order-confirmation-body">
+                <div class="order-meta-grid">
+                    <div class="order-meta-item">
+                        <span class="order-meta-label">Fecha del Pedido</span>
+                        <span class="order-meta-value">{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'Hoy' }}</span>
+                    </div>
+                    <div class="order-meta-item">
+                        <span class="order-meta-label">Cliente</span>
+                        <span class="order-meta-value">{{ pedido.usuario_nombre }}</span>
+                        <span class="order-meta-sub">{{ pedido.usuario_email }}</span>
+                    </div>
+                    <div class="order-meta-item">
+                        <span class="order-meta-label">Dirección de Entrega</span>
+                        <span class="order-meta-value">
+                            {% if pedido.dir_alias %}<strong>{{ pedido.dir_alias }}</strong>{% endif %}
+                            {{ pedido.linea_direccion }}, {{ pedido.ciudad }}
+                            {% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}
+                        </span>
+                    </div>
+                    <div class="order-meta-item">
+                        <span class="order-meta-label">Método de Pago</span>
+                        <span class="order-meta-value">
+                            {{ pedido.tipo_pago or 'No especificado' }}
+                            {% if pedido.detalle_pago %} ({{ pedido.detalle_pago }}){% endif %}
+                        </span>
+                    </div>
                 </div>
-                <div>
-                    <span class="bh-meta-label">Cliente:</span>
-                    <p>{{ pedido.usuario_nombre }} ({{ pedido.usuario_email }})</p>
-                </div>
-                <div>
-                    <span class="bh-meta-label">Dirección de Entrega:</span>
-                    <p>
-                        {% if pedido.dir_alias %}<strong>{{ pedido.dir_alias }}: </strong>{% endif %}
-                        {{ pedido.linea_direccion }}, {{ pedido.ciudad }}
-                        {% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}
-                    </p>
-                </div>
-                <div>
-                    <span class="bh-meta-label">Método de Pago:</span>
-                    <p>
-                        {{ pedido.tipo_pago or 'No especificado' }}
-                        {% if pedido.detalle_pago %} ({{ pedido.detalle_pago }}){% endif %}
-                    </p>
-                </div>
-            </div>
 
-            <h4 class="bh-subtitle" style="margin-top: 24px;">Productos en este pedido</h4>
-            <div class="bh-table-container">
-                <table class="bh-table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Presentación</th>
-                            <th>Cantidad</th>
-                            <th>Precio Unitario</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div class="order-products-section">
+                    <h3>Productos en este Pedido</h3>
+                    <div class="order-products-list">
                         {% for item in detalles %}
-                        <tr>
-                            <td><strong>{{ item.nombre_producto }}</strong></td>
-                            <td><span class="bh-badge-tag">{{ item.presentacion }}</span></td>
-                            <td>{{ item.cantidad }}</td>
-                            <td class="bh-mono">${{ "{:,.2f}".format(item.precio_unitario) }}</td>
-                            <td class="bh-mono">${{ "{:,.2f}".format(item.subtotal) }}</td>
-                        </tr>
+                        <div class="order-product-item">
+                            <div class="product-item-info">
+                                <strong class="product-item-name">{{ item.nombre_producto }}</strong>
+                                <span class="product-item-variant">{{ item.presentacion }}</span>
+                            </div>
+                            <div class="product-item-quantity">{{ item.cantidad }}x</div>
+                            <div class="product-item-price">${{ "{:,.2f}".format(item.precio_unitario) }}</div>
+                            <div class="product-item-subtotal">${{ "{:,.2f}".format(item.subtotal) }}</div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                    </div>
+                </div>
 
-            <div class="bh-table-total" style="margin-top: 20px;">
-                <span>Total pagado:</span>
-                <strong class="bh-total-amount">${{ "{:,.2f}".format(pedido.total) }}</strong>
+                <div class="order-total-section">
+                    <div class="order-total-row">
+                        <span class="order-total-label">Total Pagado</span>
+                        <span class="order-total-amount">${{ "{:,.2f}".format(pedido.total) }}</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="bh-confirmation-actions">
-        <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Seguir Explorando el Catálogo</a>
-        <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn bh-btn-outline">Ver Historial de Mis Pedidos</a>
+    <div class="confirmation-actions">
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            Seguir Explorando el Catálogo
+        </a>
+        <a href="{{ url_for('cuenta.pedidos') }}" class="btn btn-outline btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            Ver Historial de Pedidos
+        </a>
     </div>
-</div>
+</section>
 {% endblock %}

@@ -1,19 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Iniciar sesión — Beer House{% endblock %}
+{% block title %}Iniciar Sesión — Beer House Premium{% endblock %}
 {% block content %}
-<h2>Iniciar sesión</h2>
-<form method="POST" class="bh-form">
-    <div class="bh-field">
-        <label>Correo</label>
-        <input type="email" name="email" required>
+<!-- Login Hero Section -->
+<section class="auth-hero">
+    <div class="container">
+        <div class="auth-hero-content">
+            <p class="section-subtitle">Bienvenido de Nuevo</p>
+            <h1>Iniciar Sesión</h1>
+            <p>Accede a tu cuenta para continuar tu experiencia premium con Beer House.</p>
+        </div>
     </div>
-    <div class="bh-field">
-        <label>Contraseña</label>
-        <input type="password" name="password" required>
+</section>
+
+<!-- Login Section -->
+<section class="container">
+    <div class="auth-container auth-container-centered">
+        <!-- Login Form Side -->
+        <div class="auth-form-wrapper auth-form-wrapper-centered">
+            <div class="auth-form-card">
+                <h2 class="auth-form-title">Iniciar Sesión</h2>
+                <p class="auth-form-subtitle">Ingresa tus credenciales para acceder a tu cuenta.</p>
+                
+                <form method="POST" class="auth-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label class="form-label">Correo Electrónico</label>
+                        <input type="email" name="email" required class="form-input" placeholder="ejemplo@correo.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" required class="form-input" placeholder="••••••••">
+                    </div>
+                    
+                    <div class="form-group form-group-checkbox">
+                        <label class="checkbox-label">
+                            <input type="checkbox">
+                            <span>Recordarme</span>
+                        </label>
+                        <a href="#" class="auth-link auth-link-forgot">¿Olvidaste tu contraseña?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                        Iniciar Sesión
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                            <polyline points="10 17 15 12 10 7"></polyline>
+                            <line x1="15" y1="12" x2="3" y2="12"></line>
+                        </svg>
+                    </button>
+                </form>
+                
+                <div class="auth-social">
+                    <p class="auth-social-text">O continúa con</p>
+                    <div class="social-buttons">
+                        <button class="social-btn social-google">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+                            </svg>
+                            Google
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="auth-footer-note">
+                    <p>¿No tienes cuenta? <a href="{{ url_for('auth.registro') }}" class="auth-link">Regístrate aquí</a></p>
+                </div>
+            </div>
+        </div>
     </div>
-    <button type="submit" class="bh-btn">Ingresar</button>
-</form>
-<p style="margin-top:16px; color:var(--text-muted); font-size:0.88rem;">
-    ¿No tienes cuenta? <a href="{{ url_for('auth.registro') }}">Regístrate</a>
-</p>
+</section>
 {% endblock %}

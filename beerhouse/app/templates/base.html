@@ -3,42 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Beer House{% endblock %}</title>
+    <title>{% block title %}Beer House — Premium Spirits{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
-    <header class="bh-nav">
-        <div class="bh-container bh-nav-inner">
-            <a class="bh-logo" href="{{ url_for('productos.catalogo') }}">
-                <span class="bh-cap">BH</span>
-                <span class="bh-logo-text">Beer House</span>
+    <header class="header">
+        <div class="container header-inner">
+            <a href="{{ url_for('inicio') }}" class="logo">
+                <div class="logo-icon">BH</div>
+                <span class="logo-text">Beer House</span>
             </a>
-            <nav class="bh-nav-links">
-                <a href="{{ url_for('productos.catalogo') }}">Catálogo</a>
-                <a href="{{ url_for('carrito.ver_carrito') }}">Carrito</a>
-                {% if session.get('id_usuario') %}
-                    <a href="{{ url_for('cuenta.index') }}">Mi Cuenta</a>
-                    {% if session.get('id_rol') == 2 %}
-                        <a href="{{ url_for('admin.dashboard') }}" class="bh-nav-admin">⚡ Panel Admin</a>
-                    {% endif %}
-                    <span class="bh-nav-user">Hola, {{ session.get('nombre') }}</span>
-                    <a href="{{ url_for('auth.logout') }}" class="bh-nav-exit">Salir</a>
-                {% else %}
-                    <a href="{{ url_for('auth.login') }}">Ingresar</a>
-                {% endif %}
+            
+            <nav class="nav">
+                <a href="{{ url_for('inicio') }}" class="nav-link">Inicio</a>
+                <a href="{{ url_for('productos.catalogo') }}" class="nav-link">Catálogo</a>
+                <a href="{{ url_for('categorias.index') }}" class="nav-link">Categorías</a>
+                <a href="{{ url_for('ofertas') }}" class="nav-link">Ofertas</a>
+                <a href="{{ url_for('nosotros') }}" class="nav-link">Nosotros</a>
             </nav>
+            
+            <div class="header-actions">
+                <a href="{{ url_for('carrito.ver_carrito') }}" class="action-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                    </svg>
+                    <span class="cart-count">{{ cart_count or 0 }}</span>
+                </a>
+                
+                {% if session.get('id_usuario') %}
+                    <a href="{{ url_for('cuenta.index') }}" class="action-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>{{ session.get('nombre', 'Cuenta') }}</span>
+                    </a>
+                    {% if session.get('id_rol') == 2 %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="action-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                <polyline points="2 17 12 22 22 17"></polyline>
+                                <polyline points="2 12 12 17 22 12"></polyline>
+                            </svg>
+                            <span>Admin</span>
+                        </a>
+                    {% elif session.get('id_rol') == 4 %}
+                        <a href="{{ url_for('trabajador.dashboard') }}" class="action-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                <polyline points="2 17 12 22 22 17"></polyline>
+                                <polyline points="2 12 12 17 22 12"></polyline>
+                            </svg>
+                            <span>Trabajador</span>
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('auth.logout') }}" class="action-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="action-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Ingresar</span>
+                    </a>
+                {% endif %}
+                
+                <button class="mobile-toggle">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
     </header>
 
-    <main class="bh-container bh-main">
+    <main>
         {% with mensajes = get_flashed_messages(with_categories=true) %}
             {% if mensajes %}
-                <div class="bh-flash-stack">
-                {% for categoria, mensaje in mensajes %}
-                    <div class="bh-alert bh-alert-{{ categoria }}">{{ mensaje }}</div>
-                {% endfor %}
+                <div class="container" style="padding-top: 120px;">
+                    {% for categoria, mensaje in mensajes %}
+                        <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
+                    {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
@@ -46,8 +104,65 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bh-footer">
-        <div class="bh-container">Beer House &middot; Proyecto ADSO SENA</div>
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">Beer House</div>
+                    <p class="footer-description">
+                        Curating the finest spirits from around the world. Premium whiskies, rare cognacs, and exceptional craft beverages for the discerning palate.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="footer-title">Explorar</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('productos.catalogo') }}">Catálogo</a></li>
+                        <li><a href="{{ url_for('categorias.index') }}">Categorías</a></li>
+                        <li><a href="{{ url_for('ofertas') }}">Ofertas</a></li>
+                        <li><a href="{{ url_for('nosotros') }}">Nosotros</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="footer-title">Compañía</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('nosotros') }}">Sobre Nosotros</a></li>
+                        <li><a href="#">Nuestra Historia</a></li>
+                        <li><a href="#">Sostenibilidad</a></li>
+                        <li><a href="#">Carreras</a></li>
+                        <li><a href="#">Prensa</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="footer-title">Soporte</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Contacto</a></li>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Envíos</a></li>
+                        <li><a href="#">Devoluciones</a></li>
+                        <li><a href="#">Términos</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 Beer House. Todos los derechos reservados. Premium Spirits Collection.</p>
+            </div>
+        </div>
     </footer>
+
+    <script>
+        // Header scroll effect
+        const header = document.querySelector('.header');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    </script>
 </body>
 </html>

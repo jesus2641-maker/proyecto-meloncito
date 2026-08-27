@@ -1,0 +1,64 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Inventario — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Stock</p>
+            <h1>Inventario</h1>
+            <p>Consulta y actualiza las existencias de productos</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    {% if alertas %}
+    <div class="alert alert-warning">
+        <strong>⚠️ Alertas de Stock Bajo:</strong> {{ alertas|length }} productos necesitan reabastecimiento
+    </div>
+    {% endif %}
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Inventario Completo</h2>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Precio</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>SKU</th>
+                        <th>Actualizar Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario %}
+                    <tr>
+                        <td><strong>{{ item.nombre_producto }}</strong></td>
+                        <td>{{ item.presentacion }}</td>
+                        <td>${{ "{:,.2f}".format(item.precio) }}</td>
+                        <td>{{ item.stock }}</td>
+                        <td>{{ item.stock_minimo }}</td>
+                        <td>{{ item.sku or '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="id_variante" value="{{ item.id_variante }}">
+                                <input type="number" name="stock" value="{{ item.stock }}" min="0" class="inline-input" style="width: 80px;">
+                                <button type="submit" class="btn btn-sm btn-primary">Actualizar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

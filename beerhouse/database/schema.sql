@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS roles (
     nombre_rol VARCHAR(50) NOT NULL UNIQUE
 );
 
-INSERT IGNORE INTO roles (id_rol, nombre_rol) VALUES (1, 'cliente'), (2, 'administrador');
+INSERT IGNORE INTO roles (id_rol, nombre_rol) VALUES (1, 'cliente'), (2, 'administrador'), (4, 'trabajador');
 
 -- --------------------------------------------
 -- Tabla: usuarios
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS direcciones (
     id_direccion INT AUTO_INCREMENT PRIMARY KEY,
     id_usuario INT NOT NULL,
     alias VARCHAR(50),
-    linea_direccion VARCHAR(255) NOT NULL,
+    linea_direccion TEXT NOT NULL,
     ciudad VARCHAR(100) NOT NULL,
     departamento VARCHAR(100),
     codigo_postal VARCHAR(20),
@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS metodos_pago (
 CREATE TABLE IF NOT EXISTS categorias (
     id_categoria INT AUTO_INCREMENT PRIMARY KEY,
     nombre_categoria VARCHAR(100) NOT NULL UNIQUE,
-    descripcion VARCHAR(255)
+    descripcion TEXT,
+    imagen_url TEXT
 );
 
 -- --------------------------------------------
@@ -72,14 +73,25 @@ CREATE TABLE IF NOT EXISTS categorias (
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
     id_producto INT AUTO_INCREMENT PRIMARY KEY,
-    id_categoria INT NOT NULL,
+    id_categoria INT NULL,
     nombre_producto VARCHAR(150) NOT NULL,
     descripcion TEXT,
     marca VARCHAR(100),
-    imagen_url VARCHAR(255),
+    imagen_url TEXT,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria)
+);
+
+-- --------------------------------------------
+-- Tabla: productos_categorias (muchos a muchos)
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS productos_categorias (
+    id_producto INT NOT NULL,
+    id_categoria INT NOT NULL,
+    PRIMARY KEY (id_producto, id_categoria),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE CASCADE
 );
 
 -- --------------------------------------------
@@ -88,9 +100,10 @@ CREATE TABLE IF NOT EXISTS productos (
 CREATE TABLE IF NOT EXISTS variantes_producto (
     id_variante INT AUTO_INCREMENT PRIMARY KEY,
     id_producto INT NOT NULL,
-    presentacion VARCHAR(50) NOT NULL,
+    presentacion VARCHAR(100) NOT NULL,
     precio DECIMAL(10,2) NOT NULL,
     stock INT NOT NULL DEFAULT 0,
+    stock_minimo INT DEFAULT 5,
     sku VARCHAR(50),
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE
 );
@@ -160,4 +173,23 @@ CREATE TABLE IF NOT EXISTS pedido_detalle (
     precio_unitario DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
     FOREIGN KEY (id_variante) REFERENCES variantes_producto(id_variante)
+);
+
+-- --------------------------------------------
+-- Tabla: ofertas
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS ofertas (
+    id_oferta INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT NOT NULL,
+    id_variante INT,
+    descuento_porcentaje DECIMAL(5,2) NOT NULL,
+    precio_oferta DECIMAL(10,2) NOT NULL,
+    titulo VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    activa BOOLEAN DEFAULT TRUE,
+    fecha_inicio DATETIME,
+    fecha_fin DATETIME,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_variante) REFERENCES variantes_producto(id_variante) ON DELETE CASCADE
 );

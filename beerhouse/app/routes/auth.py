@@ -3,6 +3,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.usuario import Usuario
 from app.utils.validaciones import validar_email, validar_password, MIN_PASSWORD_LENGTH
 
+# IDs de roles
+ID_ROL_CLIENTE = 1
+ID_ROL_ADMIN = 2
+ID_ROL_TRABAJADOR = 4
+
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
@@ -23,7 +28,14 @@ def login():
             session["nombre"] = usuario["nombre"]
             session["id_rol"] = usuario["id_rol"]
             flash("Sesión iniciada correctamente", "success")
-            return redirect(url_for("productos.catalogo"))
+            
+            # Redirigir según el rol
+            if usuario["id_rol"] == ID_ROL_ADMIN:
+                return redirect(url_for("admin.dashboard"))
+            elif usuario["id_rol"] == ID_ROL_TRABAJADOR:
+                return redirect(url_for("trabajador.dashboard"))
+            else:  # Cliente
+                return redirect(url_for("productos.catalogo"))
 
         flash("Correo o contraseña incorrectos", "danger")
 

@@ -18,11 +18,11 @@ class Categoria:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT c.id_categoria, c.nombre_categoria, c.descripcion,
-                   COUNT(p.id_producto) AS total_productos
+            SELECT c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url,
+                   COUNT(DISTINCT pc.id_producto) AS total_productos
             FROM categorias c
-            LEFT JOIN productos p ON c.id_categoria = p.id_categoria
-            GROUP BY c.id_categoria, c.nombre_categoria, c.descripcion
+            LEFT JOIN productos_categorias pc ON c.id_categoria = pc.id_categoria
+            GROUP BY c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url
             ORDER BY c.nombre_categoria ASC
         """)
         categorias = cursor.fetchall()
@@ -41,12 +41,12 @@ class Categoria:
         return categoria
 
     @staticmethod
-    def crear(nombre_categoria, descripcion=None):
+    def crear(nombre_categoria, descripcion=None, imagen_url=None):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO categorias (nombre_categoria, descripcion) VALUES (%s, %s)",
-            (nombre_categoria, descripcion)
+            "INSERT INTO categorias (nombre_categoria, descripcion, imagen_url) VALUES (%s, %s, %s)",
+            (nombre_categoria, descripcion, imagen_url)
         )
         conn.commit()
         nuevo_id = cursor.lastrowid
@@ -55,14 +55,14 @@ class Categoria:
         return nuevo_id
 
     @staticmethod
-    def actualizar(id_categoria, nombre_categoria, descripcion=None):
+    def actualizar(id_categoria, nombre_categoria, descripcion=None, imagen_url=None):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE categorias
-            SET nombre_categoria = %s, descripcion = %s
+            SET nombre_categoria = %s, descripcion = %s, imagen_url = %s
             WHERE id_categoria = %s
-        """, (nombre_categoria, descripcion, id_categoria))
+        """, (nombre_categoria, descripcion, imagen_url, id_categoria))
         conn.commit()
         cursor.close()
         conn.close()

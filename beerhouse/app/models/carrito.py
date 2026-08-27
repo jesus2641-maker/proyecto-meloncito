@@ -94,3 +94,19 @@ class CarritoItem:
         cursor.close()
         conn.close()
 
+    @staticmethod
+    def contar_items(id_usuario):
+        """Cuenta el total de items en el carrito de un usuario."""
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT COALESCE(SUM(ci.cantidad), 0) AS total
+            FROM carrito_items ci
+            JOIN carritos c ON ci.id_carrito = c.id_carrito
+            WHERE c.id_usuario = %s
+        """, (id_usuario,))
+        fila = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return int(fila["total"]) if fila else 0
+

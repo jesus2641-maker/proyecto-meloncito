@@ -5,6 +5,11 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev")
+    
+    # Flask-WTF CSRF Configuration
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = None
+    WTF_CSRF_SSL_STRICT = False
 
     DATABASE_HOST = os.getenv("DATABASE_HOST", "localhost")
     DATABASE_USER = os.getenv("DATABASE_USER", "root")

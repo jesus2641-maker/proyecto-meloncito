@@ -99,3 +99,35 @@ class Usuario:
         cursor.close()
         conn.close()
         return roles
+
+    @staticmethod
+    def actualizar(id_usuario, nombre, apellido, telefono, email, contraseña=None):
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        if contraseña:
+            # Generar hash de la nueva contraseña
+            import hashlib
+            password_hash = hashlib.sha256(contraseña.encode()).hexdigest()
+            cursor.execute("""
+                UPDATE usuarios
+                SET nombre = %s, apellido = %s, telefono = %s, email = %s, password_hash = %s
+                WHERE id_usuario = %s
+            """, (nombre, apellido, telefono, email, password_hash, id_usuario))
+        else:
+            cursor.execute("""
+                UPDATE usuarios
+                SET nombre = %s, apellido = %s, telefono = %s, email = %s
+                WHERE id_usuario = %s
+            """, (nombre, apellido, telefono, email, id_usuario))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def verificar_contraseña(contraseña_ingresada, password_hash):
+        """Verifica si la contraseña ingresada coincide con el hash almacenado."""
+        import hashlib
+        hash_ingresado = hashlib.sha256(contraseña_ingresada.encode()).hexdigest()
+        return hash_ingresado == password_hash
