@@ -1,27 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Catálogo — Beer House{% endblock %}
+{% block title %}Catálogo Premium — Beer House{% endblock %}
 {% block content %}
-<h2>Nuestros productos</h2>
-<div class="bh-grid">
-    {% for producto in productos %}
-    <div class="bh-card">
-        {% if producto.imagen_url %}
-        <img src="{{ producto.imagen_url }}" class="bh-card-img" alt="{{ producto.nombre_producto }}">
-        {% endif %}
-        <div class="bh-card-body">
-            <h3 class="bh-card-title">{{ producto.nombre_producto }}</h3>
-            <div class="bh-card-meta">{{ producto.marca }} &middot; {{ producto.nombre_categoria }}</div>
-            <p class="bh-card-desc">{{ producto.descripcion }}</p>
-            <ul class="bh-variant-list">
-                {% for v in producto.variantes %}
-                <li><span>{{ v.presentacion }}</span> <span class="bh-price">${{ v.precio }}</span></li>
-                {% endfor %}
-            </ul>
-            <a href="{{ url_for('productos.detalle', producto_id=producto.id_producto) }}" class="bh-btn bh-btn-outline">Ver detalle</a>
+<!-- Catalog Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Nuestra Colección</p>
+            <h1>Catálogo Premium</h1>
+            <p>Explora nuestra selección curada de licores excepcionales de todo el mundo.</p>
         </div>
     </div>
+</section>
+
+<!-- Filter Section -->
+<section class="container">
+    <form method="GET" action="{{ url_for('productos.catalogo') }}" class="filter-bar">
+        <div class="filter-search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" 
+                   name="busqueda" 
+                   placeholder="Buscar licores, marcas, categorías..." 
+                   value="{{ busqueda }}"
+                   class="filter-input">
+        </div>
+        
+        <div class="filter-category">
+            <select name="categoria" class="filter-select">
+                <option value="">Todas las categorías</option>
+                {% for cat in categorias %}
+                <option value="{{ cat.id_categoria }}" 
+                        {% if categoria_seleccionada == cat.id_categoria|string %}selected{% endif %}>
+                    {{ cat.nombre_categoria }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{{ url_for('productos.catalogo') }}" class="btn btn-ghost">Limpiar</a>
+        </div>
+    </form>
+</section>
+
+<!-- Products Grid -->
+<section class="container">
+    {% if productos %}
+    <div class="products-grid">
+        {% for producto in productos %}
+        <div class="product-card">
+            <div class="product-image-wrapper">
+                {% if producto.imagen_url %}
+                <img src="{{ producto.imagen_url }}" alt="{{ producto.nombre_producto }}" class="product-image">
+                {% else %}
+                <div class="product-image-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <path d="M10 2v7.31"></path>
+                        <path d="M14 2v7.31"></path>
+                        <path d="M8.5 2h7"></path>
+                        <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                    </svg>
+                </div>
+                {% endif %}
+                <div class="product-badges">
+                    <span class="badge badge-category">{{ producto.nombre_categoria }}</span>
+                </div>
+            </div>
+            
+            <div class="product-content">
+                <div class="product-brand">{{ producto.marca }}</div>
+                <h3 class="product-title">{{ producto.nombre_producto }}</h3>
+                <p class="product-description">{{ producto.descripcion }}</p>
+                
+                <div class="product-variants">
+                    {% for v in producto.variantes %}
+                    <div class="variant-item">
+                        <span class="variant-name">{{ v.presentacion }}</span>
+                        <span class="variant-price">${{ v.precio }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="product-actions">
+                    <a href="{{ url_for('productos.detalle', producto_id=producto.id_producto) }}" class="btn btn-outline" style="flex: 1;">
+                        Ver Detalle
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
     {% else %}
-    <p class="bh-empty">Aún no hay productos disponibles.</p>
-    {% endfor %}
-</div>
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <h3>No se encontraron productos</h3>
+        <p>Intenta con otros términos de búsqueda o filtros diferentes.</p>
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary">Ver Todo el Catálogo</a>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

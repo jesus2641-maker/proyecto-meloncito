@@ -1,12 +1,23 @@
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, render_template, abort, request
 from app.models.producto import Producto, VarianteProducto
+from app.models.categoria import Categoria
 
 productos_bp = Blueprint("productos", __name__, url_prefix="/productos")
 
 
 @productos_bp.route("/")
 def catalogo():
-    filas = Producto.listar_con_variantes()
+    # Obtener parámetros de búsqueda y filtro
+    busqueda = request.args.get('busqueda', '')
+    categoria = request.args.get('categoria', '')
+    
+    # Convertir parámetros numéricos
+    categoria_id = int(categoria) if categoria else None
+    
+    filas = Producto.listar_con_variantes(
+        busqueda=busqueda if busqueda else None,
+        categoria=categoria_id
+    )
 
     # Agrupar variantes bajo cada producto para la plantilla
     productos = {}
@@ -29,7 +40,14 @@ def catalogo():
             "stock": fila["stock"]
         })
 
-    return render_template("productos/catalogo.html", productos=productos.values())
+    # Obtener categorías para el filtro
+    categorias = Categoria.listar()
+    
+    return render_template("productos/catalogo.html", 
+                         productos=productos.values(),
+                         categorias=categorias,
+                         busqueda=busqueda,
+                         categoria_seleccionada=categoria)
 
 
 @productos_bp.route("/<int:producto_id>")
@@ -39,4 +57,15 @@ def detalle(producto_id):
         abort(404)
 
     variantes = VarianteProducto.listar_por_producto(producto_id)
-    return render_template("productos/detalle.html", producto=producto, variantes=variantes)
+    
+    # Obtener productos relacionados de la misma categoría
+    relacionados = Producto.obtener_relacionados(
+        producto_id, 
+        producto.get('id_categoria'), 
+        limite=4
+    )
+    
+    return render_template("productos/detalle.html", 
+                         producto=producto, 
+                         variantes=variantes,
+                         relacionados=relacionados)

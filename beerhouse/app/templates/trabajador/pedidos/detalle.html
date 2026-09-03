@@ -1,0 +1,101 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Pedido #{{ pedido.id_pedido }} — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Detalle del Pedido</p>
+            <h1>Pedido #{{ pedido.id_pedido }}</h1>
+            <p>Fecha: {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—' }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('trabajador.pedidos') }}" class="btn btn-outline">Volver a Pedidos</a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Información del Cliente</h2>
+        </div>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Nombre:</span>
+                <span class="info-value">{{ pedido.usuario_nombre }} {{ pedido.usuario_apellido }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Email:</span>
+                <span class="info-value">{{ pedido.usuario_email }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Estado:</span>
+                <span class="info-value badge badge-info">{{ pedido.nombre_estado|capitalize }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total:</span>
+                <span class="info-value">${{ "{:,.2f}".format(pedido.total) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Productos del Pedido</h2>
+        </div>
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for det in detalles %}
+                    <tr>
+                        <td><strong>{{ det.nombre_producto }}</strong></td>
+                        <td>{{ det.presentacion }}</td>
+                        <td>{{ det.cantidad }}</td>
+                        <td>${{ "{:,.2f}".format(det.precio_unitario) }}</td>
+                        <td>${{ "{:,.2f}".format(det.cantidad * det.precio_unitario) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: right;"><strong>Total:</strong></td>
+                        <td><strong>${{ "{:,.2f}".format(pedido.total) }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Cambiar Estado</h2>
+        </div>
+        <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}" class="premium-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <div class="form-group">
+                <label class="form-label">Nuevo Estado</label>
+                <select name="id_estado" class="form-input">
+                    {% for est in estados %}
+                    <option value="{{ est.id_estado }}" {% if est.id_estado == pedido.id_estado %}selected{% endif %}>
+                        {{ est.nombre_estado|capitalize }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Actualizar Estado</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

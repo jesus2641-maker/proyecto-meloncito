@@ -1,23 +1,174 @@
 {% extends "base.html" %}
-{% block title %}{{ producto.nombre_producto }} — Beer House{% endblock %}
+{% block title %}{{ producto.nombre_producto }} — Beer House Premium{% endblock %}
 {% block content %}
-<h2>{{ producto.nombre_producto }}</h2>
-<div class="bh-card-meta" style="margin-bottom:14px;">{{ producto.marca }}</div>
-<p>{{ producto.descripcion }}</p>
+<!-- Breadcrumb -->
+<div class="container" style="padding-top: 120px; padding-bottom: 24px;">
+    <div class="breadcrumb">
+        <a href="{{ url_for('inicio') }}">Inicio</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="{{ url_for('productos.catalogo') }}">Catálogo</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">{{ producto.nombre_producto }}</span>
+    </div>
+</div>
 
-<form method="POST" action="{{ url_for('carrito.agregar') }}" class="bh-form">
-    <div class="bh-field">
-        <label>Presentación</label>
-        <select name="id_variante">
-            {% for v in variantes %}
-            <option value="{{ v.id_variante }}">{{ v.presentacion }} — ${{ v.precio }} ({{ v.stock }} disponibles)</option>
-            {% endfor %}
-        </select>
+<!-- Product Detail Section -->
+<section class="container">
+    <div class="product-detail">
+        <!-- Product Image -->
+        <div class="product-detail-image">
+            {% if producto.imagen_url %}
+            <img src="{{ producto.imagen_url }}" alt="{{ producto.nombre_producto }}" class="detail-image">
+            {% else %}
+            <div class="detail-image-placeholder">
+                <svg width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <path d="M10 2v7.31"></path>
+                    <path d="M14 2v7.31"></path>
+                    <path d="M8.5 2h7"></path>
+                    <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                </svg>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Product Info -->
+        <div class="product-detail-info">
+            <div class="product-meta">
+                <span class="product-brand">{{ producto.marca }}</span>
+                <span class="product-category">{{ producto.nombre_categoria }}</span>
+            </div>
+            
+            <h1 class="detail-title">{{ producto.nombre_producto }}</h1>
+            
+            <p class="detail-description">{{ producto.descripcion }}</p>
+                      <!-- Variant Selection & Quantity with Alpine.js -->
+            <form method="POST" action="{{ url_for('carrito.agregar') }}" class="variant-form"
+                  x-data="{
+                      selectedVariant: {{ variantes[0].id_variante if variantes else 'null' }},
+                      stocks: { {% for v in variantes %}{{ v.id_variante }}: {{ v.stock }}{% if not loop.last %}, {% endif %}{% endfor %} },
+                      cantidad: 1,
+                      get maxStock() {
+                          return this.stocks[this.selectedVariant] || 1;
+                      },
+                      increment() {
+                          if (this.cantidad < this.maxStock) {
+                              this.cantidad++;
+                          }
+                      },
+                      decrement() {
+                          if (this.cantidad > 1) {
+                              this.cantidad--;
+                          }
+                      },
+                      onVariantChange(id) {
+                          this.selectedVariant = id;
+                          if (this.cantidad > this.maxStock) {
+                              this.cantidad = Math.max(1, this.maxStock);
+                          }
+                      }
+                  }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="variant-selector">
+                    <label class="variant-label">Seleccionar Presentación</label>
+                    <div class="variant-options">
+                        {% for v in variantes %}
+                        <label class="variant-option">
+                            <input type="radio" name="id_variante" value="{{ v.id_variante }}" {% if loop.first %}checked{% endif %} @change="onVariantChange({{ v.id_variante }})">
+                            <div class="variant-option-content">
+                                <span class="variant-option-name">{{ v.presentacion }}</span>
+                                <span class="variant-option-price">${{ v.precio }}</span>
+                                <span class="variant-option-stock">{{ v.stock }} disponibles</span>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Quantity Selector -->
+                <div class="quantity-selector">
+                    <label class="quantity-label">Cantidad</label>
+                    <div class="quantity-input">
+                        <button type="button" class="quantity-btn quantity-minus" @click="decrement()" :disabled="cantidad <= 1" aria-label="Disminuir cantidad">−</button>
+                        <input type="number" name="cantidad" x-model.number="cantidad" min="1" :max="maxStock" class="quantity-field" @input="if (cantidad > maxStock) cantidad = maxStock; if (cantidad < 1) cantidad = 1;">
+                        <button type="button" class="quantity-btn quantity-plus" @click="increment()" :disabled="cantidad >= maxStock" aria-label="Aumentar cantidad">+</button>
+                    </div>
+                    <small class="text-muted" style="display: block; margin-top: 6px; font-size: 0.82rem;" x-show="maxStock > 0" x-cloak>
+                        Máximo disponible: <strong x-text="maxStock"></strong> unidades
+                    </small>
+                </div>
+                
+                <!-- Actions -->
+                <div class="detail-actions">
+                    <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;" :disabled="maxStock <= 0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
+                        </svg>
+                        Agregar al Carrito
+                    </button>
+                    <a href="{{ url_for('productos.catalogo') }}" class="btn btn-outline">
+                        ← Volver al Catálogo
+                    </a>
+                </div>
+            </form>
+            
+            <!-- Product Features -->
+            <div class="product-features">
+                <div class="feature-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <span>100% Auténtico</span>
+                </div>
+                <div class="feature-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="3" width="15" height="13"></rect>
+                        <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                        <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                        <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                    </svg>
+                    <span>Envío Seguro</span>
+                </div>
+                <div class="feature-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Soporte Premium</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="bh-field" style="max-width:120px;">
-        <label>Cantidad</label>
-        <input type="number" name="cantidad" value="1" min="1">
+</section>
+
+<!-- Related Products -->
+<section class="container">
+    <div class="section-header">
+        <p class="section-subtitle">Te Puede Interesar</p>
     </div>
-    <button type="submit" class="bh-btn">Agregar al carrito</button>
-</form>
+    
+    {% if relacionados %}
+    <div class="grid grid-4">
+        {% for prod in relacionados %}
+        <div class="card">
+            <div class="card-image" style="
+                {% if prod.imagen_url %}
+                background-image: url('{{ prod.imagen_url }}');
+                {% else %}
+                background: linear-gradient(135deg, var(--gold-primary) 0%, #b8860b 100%);
+                {% endif %}
+                background-size: cover; 
+                background-position: center;">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ prod.nombre_producto }}</h3>
+                <p class="card-description">{{ prod.descripcion[:100] }}{% if prod.descripcion and prod.descripcion|length > 100 %}...{% endif %}</p>
+                <div class="card-price">${{ "{:,.2f}".format(prod.precio_minimo) if prod.precio_minimo else '0.00' }}</div>
+                <a href="{{ url_for('productos.detalle', producto_id=prod.id_producto) }}" class="btn btn-outline">Ver</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

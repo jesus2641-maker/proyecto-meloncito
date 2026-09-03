@@ -4,13 +4,12 @@ from app.models.direccion import Direccion
 from app.models.metodo_pago import MetodoPago
 from app.models.pedido import Pedido, PedidoDetalle
 from app.models.producto import VarianteProducto, Producto
+from app.models.usuario import Usuario
 from app.utils.validaciones import validar_stock_carrito
+from app.utils.decoradores import requiere_login
+from app.utils.email_service import send_order_confirmation_email
 
 carrito_bp = Blueprint("carrito", __name__, url_prefix="/carrito")
-
-
-def _requiere_sesion():
-    return "id_usuario" in session
 
 
 def _redirigir_si_stock_invalido(items):
@@ -24,11 +23,8 @@ def _redirigir_si_stock_invalido(items):
 
 
 @carrito_bp.route("/")
+@requiere_login(mensaje="Inicia sesión para ver tu carrito")
 def ver_carrito():
-    if not _requiere_sesion():
-        flash("Inicia sesión para ver tu carrito", "warning")
-        return redirect(url_for("auth.login"))
-
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
     items = Carrito.obtener_items(carrito["id_carrito"])
     total = sum(item["precio"] * item["cantidad"] for item in items)
@@ -37,11 +33,8 @@ def ver_carrito():
 
 
 @carrito_bp.route("/agregar", methods=["POST"])
+@requiere_login(mensaje="Inicia sesión para agregar productos al carrito")
 def agregar():
-    if not _requiere_sesion():
-        flash("Inicia sesión para agregar productos al carrito", "warning")
-        return redirect(url_for("auth.login"))
-
     id_variante = request.form.get("id_variante", type=int)
     cantidad = request.form.get("cantidad", default=1, type=int)
 
@@ -87,14 +80,12 @@ def agregar():
     CarritoItem.agregar(carrito["id_carrito"], id_variante, cantidad)
 
     flash("Producto agregado al carrito", "success")
-    return redirect(url_for("carrito.ver_carrito"))
+    return redirect(url_producto)
 
 
 @carrito_bp.route("/eliminar", methods=["POST"])
+@requiere_login()
 def eliminar():
-    if not _requiere_sesion():
-        return jsonify({"success": False, "error": "no autenticado"}), 401
-
     id_item = request.form.get("id_item", type=int)
     if id_item:
         CarritoItem.eliminar(id_item)
@@ -104,11 +95,8 @@ def eliminar():
 
 
 @carrito_bp.route("/checkout", methods=["GET", "POST"])
+@requiere_login(mensaje="Inicia sesión para completar tu compra")
 def checkout():
-    if not _requiere_sesion():
-        flash("Inicia sesión para completar tu compra", "warning")
-        return redirect(url_for("auth.login"))
-
     id_usuario = session["id_usuario"]
     carrito = Carrito.obtener_o_crear(id_usuario)
     items = Carrito.obtener_items(carrito["id_carrito"])
@@ -185,24 +173,88 @@ def checkout():
                 flash("Método de pago no válido", "danger")
                 return redirect(url_for("carrito.checkout"))
 
-        # 3. Crear Pedido y Detalles
-        id_pedido = Pedido.crear(
+        # 3. Crear pedido completo con transacción atómica
+        id_pedido = Pedido.crear_con_transaccion(
             id_usuario=id_usuario,
             id_direccion=id_direccion,
             id_metodo_pago=id_metodo_pago,
-            total=total
+            total=total,
+            items=items
         )
+        
+        if not id_pedido:
+            flash("No hay suficiente stock para completar tu pedido. Por favor intenta nuevamente.", "danger")
+            return redirect(url_for("carrito.checkout"))
 
-        for item in items:
-            PedidoDetalle.crear(
-                id_pedido=id_pedido,
-                id_variante=item["id_variante"],
-                cantidad=item["cantidad"],
-                precio_unitario=item["precio"]
+        # Enviar correo de confirmación del pedido
+        try:
+            print("DEBUG: Iniciando preparación de correo de confirmación")
+            
+            # Obtener detalles del pedido y usuario
+            pedido = Pedido.obtener_por_id(id_pedido)
+            print(f"DEBUG: Pedido obtenido: {pedido}")
+            
+            usuario = Usuario.obtener_por_id(id_usuario)
+            print(f"DEBUG: Usuario obtenido: {usuario}")
+            
+            detalles = PedidoDetalle.listar_por_pedido(id_pedido)
+            print(f"DEBUG: Detalles obtenidos: {detalles}")
+            
+            # El pedido ya contiene la información de dirección y método de pago directamente
+            print(f"DEBUG: Datos de dirección en pedido: dir_alias={pedido.get('dir_alias')}, linea_direccion={pedido.get('linea_direccion')}, ciudad={pedido.get('ciudad')}")
+            print(f"DEBUG: Datos de pago en pedido: tipo_pago={pedido.get('tipo_pago')}, detalle_pago={pedido.get('detalle_pago')}")
+            
+            # Preparar datos para el correo con todos los campos requeridos
+            direccion_completa = f"{pedido.get('linea_direccion', '')}, {pedido.get('ciudad', '')}"
+            if pedido.get('departamento'):
+                direccion_completa += f", {pedido['departamento']}"
+            if pedido.get('dir_alias'):
+                direccion_completa = f"{pedido['dir_alias']}: {direccion_completa}"
+            
+            order_details = {
+                'id_pedido': pedido['id_pedido'],
+                'fecha_creacion': pedido['fecha_pedido'],
+                'nombre_estado': pedido.get('nombre_estado', 'Pendiente'),
+                'total': pedido['total'],
+                'direccion_entrega': direccion_completa,
+                'metodo_pago': pedido.get('tipo_pago', 'No especificado'),
+                'items': []
+            }
+            
+            print(f"DEBUG: order_details base preparado: {order_details}")
+            
+            # Agregar items con sus detalles
+            for detalle in detalles:
+                variante = VarianteProducto.obtener_por_id(detalle['id_variante'])
+                producto = Producto.obtener_por_id(variante['id_producto'])
+                item_data = {
+                    'nombre_producto': producto['nombre_producto'],
+                    'presentacion': variante['presentacion'],
+                    'cantidad': detalle['cantidad'],
+                    'precio_unitario': detalle['precio_unitario'],
+                    'subtotal': detalle['subtotal']
+                }
+                order_details['items'].append(item_data)
+                print(f"DEBUG: Item agregado: {item_data}")
+            
+            print(f"DEBUG: order_details completo final: {order_details}")
+            print(f"DEBUG: Llamando a send_order_confirmation_email con:")
+            print(f"  - Email: {usuario['email']}")
+            print(f"  - Nombre: {usuario['nombre']}")
+            print(f"  - Order details: {order_details}")
+            
+            # Enviar correo
+            result = send_order_confirmation_email(
+                usuario['email'],
+                usuario['nombre'],
+                order_details
             )
-
-        # 4. Vaciar Carrito
-        Carrito.vaciar(carrito["id_carrito"])
+            print(f"DEBUG: Resultado de send_order_confirmation_email: {result}")
+            
+        except Exception as e:
+            print(f"Error al enviar correo de confirmación: {e}")
+            import traceback
+            traceback.print_exc()
 
         flash("¡Tu pedido ha sido confirmado con éxito!", "success")
         return redirect(url_for("carrito.confirmacion", id_pedido=id_pedido))
@@ -222,11 +274,8 @@ def checkout():
 
 
 @carrito_bp.route("/confirmacion/<int:id_pedido>")
+@requiere_login(mensaje="Inicia sesión para consultar tu pedido")
 def confirmacion(id_pedido):
-    if not _requiere_sesion():
-        flash("Inicia sesión para consultar tu pedido", "warning")
-        return redirect(url_for("auth.login"))
-
     id_usuario = session["id_usuario"]
     pedido = Pedido.obtener_por_id(id_pedido)
 

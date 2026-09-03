@@ -1,0 +1,98 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Productos — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<!-- Worker Products Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Catálogo</p>
+            <h1>Productos</h1>
+            <p>Consulta el catálogo de bebidas premium</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Productos Registrados</h2>
+            <span class="section-badge">{{ productos|length }} productos</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Marca</th>
+                        <th>Variantes</th>
+                        <th>Rango de Precio</th>
+                        <th>Stock Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prod in productos %}
+                    <tr class="{% if not prod.activo %}row-inactive{% endif %}">
+                        <td><strong>#{{ prod.id_producto }}</strong></td>
+                        <td>
+                            <div class="product-cell">
+                                {% if prod.imagen_url %}
+                                <img src="{{ prod.imagen_url }}" alt="{{ prod.nombre_producto }}" class="product-thumb">
+                                {% endif %}
+                                <div class="product-info">
+                                    <strong>{{ prod.nombre_producto }}</strong>
+                                    {% if prod.descripcion %}
+                                    <small>{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-info">{{ prod.nombre_categoria or 'Sin categoría' }}</span></td>
+                        <td>{{ prod.marca or '—' }}</td>
+                        <td>
+                            <a href="{{ url_for('trabajador.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline">
+                                <strong>{{ prod.total_variantes }} variante(s)</strong>
+                            </a>
+                        </td>
+                        <td>
+                            {% if prod.precio_minimo %}
+                                {% if prod.precio_minimo == prod.precio_maximo %}
+                                <span>${{ "{:,.2f}".format(prod.precio_minimo) }}</span>
+                                {% else %}
+                                <span>${{ "{:,.2f}".format(prod.precio_minimo) }} - ${{ "{:,.2f}".format(prod.precio_maximo) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Sin variantes</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if prod.stock_total > 10 %}
+                            <span class="badge badge-success">{{ prod.stock_total }} uds</span>
+                            {% elif prod.stock_total > 0 %}
+                            <span class="badge badge-warning">{{ prod.stock_total }} uds (Bajo)</span>
+                            {% else %}
+                            <span class="badge badge-danger">Agotado (0)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center" style="padding: 40px;">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                            <p>No hay productos registrados</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

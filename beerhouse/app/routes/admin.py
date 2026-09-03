@@ -1,9 +1,12 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify
 from decimal import Decimal
 from app.models.producto import Producto, VarianteProducto
 from app.models.categoria import Categoria
 from app.models.pedido import Pedido, PedidoDetalle
 from app.models.usuario import Usuario
+from app.models.oferta import Oferta
+from app.utils.cloudinary_utils import upload_image, delete_image
+from app.utils.email_service import send_order_status_update_email
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -58,12 +61,26 @@ def nuevo_producto():
             flash("El nombre y la categoría del producto son obligatorios", "danger")
             return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
+        # Manejar subida de imagen a Cloudinary
+        imagen_public_id = None
+        imagen_file = request.files.get("imagen_file")
+        
+        if imagen_file and imagen_file.filename:
+            cloudinary_result = upload_image(imagen_file, folder="beerhouse/productos")
+            if cloudinary_result:
+                imagen_url = cloudinary_result['secure_url']
+                imagen_public_id = cloudinary_result['public_id']
+            else:
+                flash("Error al subir la imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
+                return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
         id_producto = Producto.crear(
             id_categoria=id_categoria,
             nombre_producto=nombre_producto,
             descripcion=descripcion,
             marca=marca,
-            imagen_url=imagen_url
+            imagen_url=imagen_url,
+            imagen_public_id=imagen_public_id
         )
 
         # Crear variante inicial si se ingresaron datos
@@ -108,6 +125,24 @@ def editar_producto(id_producto):
             flash("El nombre y la categoría son obligatorios", "danger")
             return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
+        # Manejar subida de nueva imagen a Cloudinary
+        imagen_public_id = producto.get('imagen_public_id')  # Mantener el public_id existente por defecto
+        imagen_file = request.files.get("imagen_file")
+        
+        if imagen_file and imagen_file.filename:
+            # Eliminar imagen anterior de Cloudinary si existe
+            if producto.get('imagen_public_id'):
+                delete_image(producto['imagen_public_id'])
+            
+            # Subir nueva imagen
+            cloudinary_result = upload_image(imagen_file, folder="beerhouse/productos")
+            if cloudinary_result:
+                imagen_url = cloudinary_result['secure_url']
+                imagen_public_id = cloudinary_result['public_id']
+            else:
+                flash("Error al subir la nueva imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
+                return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
+
         Producto.actualizar(
             id_producto=id_producto,
             id_categoria=id_categoria,
@@ -115,6 +150,7 @@ def editar_producto(id_producto):
             descripcion=descripcion,
             marca=marca,
             imagen_url=imagen_url,
+            imagen_public_id=imagen_public_id,
             activo=activo
         )
 
@@ -135,9 +171,11 @@ def toggle_producto(id_producto):
 def eliminar_producto(id_producto):
     try:
         Producto.eliminar(id_producto)
-        flash("Producto eliminado correctamente", "info")
+        flash("Producto eliminado correctamente", "success")
+    except ValueError as e:
+        flash(str(e), "warning")
     except Exception as e:
-        flash(f"No se pudo eliminar el producto (puede tener pedidos vinculados). Se recomienda desactivarlo.", "warning")
+        flash(f"Error al eliminar el producto: {str(e)}", "danger")
 
     return redirect(url_for("admin.productos"))
 
@@ -160,6 +198,7 @@ def nueva_variante(id_producto):
     presentacion = request.form.get("presentacion", "").strip()
     precio = request.form.get("precio", type=float)
     stock = request.form.get("stock", default=0, type=int)
+    stock_minimo = request.form.get("stock_minimo", default=5, type=int)
     sku = request.form.get("sku", "").strip() or None
 
     if not presentacion or precio is None or precio < 0:
@@ -170,6 +209,7 @@ def nueva_variante(id_producto):
             presentacion=presentacion,
             precio=precio,
             stock=stock,
+            stock_minimo=stock_minimo,
             sku=sku
         )
         flash("Variante agregada correctamente", "success")
@@ -183,6 +223,7 @@ def editar_variante(id_variante):
     presentacion = request.form.get("presentacion", "").strip()
     precio = request.form.get("precio", type=float)
     stock = request.form.get("stock", default=0, type=int)
+    stock_minimo = request.form.get("stock_minimo", default=5, type=int)
     sku = request.form.get("sku", "").strip() or None
 
     if not presentacion or precio is None:
@@ -193,6 +234,7 @@ def editar_variante(id_variante):
             presentacion=presentacion,
             precio=precio,
             stock=stock,
+            stock_minimo=stock_minimo,
             sku=sku
         )
         flash("Variante actualizada correctamente", "success")
@@ -213,6 +255,22 @@ def eliminar_variante(id_variante):
 
 
 # =========================================================
+# INVENTARIO
+# =========================================================
+@admin_bp.route("/inventario")
+def inventario():
+    """Muestra el inventario completo con alertas de stock."""
+    inventario = VarianteProducto.obtener_inventario()
+    alertas = VarianteProducto.obtener_alertas_stock()
+    
+    return render_template(
+        "admin/inventario.html",
+        inventario=inventario,
+        alertas=alertas
+    )
+
+
+# =========================================================
 # CATEGORÍAS
 # =========================================================
 @admin_bp.route("/categorias")
@@ -225,12 +283,26 @@ def categorias():
 def nueva_categoria():
     nombre = request.form.get("nombre_categoria", "").strip()
     descripcion = request.form.get("descripcion", "").strip() or None
+    imagen_url = request.form.get("imagen_url", "").strip() or None
 
     if not nombre:
         flash("El nombre de la categoría es obligatorio", "danger")
     else:
         try:
-            Categoria.crear(nombre, descripcion)
+            # Manejar subida de imagen a Cloudinary
+            imagen_public_id = None
+            imagen_file = request.files.get("imagen_file")
+            
+            if imagen_file and imagen_file.filename:
+                cloudinary_result = upload_image(imagen_file, folder="beerhouse/categorias")
+                if cloudinary_result:
+                    imagen_url = cloudinary_result['secure_url']
+                    imagen_public_id = cloudinary_result['public_id']
+                else:
+                    flash("Error al subir la imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
+                    return redirect(url_for("admin.categorias"))
+            
+            Categoria.crear(nombre, descripcion, imagen_url, imagen_public_id)
             flash(f"Categoría '{nombre}' creada", "success")
         except Exception:
             flash(f"Error al crear: ya existe una categoría con ese nombre", "danger")
@@ -240,14 +312,38 @@ def nueva_categoria():
 
 @admin_bp.route("/categorias/<int:id_categoria>/editar", methods=["POST"])
 def editar_categoria(id_categoria):
+    categoria = Categoria.obtener_por_id(id_categoria)
+    if not categoria:
+        flash("Categoría no encontrada", "danger")
+        return redirect(url_for("admin.categorias"))
+    
     nombre = request.form.get("nombre_categoria", "").strip()
     descripcion = request.form.get("descripcion", "").strip() or None
+    imagen_url = request.form.get("imagen_url", "").strip() or None
 
     if not nombre:
         flash("El nombre de categoría es obligatorio", "danger")
     else:
         try:
-            Categoria.actualizar(id_categoria, nombre, descripcion)
+            # Manejar subida de nueva imagen a Cloudinary
+            imagen_public_id = categoria.get('imagen_public_id')  # Mantener el public_id existente por defecto
+            imagen_file = request.files.get("imagen_file")
+            
+            if imagen_file and imagen_file.filename:
+                # Eliminar imagen anterior de Cloudinary si existe
+                if categoria.get('imagen_public_id'):
+                    delete_image(categoria['imagen_public_id'])
+                
+                # Subir nueva imagen
+                cloudinary_result = upload_image(imagen_file, folder="beerhouse/categorias")
+                if cloudinary_result:
+                    imagen_url = cloudinary_result['secure_url']
+                    imagen_public_id = cloudinary_result['public_id']
+                else:
+                    flash("Error al subir la nueva imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
+                    return redirect(url_for("admin.categorias"))
+            
+            Categoria.actualizar(id_categoria, nombre, descripcion, imagen_url, imagen_public_id)
             flash("Categoría actualizada correctamente", "success")
         except Exception:
             flash("Error: el nombre ya pertenece a otra categoría", "danger")
@@ -306,8 +402,45 @@ def cambiar_estado_pedido(id_pedido):
     next_url = request.form.get("next") or url_for("admin.pedidos")
 
     if id_estado:
-        Pedido.actualizar_estado(id_pedido, id_estado)
-        flash(f"Estado del pedido #{id_pedido} actualizado exitosamente", "success")
+        try:
+            # Obtener información del pedido antes de actualizar
+            pedido = Pedido.obtener_por_id(id_pedido)
+            if not pedido:
+                flash("Pedido no encontrado", "danger")
+                return redirect(next_url)
+            
+            # Obtener el nombre del nuevo estado
+            estados_info = Pedido.obtener_estados()
+            print(f"DEBUG: Estados disponibles: {estados_info}")
+            print(f"DEBUG: Buscando estado con ID: {id_estado}")
+            
+            # Verificar qué campo tiene el nombre del estado
+            if estados_info:
+                print(f"DEBUG: Campos del primer estado: {estados_info[0].keys()}")
+            
+            nombre_estado = next((e.get('nombre_estado') or e.get('nombre') for e in estados_info if e['id_estado'] == id_estado), "Desconocido")
+            print(f"DEBUG: Nombre del estado encontrado: {nombre_estado}")
+            
+            # Actualizar el estado
+            Pedido.actualizar_estado(id_pedido, id_estado)
+            
+            # Enviar correo de actualización de estado
+            try:
+                usuario = Usuario.obtener_por_id(pedido['id_usuario'])
+                send_order_status_update_email(
+                    usuario['email'],
+                    usuario['nombre'],
+                    id_pedido,
+                    nombre_estado
+                )
+            except Exception as e:
+                print(f"Error al enviar correo de actualización de estado: {e}")
+            
+            flash(f"Estado del pedido #{id_pedido} actualizado exitosamente", "success")
+        except ValueError as e:
+            flash(str(e), "danger")
+        except Exception as e:
+            flash(f"Error al actualizar el estado: {str(e)}", "danger")
 
     return redirect(next_url)
 
@@ -341,3 +474,181 @@ def toggle_usuario(id_usuario):
         flash("Estado del usuario modificado", "info")
 
     return redirect(url_for("admin.usuarios"))
+
+
+# =========================================================
+# MI CUENTA ADMIN
+# =========================================================
+@admin_bp.route("/mi-cuenta")
+def mi_cuenta():
+    """Página de perfil del administrador."""
+    id_usuario = session.get("id_usuario")
+    if not id_usuario:
+        return redirect(url_for("auth.login"))
+    
+    usuario = Usuario.obtener_por_id(id_usuario)
+    if not usuario:
+        flash("Usuario no encontrado", "danger")
+        return redirect(url_for("admin.dashboard"))
+    
+    return render_template("admin/mi_cuenta.html", usuario=usuario)
+
+
+@admin_bp.route("/mi-cuenta/editar", methods=["POST"])
+def editar_mi_cuenta():
+    """Edita el perfil del administrador actual."""
+    id_usuario = session.get("id_usuario")
+    if not id_usuario:
+        return redirect(url_for("auth.login"))
+    
+    nombre = request.form.get("nombre", "").strip()
+    apellido = request.form.get("apellido", "").strip()
+    telefono = request.form.get("telefono", "").strip() or None
+    email = request.form.get("email", "").strip()
+    contraseña_actual = request.form.get("contraseña_actual", "").strip()
+    contraseña_nueva = request.form.get("contraseña_nueva", "").strip()
+    
+    if not nombre or not apellido or not email:
+        flash("Nombre, apellido y correo son obligatorios", "danger")
+        return redirect(url_for("admin.mi_cuenta"))
+    
+    # Si se quiere cambiar la contraseña
+    if contraseña_nueva:
+        if not contraseña_actual:
+            flash("Debes ingresar tu contraseña actual para cambiarla", "danger")
+            return redirect(url_for("admin.mi_cuenta"))
+        
+        # Verificar contraseña actual
+        usuario = Usuario.obtener_por_id(id_usuario)
+        if not Usuario.verificar_contraseña(contraseña_actual, usuario.contraseña):
+            flash("La contraseña actual es incorrecta", "danger")
+            return redirect(url_for("admin.mi_cuenta"))
+        
+        # Actualizar con nueva contraseña
+        Usuario.actualizar(
+            id_usuario=id_usuario,
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono,
+            email=email,
+            contraseña=contraseña_nueva
+        )
+        flash("Perfil y contraseña actualizados correctamente", "success")
+    else:
+        # Actualizar sin cambiar contraseña
+        Usuario.actualizar(
+            id_usuario=id_usuario,
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono,
+            email=email
+        )
+        flash("Perfil actualizado correctamente", "success")
+    
+    return redirect(url_for("admin.mi_cuenta"))
+
+
+# =========================================================
+# OFERTAS
+# =========================================================
+@admin_bp.route("/ofertas")
+def ofertas():
+    """Lista todas las ofertas."""
+    lista_ofertas = Oferta.listar_todas()
+    return render_template("admin/ofertas/index.html", ofertas=lista_ofertas)
+
+
+@admin_bp.route("/ofertas/nueva", methods=["GET", "POST"])
+def nueva_oferta():
+    """Crea una nueva oferta."""
+    productos = Producto.listar_admin()
+    
+    if request.method == "POST":
+        id_producto = request.form.get("id_producto", type=int)
+        id_variante = request.form.get("id_variante", type=int) or None
+        descuento_porcentaje = request.form.get("descuento_porcentaje", type=float)
+        precio_oferta = request.form.get("precio_oferta", type=float)
+        titulo = request.form.get("titulo", "").strip()
+        descripcion = request.form.get("descripcion", "").strip() or None
+        fecha_inicio = request.form.get("fecha_inicio") or None
+        fecha_fin = request.form.get("fecha_fin") or None
+        
+        if not id_producto or not descuento_porcentaje or not precio_oferta or not titulo:
+            flash("El producto, descuento, precio y título son obligatorios", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
+        
+        try:
+            Oferta.crear(id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, fecha_inicio, fecha_fin)
+            flash(f"Oferta '{titulo}' creada", "success")
+            return redirect(url_for("admin.ofertas"))
+        except Exception as e:
+            flash(f"Error al crear oferta: {str(e)}", "danger")
+    
+    return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
+
+
+@admin_bp.route("/ofertas/<int:id_oferta>/editar", methods=["GET", "POST"])
+def editar_oferta(id_oferta):
+    """Edita una oferta existente."""
+    oferta = Oferta.obtener_por_id(id_oferta)
+    if not oferta:
+        flash("Oferta no encontrada", "danger")
+        return redirect(url_for("admin.ofertas"))
+    
+    productos = Producto.listar_admin()
+    
+    if request.method == "POST":
+        id_producto = request.form.get("id_producto", type=int)
+        id_variante = request.form.get("id_variante", type=int) or None
+        descuento_porcentaje = request.form.get("descuento_porcentaje", type=float)
+        precio_oferta = request.form.get("precio_oferta", type=float)
+        titulo = request.form.get("titulo", "").strip()
+        descripcion = request.form.get("descripcion", "").strip() or None
+        activa = 1 if request.form.get("activa") else 0
+        fecha_inicio = request.form.get("fecha_inicio") or None
+        fecha_fin = request.form.get("fecha_fin") or None
+        
+        if not id_producto or not descuento_porcentaje or not precio_oferta or not titulo:
+            flash("El producto, descuento, precio y título son obligatorios", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
+        
+        try:
+            Oferta.actualizar(id_oferta, id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, activa, fecha_inicio, fecha_fin)
+            flash(f"Oferta '{titulo}' actualizada", "success")
+            return redirect(url_for("admin.ofertas"))
+        except Exception as e:
+            flash(f"Error al actualizar oferta: {str(e)}", "danger")
+    
+    return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
+
+
+@admin_bp.route("/ofertas/<int:id_oferta>/toggle", methods=["POST"])
+def toggle_oferta(id_oferta):
+    """Activa/desactiva una oferta."""
+    Oferta.toggle_activa(id_oferta)
+    flash("Estado de la oferta modificado", "info")
+    return redirect(url_for("admin.ofertas"))
+
+
+@admin_bp.route("/ofertas/<int:id_oferta>/eliminar", methods=["POST"])
+def eliminar_oferta(id_oferta):
+    """Elimina una oferta."""
+    try:
+        Oferta.eliminar(id_oferta)
+        flash("Oferta eliminada", "info")
+    except Exception as e:
+        flash(f"Error al eliminar oferta: {str(e)}", "danger")
+    
+    return redirect(url_for("admin.ofertas"))
+
+
+# API para cargar variantes de un producto
+@admin_bp.route("/api/productos/<int:id_producto>/variantes")
+def api_variantes_producto(id_producto):
+    """API para obtener variantes de un producto (para el formulario de ofertas)."""
+    variantes = VarianteProducto.listar_por_producto(id_producto)
+    return jsonify([{
+        'id_variante': v['id_variante'],
+        'presentacion': v['presentacion'],
+        'precio': float(v['precio'])
+    } for v in variantes])

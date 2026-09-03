@@ -1,0 +1,125 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ 'Editar' if oferta else 'Nueva' }} Oferta — Admin — Beer House Premium{% endblock %}
+{% block admin_content %}
+<!-- Admin Offer Form Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Promociones</p>
+            <h1>{{ 'Editar' if oferta else 'Nueva' }} Oferta</h1>
+            <p>{{ 'Modifica los datos de la oferta' if oferta else 'Crea una nueva oferta especial' }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.ofertas') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Ofertas
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="premium-form">
+            <form method="POST" action="{{ url_for('admin.nueva_oferta') if not oferta else url_for('admin.editar_oferta', id_oferta=oferta.id_oferta) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label class="form-label">Producto *</label>
+                    <select name="id_producto" class="form-input" required onchange="cargarVariantes(this.value)">
+                        <option value="">Selecciona un producto</option>
+                        {% for prod in productos %}
+                        <option value="{{ prod.id_producto }}" {% if oferta and oferta.id_producto == prod.id_producto %}selected{% endif %}>
+                            {{ prod.nombre_producto }} - {{ prod.marca }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Variante (opcional)</label>
+                    <select name="id_variante" class="form-input" id="varianteSelect">
+                        <option value="">Todas las variantes</option>
+                    </select>
+                    <small class="text-muted">Si no seleccionas variante, la oferta aplica a todas las variantes del producto</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Título de la Oferta *</label>
+                    <input type="text" name="titulo" class="form-input" placeholder="Ej. Weekend Premium, Happy Hour" value="{{ oferta.titulo if oferta else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descripción (opcional)</label>
+                    <textarea name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la oferta...">{{ oferta.descripcion if oferta else '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descuento (%) *</label>
+                    <input type="number" name="descuento_porcentaje" class="form-input" placeholder="Ej. 25" value="{{ oferta.descuento_porcentaje if oferta else '' }}" step="0.01" min="0" max="100" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Precio de Oferta *</label>
+                    <input type="number" name="precio_oferta" class="form-input" placeholder="Ej. 85.00" value="{{ oferta.precio_oferta if oferta else '' }}" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Fecha de Inicio (opcional)</label>
+                    <input type="datetime-local" name="fecha_inicio" class="form-input" value="{{ oferta.fecha_inicio.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_inicio else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Fecha de Fin (opcional)</label>
+                    <input type="datetime-local" name="fecha_fin" class="form-input" value="{{ oferta.fecha_fin.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_fin else '' }}">
+                </div>
+
+                {% if oferta %}
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" name="activa" {% if oferta.activa %}checked{% endif %}>
+                        <span>Oferta Activa</span>
+                    </label>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">{{ 'Actualizar' if oferta else 'Crear' }} Oferta</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<script>
+function cargarVariantes(idProducto) {
+    if (!idProducto) {
+        document.getElementById('varianteSelect').innerHTML = '<option value="">Todas las variantes</option>';
+        return;
+    }
+    
+    fetch(`/api/productos/${idProducto}/variantes`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('varianteSelect');
+            select.innerHTML = '<option value="">Todas las variantes</option>';
+            data.forEach(variante => {
+                select.innerHTML += `<option value="${variante.id_variante}">${variante.presentacion} - $${variante.precio}</option>`;
+            });
+        })
+        .catch(error => console.error('Error al cargar variantes:', error));
+}
+
+// Cargar variantes si hay producto seleccionado
+{% if oferta and oferta.id_producto %}
+document.addEventListener('DOMContentLoaded', function() {
+    cargarVariantes({{ oferta.id_producto }});
+    {% if oferta.id_variante %}
+    document.getElementById('varianteSelect').value = {{ oferta.id_variante }};
+    {% endif %}
+});
+{% endif %}
+</script>
+{% endblock %}

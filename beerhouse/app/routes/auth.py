@@ -2,6 +2,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.usuario import Usuario
 from app.utils.validaciones import validar_email, validar_password, MIN_PASSWORD_LENGTH
+from app.utils.email_service import send_welcome_email
+
+# IDs de roles
+ID_ROL_CLIENTE = 1
+ID_ROL_ADMIN = 2
+ID_ROL_TRABAJADOR = 4
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -23,7 +29,14 @@ def login():
             session["nombre"] = usuario["nombre"]
             session["id_rol"] = usuario["id_rol"]
             flash("Sesión iniciada correctamente", "success")
-            return redirect(url_for("productos.catalogo"))
+            
+            # Redirigir según el rol
+            if usuario["id_rol"] == ID_ROL_ADMIN:
+                return redirect(url_for("admin.dashboard"))
+            elif usuario["id_rol"] == ID_ROL_TRABAJADOR:
+                return redirect(url_for("trabajador.dashboard"))
+            else:  # Cliente
+                return redirect(url_for("productos.catalogo"))
 
         flash("Correo o contraseña incorrectos", "danger")
 
@@ -58,6 +71,12 @@ def registro():
 
         password_hash = generate_password_hash(password)
         Usuario.crear(nombre, apellido, email, password_hash, telefono)
+
+        # Enviar correo de bienvenida (no debe fallar el registro si falla el correo)
+        try:
+            send_welcome_email(email, nombre)
+        except Exception as e:
+            print(f"Error al enviar correo de bienvenida: {e}")
 
         flash("Cuenta creada, ya puedes iniciar sesión", "success")
         return redirect(url_for("auth.login"))

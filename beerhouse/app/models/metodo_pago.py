@@ -1,11 +1,51 @@
 from app.utils.db import get_connection
+import re
 
 
 class MetodoPago:
     @staticmethod
+    def sanitizar_detalle_tarjeta(detalle):
+        """
+        Sanitiza los datos de una tarjeta para guardar solo información segura.
+        
+        Args:
+            detalle: String que puede contener información de tarjeta
+            
+        Returns:
+            String con solo los últimos 4 dígitos y tipo de tarjeta
+        """
+        if not detalle:
+            return None
+            
+        # Extraer solo dígitos
+        digits_only = re.sub(r'\D', '', detalle)
+        
+        # Si hay 13+ dígitos (puede ser un número de tarjeta), guardar solo los últimos 4
+        if len(digits_only) >= 13:
+            ultimos_4 = digits_only[-4:]
+            return f"**** **** **** {ultimos_4}"
+        
+        # Si no parece ser un número de tarjeta completo, devolver tal cual
+        return detalle
+
+    @staticmethod
     def crear(id_usuario, tipo, detalle=None, es_predeterminado=0):
+        """
+        Crea un método de pago seguro.
+        
+        Para tarjetas de crédito, el detalle debe contener solo información segura:
+        - Últimos 4 dígitos de la tarjeta
+        - Mes y año de expiración
+        - Tipo de tarjeta (Visa, Mastercard, etc.)
+        
+        NO guardar números completos de tarjetas.
+        """
         conn = get_connection()
         cursor = conn.cursor()
+
+        # Sanitizar detalle si es una tarjeta
+        if detalle and tipo.lower() in ['tarjeta de crédito', 'tarjeta de debito', 'tarjeta']:
+            detalle = MetodoPago.sanitizar_detalle_tarjeta(detalle)
 
         # Si se marca como predeterminado, desmarcar los demás
         if es_predeterminado:

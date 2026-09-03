@@ -1,52 +1,89 @@
 {% extends "base.html" %}
-{% block title %}Nueva Dirección — Beer House{% endblock %}
+{% block title %}Nueva Dirección — Beer House Premium{% endblock %}
 
 {% block content %}
-<div class="bh-page-header">
-    <h2>Agregar Nueva Dirección</h2>
-    <a href="{{ url_for('cuenta.direcciones') }}" class="bh-btn-link">&larr; Volver a Mis Direcciones</a>
-</div>
+<!-- New Address Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Agregar Ubicación</p>
+            <h1>Nueva Dirección</h1>
+            <p>Registra una nueva dirección de entrega para tus pedidos premium.</p>
+        </div>
+    </div>
+</section>
 
-<div class="bh-form-container">
-    <form method="POST" action="{{ url_for('cuenta.nueva_direccion') }}" class="bh-form-card">
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="alias">Alias de la dirección (opcional)</label>
-                <input type="text" id="alias" name="alias" placeholder="Ej. Casa, Oficina, Bar">
+<section class="container">
+    <div class="page-actions">
+        <a href="{{ url_for('cuenta.direcciones') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Direcciones
+        </a>
+    </div>
+
+    <div class="form-container">
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <h2>Información de la Dirección</h2>
             </div>
-            <div class="bh-field bh-col-6">
-                <label for="ciudad">Ciudad *</label>
-                <input type="text" id="ciudad" name="ciudad" placeholder="Ej. Bogotá, Medellín, Cali" required>
-            </div>
-        </div>
+            
+            <form method="POST" action="{{ url_for('cuenta.nueva_direccion') }}" class="premium-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Alias (opcional)</label>
+                        <input type="text" id="alias" name="alias" class="form-input" placeholder="Ej. Casa, Oficina, Bar">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ciudad *</label>
+                        <input type="text" id="ciudad" name="ciudad" class="form-input" placeholder="Ej. Bogotá, Medellín, Cali" required>
+                    </div>
+                </div>
 
-        <div class="bh-field">
-            <label for="linea_direccion">Dirección completa *</label>
-            <input type="text" id="linea_direccion" name="linea_direccion" placeholder="Calle / Carrera / Avenida # - Apto o Casa" required>
-        </div>
+                <div class="form-group">
+                    <label class="form-label">Dirección completa *</label>
+                    <input type="text" id="linea_direccion" name="linea_direccion" class="form-input" placeholder="Calle / Carrera / Avenida # - Apto o Casa" required>
+                </div>
 
-        <div class="bh-form-row">
-            <div class="bh-field bh-col-6">
-                <label for="departamento">Departamento / Estado</label>
-                <input type="text" id="departamento" name="departamento" placeholder="Ej. Cundinamarca, Antioquia">
-            </div>
-            <div class="bh-field bh-col-6">
-                <label for="codigo_postal">Código Postal (opcional)</label>
-                <input type="text" id="codigo_postal" name="codigo_postal" placeholder="Ej. 110111">
-            </div>
-        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Departamento / Estado</label>
+                        <input type="text" id="departamento" name="departamento" class="form-input" placeholder="Ej. Cundinamarca, Antioquia">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Código Postal (opcional)</label>
+                        <input type="text" id="codigo_postal" name="codigo_postal" class="form-input" placeholder="Ej. 110111">
+                    </div>
+                </div>
 
-        <div class="bh-field bh-checkbox-field">
-            <label>
-                <input type="checkbox" name="es_principal" value="1">
-                Establecer como dirección principal de entrega
-            </label>
-        </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="es_principal" value="1">
+                        <span>Establecer como dirección principal de entrega</span>
+                    </label>
+                </div>
 
-        <div class="bh-form-actions">
-            <button type="submit" class="bh-btn bh-btn-primary">Guardar Dirección</button>
-            <a href="{{ url_for('cuenta.direcciones') }}" class="bh-btn bh-btn-outline">Cancelar</a>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 13 7 21"></polyline>
+                        </svg>
+                        Guardar Dirección
+                    </button>
+                    <a href="{{ url_for('cuenta.direcciones') }}" class="btn btn-outline btn-lg">Cancelar</a>
+                </div>
+            </form>
         </div>
-    </form>
-</div>
+    </div>
+</section>
 {% endblock %}

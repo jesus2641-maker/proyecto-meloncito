@@ -1,0 +1,97 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Gestión de Ofertas — Admin — Beer House Premium{% endblock %}
+{% block admin_content %}
+<!-- Admin Offers Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Promociones</p>
+            <h1>Ofertas</h1>
+            <p>Administra las ofertas y descuentos especiales de Beer House Premium</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.nueva_oferta') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Nueva Oferta
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Ofertas Registradas</h2>
+            <span class="section-badge">{{ ofertas|length }} ofertas</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Producto</th>
+                        <th>Descuento</th>
+                        <th>Precio Oferta</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for oferta in ofertas %}
+                    <tr class="{% if not oferta.activa %}row-inactive{% endif %}">
+                        <td><strong>#{{ oferta.id_oferta }}</strong></td>
+                        <td><strong>{{ oferta.titulo }}</strong></td>
+                        <td>
+                            <div class="product-cell">
+                                {% if oferta.imagen_url %}
+                                <img src="{{ oferta.imagen_url }}" alt="{{ oferta.nombre_producto }}" class="product-thumb">
+                                {% endif %}
+                                <div class="product-info">
+                                    <strong>{{ oferta.nombre_producto }}</strong>
+                                    {% if oferta.presentacion %}
+                                    <small>{{ oferta.presentacion }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-success">-{{ oferta.descuento_porcentaje }}%</span>
+                        </td>
+                        <td>${{ "{:,.2f}".format(oferta.precio_oferta) }}</td>
+                        <td>
+                            {% if oferta.activa %}
+                            <span class="badge badge-success">Activa</span>
+                            {% else %}
+                            <span class="badge badge-danger">Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('admin.editar_oferta', id_oferta=oferta.id_oferta) }}" class="btn btn-sm btn-outline">Editar</a>
+                                <form method="POST" action="{{ url_for('admin.toggle_oferta', id_oferta=oferta.id_oferta) }}" class="inline-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline">
+                                        {{ 'Desactivar' if oferta.activa else 'Activar' }}
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Oferta', message: '¿Estás seguro de eliminar la oferta \'{{ oferta.titulo|replace('\'', '\\\'') }}\'?', actionUrl: '{{ url_for('admin.eliminar_oferta', id_oferta=oferta.id_oferta) }}' })">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center" style="padding: 40px;">No hay ofertas registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

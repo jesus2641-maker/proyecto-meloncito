@@ -1,0 +1,99 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Mi Cuenta — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Admin Account Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Perfil de Administrador</p>
+            <h1>Mi Cuenta</h1>
+            <p>Gestiona tu información personal y seguridad</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Información del Perfil</h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.editar_mi_cuenta') }}" class="premium-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" id="nombre" name="nombre" class="form-input" value="{{ usuario.nombre }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Apellido *</label>
+                    <input type="text" id="apellido" name="apellido" class="form-input" value="{{ usuario.apellido }}" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Correo Electrónico *</label>
+                <input type="email" id="email" name="email" class="form-input" value="{{ usuario.email }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Teléfono</label>
+                <input type="tel" id="telefono" name="telefono" class="form-input" value="{{ usuario.telefono or '' }}" placeholder="Ej. +57 300 123 4567">
+            </div>
+
+            <div class="form-divider">
+                <h3>Cambiar Contraseña</h3>
+                <p class="text-muted">Deja estos campos en blanco si no deseas cambiar tu contraseña</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Contraseña Actual</label>
+                <input type="password" id="contraseña_actual" name="contraseña_actual" class="form-input" placeholder="Ingresa tu contraseña actual para confirmar">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nueva Contraseña</label>
+                    <input type="password" id="contraseña_nueva" name="contraseña_nueva" class="form-input" placeholder="Nueva contraseña">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirmar Nueva Contraseña</label>
+                    <input type="password" id="confirmar_contraseña" class="form-input" placeholder="Confirma tu nueva contraseña">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Información de la Cuenta</h2>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">ID de Usuario:</span>
+                <span class="info-value">#{{ usuario.id_usuario }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Rol:</span>
+                <span class="info-value">{{ usuario.nombre_rol|capitalize }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Estado:</span>
+                <span class="info-value badge badge-success">Activo</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Fecha de Registro:</span>
+                <span class="info-value">{{ usuario.fecha_registro.strftime('%d/%m/%Y %H:%M') if usuario.fecha_registro else '—' }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

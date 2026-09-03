@@ -2,22 +2,13 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 from app.models.direccion import Direccion
 from app.models.metodo_pago import MetodoPago
 from app.models.pedido import Pedido, PedidoDetalle
+from app.utils.decoradores import requiere_login
 
 cuenta_bp = Blueprint("cuenta", __name__, url_prefix="/cuenta")
 
 
-def _requiere_sesion():
-    return "id_usuario" in session
-
-
-@cuenta_bp.before_request
-def verificar_autenticacion():
-    if not _requiere_sesion():
-        flash("Debes iniciar sesión para acceder a tu cuenta", "warning")
-        return redirect(url_for("auth.login"))
-
-
 @cuenta_bp.route("/")
+@requiere_login(mensaje="Debes iniciar sesión para acceder a tu cuenta")
 def index():
     id_usuario = session["id_usuario"]
     direcciones = Direccion.listar_por_usuario(id_usuario)
@@ -33,6 +24,7 @@ def index():
 
 # --- DIRECCIONES ---
 @cuenta_bp.route("/direcciones")
+@requiere_login()
 def direcciones():
     id_usuario = session["id_usuario"]
     direcciones = Direccion.listar_por_usuario(id_usuario)
@@ -40,6 +32,7 @@ def direcciones():
 
 
 @cuenta_bp.route("/direcciones/nueva", methods=["GET", "POST"])
+@requiere_login()
 def nueva_direccion():
     if request.method == "POST":
         id_usuario = session["id_usuario"]
@@ -70,6 +63,7 @@ def nueva_direccion():
 
 
 @cuenta_bp.route("/direcciones/eliminar", methods=["POST"])
+@requiere_login()
 def eliminar_direccion():
     id_usuario = session["id_usuario"]
     id_direccion = request.form.get("id_direccion", type=int)
@@ -83,6 +77,7 @@ def eliminar_direccion():
 
 # --- MÉTODOS DE PAGO ---
 @cuenta_bp.route("/metodos-pago")
+@requiere_login()
 def metodos_pago():
     id_usuario = session["id_usuario"]
     metodos = MetodoPago.listar_por_usuario(id_usuario)
@@ -90,6 +85,7 @@ def metodos_pago():
 
 
 @cuenta_bp.route("/metodos-pago/nuevo", methods=["GET", "POST"])
+@requiere_login()
 def nuevo_metodo_pago():
     if request.method == "POST":
         id_usuario = session["id_usuario"]
@@ -114,6 +110,7 @@ def nuevo_metodo_pago():
 
 
 @cuenta_bp.route("/metodos-pago/eliminar", methods=["POST"])
+@requiere_login()
 def eliminar_metodo_pago():
     id_usuario = session["id_usuario"]
     id_metodo = request.form.get("id_metodo_pago", type=int)
@@ -127,6 +124,7 @@ def eliminar_metodo_pago():
 
 # --- PEDIDOS ---
 @cuenta_bp.route("/pedidos")
+@requiere_login()
 def pedidos():
     id_usuario = session["id_usuario"]
     pedidos = Pedido.listar_por_usuario(id_usuario)
@@ -134,6 +132,7 @@ def pedidos():
 
 
 @cuenta_bp.route("/pedidos/<int:id_pedido>")
+@requiere_login()
 def detalle_pedido(id_pedido):
     id_usuario = session["id_usuario"]
     pedido = Pedido.obtener_por_id(id_pedido)

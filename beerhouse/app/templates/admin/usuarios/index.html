@@ -1,79 +1,100 @@
-{% extends "base.html" %}
-{% block title %}Usuarios Registrados — Admin — Beer House{% endblock %}
+{% extends "admin/base_admin.html" %}
+{% block title %}Usuarios Registrados — Admin — Beer House Premium{% endblock %}
 
-{% block content %}
-{% include "admin/nav_admin.html" %}
-
-<div class="bh-page-header">
-    <div>
-        <h2>Usuarios Registrados</h2>
-        <p class="bh-meta-label">Administra clientes, administradores y permisos de acceso</p>
+{% block admin_content %}
+<!-- Admin Users Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Usuarios</p>
+            <h1>Usuarios Registrados</h1>
+            <p>Administra clientes, administradores y permisos de acceso</p>
+        </div>
     </div>
-    <div class="bh-meta-label">
-        Total registrados: <strong>{{ usuarios|length }}</strong>
-    </div>
-</div>
+</section>
 
-<div class="bh-table-container">
-    <table class="bh-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nombre y Apellido</th>
-                <th>Correo Electrónico</th>
-                <th>Teléfono</th>
-                <th>Rol</th>
-                <th>Pedidos</th>
-                <th>Fecha Registro</th>
-                <th>Estado</th>
-                <th style="text-align: right;">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in usuarios %}
-            <tr class="{% if not u.activo %}bh-row-inactive{% endif %}">
-                <td><strong>#{{ u.id_usuario }}</strong></td>
-                <td><strong>{{ u.nombre }} {{ u.apellido }}</strong></td>
-                <td>{{ u.email }}</td>
-                <td>{{ u.telefono or '—' }}</td>
-                <td>
-                    <form method="POST" action="{{ url_for('admin.cambiar_rol_usuario', id_usuario=u.id_usuario) }}" class="bh-inline-form">
-                        <select name="id_rol" onchange="this.form.submit()" class="bh-select-sm" {% if u.id_usuario == session.get('id_usuario') %}disabled title="No puedes cambiar tu propio rol"{% endif %}>
-                            {% for r in roles %}
-                            <option value="{{ r.id_rol }}" {% if r.id_rol == u.id_rol %}selected{% endif %}>
-                                {{ r.nombre_rol|capitalize }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </form>
-                </td>
-                <td>
-                    <span class="bh-badge-tag">{{ u.total_pedidos }} pedido(s)</span>
-                </td>
-                <td>{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
-                <td>
-                    <span class="bh-status-badge {% if u.activo %}bh-status-confirmado{% else %}bh-status-cancelado{% endif %}">
-                        {{ 'Activo' if u.activo else 'Inactivo' }}
-                    </span>
-                </td>
-                <td style="text-align: right;">
-                    {% if u.id_usuario != session.get('id_usuario') %}
-                    <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" style="display: inline;">
-                        <button type="submit" class="bh-btn bh-btn-sm {% if u.activo %}bh-btn-danger{% else %}bh-btn-outline{% endif %}">
-                            {{ 'Desactivar' if u.activo else 'Activar' }}
-                        </button>
-                    </form>
+<section class="container">
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Lista de Usuarios</h2>
+            <span class="section-badge">{{ usuarios|length }} usuarios</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre y Apellido</th>
+                        <th>Correo Electrónico</th>
+                        <th>Teléfono</th>
+                        <th>Rol</th>
+                        <th>Pedidos</th>
+                        <th>Fecha Registro</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                    <tr class="{% if not u.activo %}row-inactive{% endif %}">
+                        <td><strong>#{{ u.id_usuario }}</strong></td>
+                        <td><strong>{{ u.nombre }} {{ u.apellido }}</strong></td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.telefono or '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.cambiar_rol_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <select name="id_rol" onchange="this.form.submit()" class="status-select" {% if u.id_usuario == session.get('id_usuario') %}disabled title="No puedes cambiar tu propio rol"{% endif %}>
+                                    {% for r in roles %}
+                                    <option value="{{ r.id_rol }}" {% if r.id_rol == u.id_rol %}selected{% endif %}>
+                                        {{ r.nombre_rol|capitalize }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">{{ u.total_pedidos }} pedido(s)</span>
+                        </td>
+                        <td>{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
+                        <td>
+                            {% if u.activo %}
+                            <span class="badge badge-success">Activo</span>
+                            {% else %}
+                            <span class="badge badge-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.id_usuario != session.get('id_usuario') %}
+                                {% if u.activo %}
+                                <form id="formToggleUser{{ u.id_usuario }}" method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Desactivar Usuario', message: '¿Estás seguro de desactivar la cuenta de \'{{ u.nombre|replace('\'', '\\\'') }} {{ u.apellido|replace('\'', '\\\'') }}\'? El usuario no podrá ingresar a la tienda.', callback: () => document.getElementById('formToggleUser{{ u.id_usuario }}').submit() })">
+                                        Desactivar
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        Activar
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted">Tu cuenta</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% else %}
-                    <span class="bh-meta-label">Tu cuenta</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="9" class="bh-empty" style="text-align: center; padding: 40px;">No hay usuarios registrados en la base de datos.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                    <tr>
+                        <td colspan="9" class="text-center" style="padding: 40px;">No hay usuarios registrados en la base de datos.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
 {% endblock %}

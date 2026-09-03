@@ -3,20 +3,52 @@ from app.utils.db import get_connection
 
 class Producto:
     @staticmethod
-    def listar_con_variantes():
-        """Devuelve productos activos junto con sus variantes (precio/stock)."""
+    def listar_con_variantes(busqueda=None, categoria=None):
+        """Devuelve productos activos junto con sus variantes (precio/stock) con filtros opcionales."""
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT p.id_producto, p.nombre_producto, p.descripcion, p.marca,
-                   p.imagen_url, c.nombre_categoria,
-                   v.id_variante, v.presentacion, v.precio, v.stock
+        
+        # Primero obtener los IDs de productos que cumplen con los filtros
+        product_query = """
+            SELECT DISTINCT p.id_producto
             FROM productos p
             JOIN categorias c ON p.id_categoria = c.id_categoria
             JOIN variantes_producto v ON v.id_producto = p.id_producto
             WHERE p.activo = TRUE
+        """
+        params = []
+        
+        if busqueda:
+            product_query += " AND (p.nombre_producto LIKE %s OR p.descripcion LIKE %s OR p.marca LIKE %s)"
+            busqueda_param = f"%{busqueda}%"
+            params.extend([busqueda_param, busqueda_param, busqueda_param])
+        
+        if categoria:
+            product_query += " AND c.id_categoria = %s"
+            params.append(categoria)
+        
+        cursor.execute(product_query, params)
+        product_ids = [row['id_producto'] for row in cursor.fetchall()]
+        
+        if not product_ids:
+            cursor.close()
+            conn.close()
+            return []
+        
+        # Ahora obtener todos los datos de esos productos con todas sus variantes
+        placeholders = ','.join(['%s'] * len(product_ids))
+        query = f"""
+            SELECT p.id_producto, p.nombre_producto, p.descripcion, p.marca,
+                   p.imagen_url, c.nombre_categoria, c.id_categoria,
+                   v.id_variante, v.presentacion, v.precio, v.stock
+            FROM productos p
+            JOIN categorias c ON p.id_categoria = c.id_categoria
+            JOIN variantes_producto v ON v.id_producto = p.id_producto
+            WHERE p.id_producto IN ({placeholders})
             ORDER BY p.nombre_producto
-        """)
+        """
+        
+        cursor.execute(query, product_ids)
         filas = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -64,13 +96,37 @@ class Producto:
         return producto
 
     @staticmethod
-    def crear(id_categoria, nombre_producto, descripcion, marca, imagen_url=None):
+    def obtener_relacionados(id_producto, id_categoria, limite=4):
+        """Obtiene productos activos de la misma categoría, excluyendo el producto actual."""
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT p.id_producto, p.nombre_producto, p.descripcion, p.marca, p.imagen_url,
+                   c.nombre_categoria,
+                   MIN(v.precio) AS precio_minimo
+            FROM productos p
+            LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
+            LEFT JOIN variantes_producto v ON p.id_producto = v.id_producto
+            WHERE p.id_producto != %s 
+              AND p.id_categoria = %s 
+              AND p.activo = TRUE
+            GROUP BY p.id_producto, p.nombre_producto, p.descripcion, p.marca, p.imagen_url, c.nombre_categoria
+            ORDER BY RAND()
+            LIMIT %s
+        """, (id_producto, id_categoria, limite))
+        productos = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return productos
+
+    @staticmethod
+    def crear(id_categoria, nombre_producto, descripcion, marca, imagen_url=None, imagen_public_id=None):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO productos (id_categoria, nombre_producto, descripcion, marca, imagen_url)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (id_categoria, nombre_producto, descripcion, marca, imagen_url)
+            """INSERT INTO productos (id_categoria, nombre_producto, descripcion, marca, imagen_url, imagen_public_id)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (id_categoria, nombre_producto, descripcion, marca, imagen_url, imagen_public_id)
         )
         conn.commit()
         nuevo_id = cursor.lastrowid
@@ -79,15 +135,15 @@ class Producto:
         return nuevo_id
 
     @staticmethod
-    def actualizar(id_producto, id_categoria, nombre_producto, descripcion, marca, imagen_url=None, activo=1):
+    def actualizar(id_producto, id_categoria, nombre_producto, descripcion, marca, imagen_url=None, imagen_public_id=None, activo=1):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE productos
             SET id_categoria = %s, nombre_producto = %s, descripcion = %s,
-                marca = %s, imagen_url = %s, activo = %s
+                marca = %s, imagen_url = %s, imagen_public_id = %s, activo = %s
             WHERE id_producto = %s
-        """, (id_categoria, nombre_producto, descripcion, marca, imagen_url, activo, id_producto))
+        """, (id_categoria, nombre_producto, descripcion, marca, imagen_url, imagen_public_id, activo, id_producto))
         conn.commit()
         cursor.close()
         conn.close()
@@ -103,12 +159,50 @@ class Producto:
 
     @staticmethod
     def eliminar(id_producto):
+        """
+        Elimina un producto solo si no tiene pedidos activos.
+        Permite eliminar si todos los pedidos están en estados finales (entregado o cancelado).
+        También elimina la imagen de Cloudinary si existe.
+        """
+        from app.utils.cloudinary_utils import delete_image
+        
         conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM productos WHERE id_producto = %s", (id_producto,))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Verificar si el producto tiene pedidos activos
+            cursor.execute("""
+                SELECT COUNT(*) as total_pedidos
+                FROM pedido_detalle pd
+                JOIN pedidos p ON pd.id_pedido = p.id_pedido
+                JOIN variantes_producto v ON pd.id_variante = v.id_variante
+                WHERE v.id_producto = %s AND p.id_estado IN (1, 2, 3)
+            """, (id_producto,))
+            
+            resultado = cursor.fetchone()
+            pedidos_activos = resultado["total_pedidos"]
+            
+            if pedidos_activos > 0:
+                raise ValueError(f"El producto tiene {pedidos_activos} pedido(s) activo(s) y no puede ser eliminado")
+            
+            # Obtener el public_id de la imagen antes de eliminar
+            cursor.execute("SELECT imagen_public_id FROM productos WHERE id_producto = %s", (id_producto,))
+            producto = cursor.fetchone()
+            
+            # Eliminar imagen de Cloudinary si existe
+            if producto and producto.get('imagen_public_id'):
+                delete_image(producto['imagen_public_id'])
+            
+            # Si no hay pedidos activos, proceder con la eliminación
+            cursor.execute("DELETE FROM productos WHERE id_producto = %s", (id_producto,))
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cursor.close()
+            conn.close()
 
 
 class VarianteProducto:
@@ -136,13 +230,13 @@ class VarianteProducto:
         return variante
 
     @staticmethod
-    def crear(id_producto, presentacion, precio, stock, sku=None):
+    def crear(id_producto, presentacion, precio, stock, sku=None, stock_minimo=5):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO variantes_producto (id_producto, presentacion, precio, stock, sku)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (id_producto, presentacion, precio, stock, sku)
+            """INSERT INTO variantes_producto (id_producto, presentacion, precio, stock, sku, stock_minimo)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (id_producto, presentacion, precio, stock, sku, stock_minimo)
         )
         conn.commit()
         nuevo_id = cursor.lastrowid
@@ -151,14 +245,14 @@ class VarianteProducto:
         return nuevo_id
 
     @staticmethod
-    def actualizar(id_variante, presentacion, precio, stock, sku=None):
+    def actualizar(id_variante, presentacion, precio, stock, sku=None, stock_minimo=5):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE variantes_producto
-            SET presentacion = %s, precio = %s, stock = %s, sku = %s
+            SET presentacion = %s, precio = %s, stock = %s, sku = %s, stock_minimo = %s
             WHERE id_variante = %s
-        """, (presentacion, precio, stock, sku, id_variante))
+        """, (presentacion, precio, stock, sku, stock_minimo, id_variante))
         conn.commit()
         cursor.close()
         conn.close()
@@ -176,6 +270,21 @@ class VarianteProducto:
         conn.close()
 
     @staticmethod
+    def descontar_stock(id_variante, cantidad):
+        """Descuenta una cantidad específica del stock de una variante."""
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE variantes_producto SET stock = stock - %s WHERE id_variante = %s AND stock >= %s",
+            (cantidad, id_variante, cantidad)
+        )
+        conn.commit()
+        affected_rows = cursor.rowcount
+        cursor.close()
+        conn.close()
+        return affected_rows > 0
+
+    @staticmethod
     def eliminar(id_variante):
         conn = get_connection()
         cursor = conn.cursor()
@@ -183,3 +292,59 @@ class VarianteProducto:
         conn.commit()
         cursor.close()
         conn.close()
+
+    @staticmethod
+    def obtener_inventario(filtro_bajo=None):
+        """
+        Obtiene el inventario completo con alertas de stock bajo.
+        
+        Args:
+            filtro_bajo: Si es True, solo retorna items con stock bajo
+            
+        Returns:
+            Lista de variantes con información de stock y alertas
+        """
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.stock_minimo, v.sku,
+                   p.nombre_producto, p.marca, c.nombre_categoria,
+                   CASE 
+                       WHEN v.stock = 0 THEN 'agotado'
+                       WHEN v.stock <= v.stock_minimo THEN 'bajo'
+                       ELSE 'normal'
+                   END AS estado_stock
+            FROM variantes_producto v
+            JOIN productos p ON v.id_producto = p.id_producto
+            JOIN categorias c ON p.id_categoria = c.id_categoria
+            WHERE p.activo = TRUE
+        """
+        
+        if filtro_bajo:
+            query += " AND v.stock <= v.stock_minimo"
+        
+        query += " ORDER BY v.stock ASC, p.nombre_producto ASC"
+        
+        cursor.execute(query)
+        inventario = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return inventario
+
+    @staticmethod
+    def obtener_alertas_stock():
+        """
+        Obtiene items que requieren atención por stock bajo o agotado.
+        
+        Returns:
+            Dict con 'agotados' y 'bajo' como listas
+        """
+        inventario = VarianteProducto.obtener_inventario(filtro_bajo=True)
+        
+        alertas = {
+            'agotados': [item for item in inventario if item['stock'] == 0],
+            'bajo': [item for item in inventario if item['stock'] > 0 and item['stock'] <= item['stock_minimo']]
+        }
+        
+        return alertas

@@ -18,11 +18,11 @@ class Categoria:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT c.id_categoria, c.nombre_categoria, c.descripcion,
+            SELECT c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url,
                    COUNT(p.id_producto) AS total_productos
             FROM categorias c
             LEFT JOIN productos p ON c.id_categoria = p.id_categoria
-            GROUP BY c.id_categoria, c.nombre_categoria, c.descripcion
+            GROUP BY c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url
             ORDER BY c.nombre_categoria ASC
         """)
         categorias = cursor.fetchall()
@@ -41,12 +41,12 @@ class Categoria:
         return categoria
 
     @staticmethod
-    def crear(nombre_categoria, descripcion=None):
+    def crear(nombre_categoria, descripcion=None, imagen_url=None, imagen_public_id=None):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO categorias (nombre_categoria, descripcion) VALUES (%s, %s)",
-            (nombre_categoria, descripcion)
+            "INSERT INTO categorias (nombre_categoria, descripcion, imagen_url, imagen_public_id) VALUES (%s, %s, %s, %s)",
+            (nombre_categoria, descripcion, imagen_url, imagen_public_id)
         )
         conn.commit()
         nuevo_id = cursor.lastrowid
@@ -55,23 +55,44 @@ class Categoria:
         return nuevo_id
 
     @staticmethod
-    def actualizar(id_categoria, nombre_categoria, descripcion=None):
+    def actualizar(id_categoria, nombre_categoria, descripcion=None, imagen_url=None, imagen_public_id=None):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE categorias
-            SET nombre_categoria = %s, descripcion = %s
+            SET nombre_categoria = %s, descripcion = %s, imagen_url = %s, imagen_public_id = %s
             WHERE id_categoria = %s
-        """, (nombre_categoria, descripcion, id_categoria))
+        """, (nombre_categoria, descripcion, imagen_url, imagen_public_id, id_categoria))
         conn.commit()
         cursor.close()
         conn.close()
 
     @staticmethod
     def eliminar(id_categoria):
+        """
+        Elimina una categoría y su imagen de Cloudinary si existe.
+        """
+        from app.utils.cloudinary_utils import delete_image
+        
         conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM categorias WHERE id_categoria = %s", (id_categoria,))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Obtener el public_id de la imagen antes de eliminar
+            cursor.execute("SELECT imagen_public_id FROM categorias WHERE id_categoria = %s", (id_categoria,))
+            categoria = cursor.fetchone()
+            
+            # Eliminar imagen de Cloudinary si existe
+            if categoria and categoria.get('imagen_public_id'):
+                delete_image(categoria['imagen_public_id'])
+            
+            # Eliminar la categoría
+            cursor.execute("DELETE FROM categorias WHERE id_categoria = %s", (id_categoria,))
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cursor.close()
+            conn.close()

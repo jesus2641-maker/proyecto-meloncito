@@ -1,104 +1,140 @@
-{% extends "base.html" %}
-{% block title %}Variantes de {{ producto.nombre_producto }} — Admin — Beer House{% endblock %}
+{% extends "admin/base_admin.html" %}
+{% block title %}Variantes de {{ producto.nombre_producto }} — Admin — Beer House Premium{% endblock %}
 
-{% block content %}
-{% include "admin/nav_admin.html" %}
-
-<div class="bh-page-header">
-    <div>
-        <h2>Variantes y Stock: {{ producto.nombre_producto }}</h2>
-        <p class="bh-meta-label">Marca: {{ producto.marca or '—' }} | Categoría: {{ producto.nombre_categoria }}</p>
+{% block admin_content %}
+<!-- Admin Variants Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Variantes</p>
+            <h1>{{ producto.nombre_producto }}</h1>
+            <p>Marca: {{ producto.marca or '—' }} | Categoría: {{ producto.nombre_categoria }}</p>
+        </div>
     </div>
-    <div>
-        <a href="{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}" class="bh-btn bh-btn-outline">Editar Producto</a>
-        <a href="{{ url_for('admin.productos') }}" class="bh-btn bh-btn-outline" style="margin-left: 8px;">Volver a Productos</a>
-    </div>
-</div>
+</section>
 
-<div class="bh-checkout-grid">
-    <!-- COLUMNA IZQUIERDA: LISTADO Y EDICIÓN DE VARIANTES -->
-    <div>
-        <h3 class="bh-subtitle">Variantes Registradas ({{ variantes|length }})</h3>
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Editar Producto
+        </a>
+        <a href="{{ url_for('admin.productos') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Productos
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Variantes Registradas ({{ variantes|length }})</h2>
+        </div>
 
         {% if variantes %}
-        <div class="bh-table-container">
-            <table class="bh-table">
+        <div class="admin-table-container">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>Presentación</th>
                         <th>Precio ($)</th>
                         <th>Stock</th>
+                        <th>Stock Mínimo</th>
                         <th>SKU</th>
-                        <th style="text-align: right;">Acciones</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for v in variantes %}
                     <tr>
-                        <form method="POST" action="{{ url_for('admin.editar_variante', id_variante=v.id_variante) }}">
+                        <form method="POST" action="{{ url_for('admin.editar_variante', id_variante=v.id_variante) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="id_producto" value="{{ producto.id_producto }}">
                             <td>
-                                <input type="text" name="presentacion" value="{{ v.presentacion }}" required style="max-width: 120px;" class="bh-input-sm">
+                                <input type="text" name="presentacion" value="{{ v.presentacion }}" required class="inline-input">
                             </td>
                             <td>
-                                <input type="number" step="0.01" name="precio" value="{{ v.precio }}" required style="max-width: 120px;" class="bh-input-sm bh-mono">
+                                <input type="number" step="0.01" name="precio" value="{{ v.precio }}" required class="inline-input">
                             </td>
                             <td>
-                                <input type="number" name="stock" value="{{ v.stock }}" min="0" required style="max-width: 80px;" class="bh-input-sm">
+                                <input type="number" name="stock" value="{{ v.stock }}" min="0" required class="inline-input">
                             </td>
                             <td>
-                                <input type="text" name="sku" value="{{ v.sku or '' }}" placeholder="SKU" style="max-width: 110px;" class="bh-input-sm">
+                                <input type="number" name="stock_minimo" value="{{ v.stock_minimo or 5 }}" min="0" required class="inline-input">
                             </td>
-                            <td style="text-align: right; white-space: nowrap;">
-                                <button type="submit" class="bh-btn bh-btn-sm bh-btn-primary" title="Guardar Cambios">Guardar</button>
+                            <td>
+                                <input type="text" name="sku" value="{{ v.sku or '' }}" placeholder="SKU" class="inline-input">
+                            </td>
+                            <td>
+                                <button type="submit" class="btn btn-sm btn-primary" title="Guardar Cambios">Guardar</button>
+                            </td>
                         </form>
-                                <form method="POST" action="{{ url_for('admin.eliminar_variante', id_variante=v.id_variante) }}" style="display: inline; margin-left: 4px;" onsubmit="return confirm('¿Eliminar esta variante?');">
-                                    <input type="hidden" name="id_producto" value="{{ producto.id_producto }}">
-                                    <button type="submit" class="bh-btn-danger" title="Eliminar Variante">🗑️</button>
-                                </form>
-                            </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Variante', message: '¿Estás seguro de eliminar la presentación \'{{ v.presentacion|replace('\'', '\\\'') }}\'?', actionUrl: '{{ url_for('admin.eliminar_variante', id_variante=v.id_variante) }}' })">Eliminar</button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <div class="bh-empty-state">
-            <p class="bh-empty">Este producto aún no tiene ninguna variante ni presentación.</p>
+        <div class="empty-state-admin">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <p>Este producto aún no tiene ninguna variante ni presentación</p>
         </div>
         {% endif %}
     </div>
 
-    <!-- COLUMNA DERECHA: FORMULARIO AGREGAR NUEVA VARIANTE -->
-    <div>
-        <div class="bh-section-box">
-            <h3 class="bh-subtitle" style="margin-top: 0;">+ Nueva Variante</h3>
-            <p class="bh-helper-text">Agrega una nueva presentación (ej. 330ml, 750ml, Pack x6) con su precio y stock:</p>
-
-            <form method="POST" action="{{ url_for('admin.nueva_variante', id_producto=producto.id_producto) }}">
-                <div class="bh-field">
-                    <label for="presentacion">Presentación *</label>
-                    <input type="text" id="presentacion" name="presentacion" placeholder="Ej. Lata 355ml, Botella 750ml, Six-Pack" required>
-                </div>
-
-                <div class="bh-field">
-                    <label for="precio">Precio de Venta ($) *</label>
-                    <input type="number" step="0.01" id="precio" name="precio" placeholder="Ej. 8500.00" required>
-                </div>
-
-                <div class="bh-field">
-                    <label for="stock">Stock Disponible (Unidades)</label>
-                    <input type="number" id="stock" name="stock" value="10" min="0" required>
-                </div>
-
-                <div class="bh-field">
-                    <label for="sku">SKU / Código (opcional)</label>
-                    <input type="text" id="sku" name="sku" placeholder="Ej. CERV-355">
-                </div>
-
-                <button type="submit" class="bh-btn bh-btn-primary bh-btn-block">Agregar Variante</button>
-            </form>
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>+ Nueva Variante</h2>
         </div>
+        <p class="text-muted" style="margin-bottom: 20px;">Agrega una nueva presentación (ej. 330ml, 750ml, Pack x6) con su precio y stock:</p>
+
+        <form method="POST" action="{{ url_for('admin.nueva_variante', id_producto=producto.id_producto) }}" class="premium-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label">Presentación *</label>
+                <input type="text" id="presentacion" name="presentacion" class="form-input" placeholder="Ej. Lata 355ml, Botella 750ml, Six-Pack" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Precio de Venta ($) *</label>
+                <input type="number" step="0.01" id="precio" name="precio" class="form-input" placeholder="Ej. 8500.00" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Stock Disponible (Unidades)</label>
+                <input type="number" id="stock" name="stock" class="form-input" value="10" min="0" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Stock Mínimo (Alerta)</label>
+                <input type="number" id="stock_minimo" name="stock_minimo" class="form-input" value="5" min="0" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">SKU / Código (opcional)</label>
+                <input type="text" id="sku" name="sku" class="form-input" placeholder="Ej. CERV-355">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Agregar Variante
+            </button>
+        </form>
     </div>
-</div>
+</section>
 {% endblock %}

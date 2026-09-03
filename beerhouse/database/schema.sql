@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS roles (
     nombre_rol VARCHAR(50) NOT NULL UNIQUE
 );
 
-INSERT IGNORE INTO roles (id_rol, nombre_rol) VALUES (1, 'cliente'), (2, 'administrador');
+INSERT IGNORE INTO roles (id_rol, nombre_rol) VALUES (1, 'cliente'), (2, 'administrador'), (4, 'trabajador');
 
 -- --------------------------------------------
 -- Tabla: usuarios
@@ -64,7 +64,9 @@ CREATE TABLE IF NOT EXISTS metodos_pago (
 CREATE TABLE IF NOT EXISTS categorias (
     id_categoria INT AUTO_INCREMENT PRIMARY KEY,
     nombre_categoria VARCHAR(100) NOT NULL UNIQUE,
-    descripcion VARCHAR(255)
+    descripcion VARCHAR(255),
+    imagen_url VARCHAR(255),
+    imagen_public_id VARCHAR(255)
 );
 
 -- --------------------------------------------
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS productos (
     descripcion TEXT,
     marca VARCHAR(100),
     imagen_url VARCHAR(255),
+    imagen_public_id VARCHAR(255),
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria)
