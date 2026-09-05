@@ -37,7 +37,7 @@
                 <h2>Información del Producto</h2>
             </div>
             
-            <form method="POST" action="{% if producto %}{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}{% else %}{{ url_for('admin.nuevo_producto') }}{% endif %}" class="premium-form" enctype="multipart/form-data" x-data="{ imageUrl: '{{ producto.imagen_url if producto and producto.imagen_url else '' }}', imageError: false }">
+            <form method="POST" action="{% if producto %}{{ url_for('admin.editar_producto', id_producto=producto.id_producto) }}{% else %}{{ url_for('admin.nuevo_producto') }}{% endif %}" class="premium-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-section">
                     <h3 class="form-section-title">1. Información General</h3>
@@ -48,15 +48,15 @@
                             <input type="text" id="nombre_producto" name="nombre_producto" class="form-input" value="{{ producto.nombre_producto if producto else '' }}" placeholder="Ej. Corona Extra 355ml" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Categoría *</label>
-                            <select id="id_categoria" name="id_categoria" class="filter-select" required>
-                                <option value="">-- Seleccionar Categoría --</option>
+                            <label class="form-label">Categorías * (puedes seleccionar varias)</label>
+                            <select id="categorias" name="categorias" class="filter-select" multiple required>
                                 {% for cat in categorias %}
-                                <option value="{{ cat.id_categoria }}" {% if producto and producto.id_categoria == cat.id_categoria %}selected{% endif %}>
+                                <option value="{{ cat.id_categoria }}" {% if producto and producto.categoria_ids and cat.id_categoria|string in producto.categoria_ids %}selected{% endif %}>
                                     {{ cat.nombre_categoria }}
                                 </option>
                                 {% endfor %}
                             </select>
+                            <small class="form-helper">Mantén presionada Ctrl (o Cmd en Mac) para seleccionar múltiples categorías</small>
                         </div>
                     </div>
 
@@ -66,23 +66,8 @@
                             <input type="text" id="marca" name="marca" class="form-input" value="{{ producto.marca if producto and producto.marca else '' }}" placeholder="Ej. Heineken, Club Colombia, Johnnie Walker">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Imagen del Producto</label>
-                            <div class="image-upload-section">
-                                <input type="file" id="imagen_file" name="imagen_file" accept="image/*" class="form-input">
-                                <p class="form-helper">Sube una imagen del producto (PNG, JPG, JPEG, GIF, WEBP)</p>
-                            </div>
-                            
-                            <!-- Campo oculto para mantener compatibilidad -->
-                            <input type="hidden" id="imagen_url" name="imagen_url" value="{{ producto.imagen_url if producto and producto.imagen_url else '' }}">
-                            
-                            <!-- Live Image Preview with Alpine -->
-                            <div class="image-preview-container" x-show="imageUrl && !imageError" x-cloak>
-                                <img :src="imageUrl" @error="imageError = true" class="image-preview-thumb" alt="Vista previa">
-                                <div class="image-preview-info">
-                                    <span class="image-preview-title">Vista previa de imagen</span>
-                                    <span class="image-preview-subtitle" x-text="imageUrl"></span>
-                                </div>
-                            </div>
+                            <label class="form-label">URL de Imagen (opcional)</label>
+                            <input type="text" id="imagen_url" name="imagen_url" class="form-input" value="{{ producto.imagen_url if producto and producto.imagen_url else '' }}" placeholder="https://ejemplo.com/cerveza.jpg">
                         </div>
                     </div>
 

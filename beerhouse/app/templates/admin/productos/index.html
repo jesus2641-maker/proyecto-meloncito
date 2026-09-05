@@ -109,7 +109,7 @@
                             <div class="action-buttons">
                                 <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Gestionar Variantes / Stock">Variantes</a>
                                 <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Editar">Editar</a>
-                                <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Producto', message: '¿Estás seguro de eliminar el producto \'{{ prod.nombre_producto|replace('\'', '\\\'') }}\'? Esta acción no se puede deshacer.', actionUrl: '{{ url_for('admin.eliminar_producto', id_producto=prod.id_producto) }}' })" title="Eliminar">Eliminar</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarProducto({{ prod.id_producto }}, '{{ prod.nombre_producto }}')" title="Eliminar">Eliminar</button>
                             </div>
                         </td>
                     </tr>
@@ -130,4 +130,23 @@
         </div>
     </div>
 </section>
+
+<!-- Formulario oculto para eliminar producto -->
+<form id="formEliminarProducto" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+function confirmarEliminarProducto(id, nombre) {
+    showConfirm(
+        'Eliminar Producto',
+        `¿Estás seguro de eliminar el producto "${nombre}"? Esta acción no se puede deshacer.`,
+        function() {
+            const form = document.getElementById('formEliminarProducto');
+            form.action = "/admin/productos/" + id + "/eliminar";
+            form.submit();
+        }
+    );
+}
+</script>
 {% endblock %}

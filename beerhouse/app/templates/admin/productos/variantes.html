@@ -75,7 +75,7 @@
                             </td>
                         </form>
                         <td>
-                            <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Variante', message: '¿Estás seguro de eliminar la presentación \'{{ v.presentacion|replace('\'', '\\\'') }}\'?', actionUrl: '{{ url_for('admin.eliminar_variante', id_variante=v.id_variante) }}' })">Eliminar</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarVariante({{ v.id_variante }}, '{{ v.presentacion }}')">Eliminar</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -137,4 +137,24 @@
         </form>
     </div>
 </section>
+
+<!-- Formulario oculto para eliminar variante -->
+<form id="formEliminarVariante" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="id_producto" value="{{ producto.id_producto }}">
+</form>
+
+<script>
+function confirmarEliminarVariante(id, presentacion) {
+    showConfirm(
+        'Eliminar Variante',
+        `¿Estás seguro de eliminar la variante "${presentacion}"?`,
+        function() {
+            const form = document.getElementById('formEliminarVariante');
+            form.action = "/admin/variantes/" + id + "/eliminar";
+            form.submit();
+        }
+    );
+}
+</script>
 {% endblock %}

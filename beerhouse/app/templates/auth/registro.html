@@ -85,57 +85,43 @@
                 <h2 class="auth-form-title">Crear Cuenta</h2>
                 <p class="auth-form-subtitle">Completa tus datos para comenzar tu experiencia premium.</p>
                 
-                <form method="POST" class="auth-form" x-data="{ nombre: '', apellido: '', email: '', telefono: '', password: '', terms: false, showPassword: false }">
+                <form method="POST" class="auth-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Nombre *</label>
-                            <input type="text" name="nombre" x-model="nombre" required class="form-input" placeholder="Tu nombre">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" required class="form-input" placeholder="Tu nombre">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Apellido *</label>
-                            <input type="text" name="apellido" x-model="apellido" required class="form-input" placeholder="Tu apellido">
+                            <label class="form-label">Apellido</label>
+                            <input type="text" name="apellido" required class="form-input" placeholder="Tu apellido">
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Correo Electrónico *</label>
-                        <input type="email" name="email" x-model="email" required class="form-input" placeholder="ejemplo@correo.com">
+                        <label class="form-label">Correo Electrónico</label>
+                        <input type="email" name="email" required class="form-input" placeholder="ejemplo@correo.com">
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Teléfono</label>
-                        <input type="tel" name="telefono" id="telefono" x-model="telefono" class="form-input" placeholder="300 123 4567" inputmode="numeric" onkeypress="return soloNumeros(event)" oninput="limpiarTelefono(this)">
+                        <input type="tel" name="telefono" id="telefono" class="form-input" placeholder="300 123 4567" inputmode="numeric" onkeypress="return soloNumeros(event)" oninput="limpiarTelefono(this)">
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Contraseña *</label>
-                        <div class="password-input-group">
-                            <input :type="showPassword ? 'text' : 'password'" name="password" x-model="password" required minlength="{{ min_password|default(6) }}" class="form-input" placeholder="••••••••">
-                            <button type="button" class="password-toggle-btn" @click="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña">
-                                <!-- Eye Open Icon -->
-                                <svg x-show="!showPassword" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                                <!-- Eye Off Icon -->
-                                <svg x-show="showPassword" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" x-cloak>
-                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                </svg>
-                            </button>
-                        </div>
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" required minlength="{{ min_password|default(6) }}" class="form-input" placeholder="••••••••">
                         <p class="form-helper">Mínimo {{ min_password|default(6) }} caracteres</p>
                     </div>
                     
                     <div class="form-group">
                         <label class="checkbox-label">
-                            <input type="checkbox" x-model="terms" required>
+                            <input type="checkbox" required>
                             <span>Acepto los <a href="#" class="auth-link">términos y condiciones</a> y la <a href="#" class="auth-link">política de privacidad</a></span>
                         </label>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="!nombre.trim() || !apellido.trim() || !email.trim() || password.length < 6 || !terms">
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
                         Crear Cuenta
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="5" y1="12" x2="19" y2="12"></line>

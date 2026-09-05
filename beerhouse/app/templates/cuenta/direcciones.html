@@ -42,10 +42,10 @@
                     <span class="badge badge-category">Principal</span>
                     {% endif %}
                 </div>
-                <form id="formEliminarDir{{ dir.id_direccion }}" method="POST" action="{{ url_for('cuenta.eliminar_direccion') }}">
+                <form method="POST" action="{{ url_for('cuenta.eliminar_direccion') }}" onsubmit="return confirm('¿Estás seguro de eliminar esta dirección?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="id_direccion" value="{{ dir.id_direccion }}">
-                    <button type="button" class="address-delete-btn" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Dirección', message: '¿Estás seguro de eliminar la dirección \'{{ (dir.alias or dir.linea_direccion)|replace('\'', '\\\'') }}\'?', callback: () => document.getElementById('formEliminarDir{{ dir.id_direccion }}').submit() })" title="Eliminar dirección">
+                    <button type="submit" class="address-delete-btn" title="Eliminar dirección">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

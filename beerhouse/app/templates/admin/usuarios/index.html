@@ -67,21 +67,12 @@
                         </td>
                         <td>
                             {% if u.id_usuario != session.get('id_usuario') %}
-                                {% if u.activo %}
-                                <form id="formToggleUser{{ u.id_usuario }}" method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Desactivar Usuario', message: '¿Estás seguro de desactivar la cuenta de \'{{ u.nombre|replace('\'', '\\\'') }} {{ u.apellido|replace('\'', '\\\'') }}\'? El usuario no podrá ingresar a la tienda.', callback: () => document.getElementById('formToggleUser{{ u.id_usuario }}').submit() })">
-                                        Desactivar
-                                    </button>
-                                </form>
-                                {% else %}
-                                <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-primary">
-                                        Activar
-                                    </button>
-                                </form>
-                                {% endif %}
+                            <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm {% if u.activo %}btn-danger{% else %}btn-primary{% endif %}">
+                                    {{ 'Desactivar' if u.activo else 'Activar' }}
+                                </button>
+                            </form>
                             {% else %}
                             <span class="text-muted">Tu cuenta</span>
                             {% endif %}

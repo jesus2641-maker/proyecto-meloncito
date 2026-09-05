@@ -80,7 +80,7 @@
                                         {{ 'Desactivar' if oferta.activa else 'Activar' }}
                                     </button>
                                 </form>
-                                <button type="button" class="btn btn-sm btn-danger" @click="$dispatch('open-confirm-modal', { title: 'Eliminar Oferta', message: '¿Estás seguro de eliminar la oferta \'{{ oferta.titulo|replace('\'', '\\\'') }}\'?', actionUrl: '{{ url_for('admin.eliminar_oferta', id_oferta=oferta.id_oferta) }}' })">Eliminar</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarOferta({{ oferta.id_oferta }}, '{{ oferta.titulo }}')">Eliminar</button>
                             </div>
                         </td>
                     </tr>
@@ -94,4 +94,23 @@
         </div>
     </div>
 </section>
+
+<!-- Formulario oculto para eliminar oferta -->
+<form id="formEliminarOferta" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+function confirmarEliminarOferta(id, titulo) {
+    showConfirm(
+        'Eliminar Oferta',
+        `¿Estás seguro de eliminar la oferta "${titulo}"?`,
+        function() {
+            const form = document.getElementById('formEliminarOferta');
+            form.action = "/admin/ofertas/" + id + "/eliminar";
+            form.submit();
+        }
+    );
+}
+</script>
 {% endblock %}

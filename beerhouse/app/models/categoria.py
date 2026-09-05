@@ -19,9 +19,9 @@ class Categoria:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url,
-                   COUNT(p.id_producto) AS total_productos
+                   COUNT(DISTINCT pc.id_producto) AS total_productos
             FROM categorias c
-            LEFT JOIN productos p ON c.id_categoria = p.id_categoria
+            LEFT JOIN productos_categorias pc ON c.id_categoria = pc.id_categoria
             GROUP BY c.id_categoria, c.nombre_categoria, c.descripcion, c.imagen_url
             ORDER BY c.nombre_categoria ASC
         """)

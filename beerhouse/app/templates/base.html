@@ -8,10 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body x-data="{ mobileNavOpen: false }">
+<body>
     <header class="header">
         <div class="container header-inner">
             <a href="{{ url_for('inicio') }}" class="logo">
@@ -19,7 +17,7 @@
                 <span class="logo-text">Beer House</span>
             </a>
             
-            <nav class="nav" :class="{ 'nav-open': mobileNavOpen }">
+            <nav class="nav">
                 <a href="{{ url_for('inicio') }}" class="nav-link">Inicio</a>
                 <a href="{{ url_for('productos.catalogo') }}" class="nav-link">Catálogo</a>
                 <a href="{{ url_for('categorias.index') }}" class="nav-link">Categorías</a>
@@ -64,7 +62,7 @@
                             <span>Trabajador</span>
                         </a>
                     {% endif %}
-                    <a href="{{ url_for('auth.logout') }}" class="action-btn" title="Cerrar sesión">
+                    <a href="{{ url_for('auth.logout') }}" class="action-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                             <polyline points="16 17 21 12 16 7"></polyline>
@@ -81,7 +79,7 @@
                     </a>
                 {% endif %}
                 
-                <button type="button" class="mobile-toggle" @click="mobileNavOpen = !mobileNavOpen" aria-label="Menú">
+                <button class="mobile-toggle">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -95,27 +93,9 @@
     <main>
         {% with mensajes = get_flashed_messages(with_categories=true) %}
             {% if mensajes %}
-                <div class="flash-messages" style="position: fixed; top: 90px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px;">
+                <div class="container" style="padding-top: 120px;">
                     {% for categoria, mensaje in mensajes %}
-                        <div class="flash-message flash-{{ categoria }}" 
-                             x-data="{ show: true }" 
-                             x-init="setTimeout(() => show = false, 4500)" 
-                             x-show="show" 
-                             x-transition:enter="transition ease-out duration-300"
-                             x-transition:enter-start="opacity-0 transform translate-x-8"
-                             x-transition:enter-end="opacity-100 transform translate-x-0"
-                             x-transition:leave="transition ease-in duration-300"
-                             x-transition:leave-start="opacity-100 transform translate-x-0"
-                             x-transition:leave-end="opacity-0 transform translate-x-8"
-                             x-cloak>
-                            <span>{{ mensaje }}</span>
-                            <button type="button" class="flash-close" @click="show = false" aria-label="Cerrar">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
+                        <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
@@ -123,66 +103,6 @@
 
         {% block content %}{% endblock %}
     </main>
-
-    <!-- Modal de Confirmación Global con Alpine.js -->
-    <div x-data="{
-        open: false,
-        title: 'Confirmar Acción',
-        message: '¿Estás seguro de realizar esta acción?',
-        actionUrl: '',
-        formMethod: 'POST',
-        callback: null,
-        confirmAction() {
-            if (this.callback) {
-                this.callback();
-            } else if (this.actionUrl) {
-                const form = document.getElementById('globalConfirmForm');
-                form.action = this.actionUrl;
-                form.method = this.formMethod;
-                form.submit();
-            }
-            this.open = false;
-        }
-    }"
-    @open-confirm-modal.window="
-        title = $event.detail.title || 'Confirmar Acción';
-        message = $event.detail.message || '¿Estás seguro de realizar esta acción?';
-        actionUrl = $event.detail.actionUrl || '';
-        formMethod = $event.detail.formMethod || 'POST';
-        callback = $event.detail.callback || null;
-        open = true;
-    "
-    @keydown.escape.window="open = false"
-    class="modal-overlay"
-    :class="{ 'modal-open': open }"
-    x-show="open"
-    x-transition.opacity
-    x-cloak>
-        <div class="modal-container" @click.outside="open = false">
-            <div class="modal-header">
-                <div class="modal-icon modal-icon-warning">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                </div>
-                <h2 x-text="title">Confirmar Acción</h2>
-            </div>
-            <div class="modal-body">
-                <p x-text="message">¿Estás seguro de realizar esta acción?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" @click="open = false">Cancelar</button>
-                <button type="button" class="btn btn-danger" @click="confirmAction()">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Formulario Global para envío de acciones del modal -->
-    <form id="globalConfirmForm" method="POST" style="display: none;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    </form>
 
     <footer class="footer">
         <div class="container">

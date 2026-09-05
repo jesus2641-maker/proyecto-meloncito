@@ -168,15 +168,12 @@ def cambiar_estado_pedido(id_pedido):
     if not pedido:
         flash("Pedido no encontrado", "danger")
         return redirect(next_url)
-    
-    # Obtener el nombre del nuevo estado
+
     estados_info = Pedido.obtener_estados()
     nombre_estado = next((e['nombre'] for e in estados_info if e['id_estado'] == id_estado), "Desconocido")
-    
-    # Actualizar el estado
+
     Pedido.actualizar_estado(id_pedido, id_estado)
-    
-    # Enviar correo de actualización de estado
+
     try:
         usuario = Usuario.obtener_por_id(pedido['id_usuario'])
         send_order_status_update_email(
@@ -187,7 +184,6 @@ def cambiar_estado_pedido(id_pedido):
         )
     except Exception as e:
         print(f"Error al enviar correo de actualización de estado: {e}")
-    
     flash("Estado del pedido actualizado", "success")
     return redirect(next_url)
 

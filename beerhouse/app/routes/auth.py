@@ -9,6 +9,11 @@ ID_ROL_CLIENTE = 1
 ID_ROL_ADMIN = 2
 ID_ROL_TRABAJADOR = 4
 
+# IDs de roles
+ID_ROL_CLIENTE = 1
+ID_ROL_ADMIN = 2
+ID_ROL_TRABAJADOR = 4
+
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 

@@ -55,20 +55,20 @@ def nuevo_producto():
     categorias = Categoria.listar()
 
     if request.method == "POST":
-        id_categoria = request.form.get("id_categoria", type=int)
+        categorias_seleccionadas = request.form.getlist("categorias")
         nombre_producto = request.form.get("nombre_producto", "").strip()
         descripcion = request.form.get("descripcion", "").strip() or None
         marca = request.form.get("marca", "").strip() or None
         imagen_url = request.form.get("imagen_url", "").strip() or None
 
-        if not id_categoria or not nombre_producto:
-            flash("El nombre y la categoría del producto son obligatorios", "danger")
+        if not categorias_seleccionadas or not nombre_producto:
+            flash("El nombre y al menos una categoría del producto son obligatorios", "danger")
             return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
         # Manejar subida de imagen a Cloudinary
         imagen_public_id = None
         imagen_file = request.files.get("imagen_file")
-        
+
         if imagen_file and imagen_file.filename:
             cloudinary_result = upload_image(imagen_file, folder="beerhouse/productos")
             if cloudinary_result:
@@ -78,13 +78,16 @@ def nuevo_producto():
                 flash("Error al subir la imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                 return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
+        # Convertir a enteros
+        lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+
         id_producto = Producto.crear(
-            id_categoria=id_categoria,
             nombre_producto=nombre_producto,
             descripcion=descripcion,
             marca=marca,
             imagen_url=imagen_url,
-            imagen_public_id=imagen_public_id
+            imagen_public_id=imagen_public_id,
+            lista_categorias=lista_categorias
         )
 
         # Crear variante inicial si se ingresaron datos
@@ -118,27 +121,25 @@ def editar_producto(id_producto):
     categorias = Categoria.listar()
 
     if request.method == "POST":
-        id_categoria = request.form.get("id_categoria", type=int)
+        categorias_seleccionadas = request.form.getlist("categorias")
         nombre_producto = request.form.get("nombre_producto", "").strip()
         descripcion = request.form.get("descripcion", "").strip() or None
         marca = request.form.get("marca", "").strip() or None
         imagen_url = request.form.get("imagen_url", "").strip() or None
         activo = 1 if request.form.get("activo") else 0
 
-        if not id_categoria or not nombre_producto:
-            flash("El nombre y la categoría son obligatorios", "danger")
+        if not categorias_seleccionadas or not nombre_producto:
+            flash("El nombre y al menos una categoría son obligatorios", "danger")
             return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
         # Manejar subida de nueva imagen a Cloudinary
-        imagen_public_id = producto.get('imagen_public_id')  # Mantener el public_id existente por defecto
+        imagen_public_id = producto.get('imagen_public_id')
         imagen_file = request.files.get("imagen_file")
-        
+
         if imagen_file and imagen_file.filename:
-            # Eliminar imagen anterior de Cloudinary si existe
             if producto.get('imagen_public_id'):
                 delete_image(producto['imagen_public_id'])
-            
-            # Subir nueva imagen
+
             cloudinary_result = upload_image(imagen_file, folder="beerhouse/productos")
             if cloudinary_result:
                 imagen_url = cloudinary_result['secure_url']
@@ -147,15 +148,18 @@ def editar_producto(id_producto):
                 flash("Error al subir la nueva imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                 return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
+        # Convertir a enteros
+        lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+
         Producto.actualizar(
             id_producto=id_producto,
-            id_categoria=id_categoria,
             nombre_producto=nombre_producto,
             descripcion=descripcion,
             marca=marca,
             imagen_url=imagen_url,
             imagen_public_id=imagen_public_id,
-            activo=activo
+            activo=activo,
+            lista_categorias=lista_categorias
         )
 
         flash(f"Producto '{nombre_producto}' actualizado correctamente", "success")
@@ -312,7 +316,7 @@ def nueva_categoria():
             # Manejar subida de imagen a Cloudinary
             imagen_public_id = None
             imagen_file = request.files.get("imagen_file")
-            
+
             if imagen_file and imagen_file.filename:
                 cloudinary_result = upload_image(imagen_file, folder="beerhouse/categorias")
                 if cloudinary_result:
@@ -321,7 +325,7 @@ def nueva_categoria():
                 else:
                     flash("Error al subir la imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                     return redirect(url_for("admin.categorias"))
-            
+
             Categoria.crear(nombre, descripcion, imagen_url, imagen_public_id)
             flash(f"Categoría '{nombre}' creada", "success")
         except Exception:
@@ -346,15 +350,13 @@ def editar_categoria(id_categoria):
     else:
         try:
             # Manejar subida de nueva imagen a Cloudinary
-            imagen_public_id = categoria.get('imagen_public_id')  # Mantener el public_id existente por defecto
+            imagen_public_id = categoria.get('imagen_public_id')
             imagen_file = request.files.get("imagen_file")
-            
+
             if imagen_file and imagen_file.filename:
-                # Eliminar imagen anterior de Cloudinary si existe
                 if categoria.get('imagen_public_id'):
                     delete_image(categoria['imagen_public_id'])
-                
-                # Subir nueva imagen
+
                 cloudinary_result = upload_image(imagen_file, folder="beerhouse/categorias")
                 if cloudinary_result:
                     imagen_url = cloudinary_result['secure_url']
@@ -362,7 +364,7 @@ def editar_categoria(id_categoria):
                 else:
                     flash("Error al subir la nueva imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                     return redirect(url_for("admin.categorias"))
-            
+
             Categoria.actualizar(id_categoria, nombre, descripcion, imagen_url, imagen_public_id)
             flash("Categoría actualizada correctamente", "success")
         except Exception:
@@ -428,23 +430,12 @@ def cambiar_estado_pedido(id_pedido):
             if not pedido:
                 flash("Pedido no encontrado", "danger")
                 return redirect(next_url)
-            
-            # Obtener el nombre del nuevo estado
+
             estados_info = Pedido.obtener_estados()
-            print(f"DEBUG: Estados disponibles: {estados_info}")
-            print(f"DEBUG: Buscando estado con ID: {id_estado}")
-            
-            # Verificar qué campo tiene el nombre del estado
-            if estados_info:
-                print(f"DEBUG: Campos del primer estado: {estados_info[0].keys()}")
-            
             nombre_estado = next((e.get('nombre_estado') or e.get('nombre') for e in estados_info if e['id_estado'] == id_estado), "Desconocido")
-            print(f"DEBUG: Nombre del estado encontrado: {nombre_estado}")
-            
-            # Actualizar el estado
+
             Pedido.actualizar_estado(id_pedido, id_estado)
-            
-            # Enviar correo de actualización de estado
+
             try:
                 usuario = Usuario.obtener_por_id(pedido['id_usuario'])
                 send_order_status_update_email(
@@ -455,7 +446,7 @@ def cambiar_estado_pedido(id_pedido):
                 )
             except Exception as e:
                 print(f"Error al enviar correo de actualización de estado: {e}")
-            
+
             flash(f"Estado del pedido #{id_pedido} actualizado exitosamente", "success")
         except ValueError as e:
             flash(str(e), "danger")
@@ -926,5 +917,4 @@ def api_crear_proveedor_rapido():
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
 

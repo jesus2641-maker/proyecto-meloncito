@@ -39,6 +39,9 @@ class Pedido:
         cursor = conn.cursor()
         
         try:
+            # BEGIN TRANSACTION
+            conn.begin()
+            
             # 1. Crear pedido
             cursor.execute("""
                 INSERT INTO pedidos (id_usuario, id_direccion, id_metodo_pago, total)

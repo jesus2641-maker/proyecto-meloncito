@@ -41,39 +41,16 @@
             <h1 class="detail-title">{{ producto.nombre_producto }}</h1>
             
             <p class="detail-description">{{ producto.descripcion }}</p>
-                      <!-- Variant Selection & Quantity with Alpine.js -->
-            <form method="POST" action="{{ url_for('carrito.agregar') }}" class="variant-form"
-                  x-data="{
-                      selectedVariant: {{ variantes[0].id_variante if variantes else 'null' }},
-                      stocks: { {% for v in variantes %}{{ v.id_variante }}: {{ v.stock }}{% if not loop.last %}, {% endif %}{% endfor %} },
-                      cantidad: 1,
-                      get maxStock() {
-                          return this.stocks[this.selectedVariant] || 1;
-                      },
-                      increment() {
-                          if (this.cantidad < this.maxStock) {
-                              this.cantidad++;
-                          }
-                      },
-                      decrement() {
-                          if (this.cantidad > 1) {
-                              this.cantidad--;
-                          }
-                      },
-                      onVariantChange(id) {
-                          this.selectedVariant = id;
-                          if (this.cantidad > this.maxStock) {
-                              this.cantidad = Math.max(1, this.maxStock);
-                          }
-                      }
-                  }">
+            
+            <!-- Variant Selection -->
+            <form method="POST" action="{{ url_for('carrito.agregar') }}" class="variant-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="variant-selector">
                     <label class="variant-label">Seleccionar Presentación</label>
                     <div class="variant-options">
                         {% for v in variantes %}
                         <label class="variant-option">
-                            <input type="radio" name="id_variante" value="{{ v.id_variante }}" {% if loop.first %}checked{% endif %} @change="onVariantChange({{ v.id_variante }})">
+                            <input type="radio" name="id_variante" value="{{ v.id_variante }}" {% if loop.first %}checked{% endif %}>
                             <div class="variant-option-content">
                                 <span class="variant-option-name">{{ v.presentacion }}</span>
                                 <span class="variant-option-price">${{ v.precio }}</span>
@@ -84,22 +61,19 @@
                     </div>
                 </div>
                 
-                <!-- Quantity Selector -->
+                <!-- Quantity -->
                 <div class="quantity-selector">
                     <label class="quantity-label">Cantidad</label>
                     <div class="quantity-input">
-                        <button type="button" class="quantity-btn quantity-minus" @click="decrement()" :disabled="cantidad <= 1" aria-label="Disminuir cantidad">−</button>
-                        <input type="number" name="cantidad" x-model.number="cantidad" min="1" :max="maxStock" class="quantity-field" @input="if (cantidad > maxStock) cantidad = maxStock; if (cantidad < 1) cantidad = 1;">
-                        <button type="button" class="quantity-btn quantity-plus" @click="increment()" :disabled="cantidad >= maxStock" aria-label="Aumentar cantidad">+</button>
+                        <button type="button" class="quantity-btn quantity-minus">−</button>
+                        <input type="number" name="cantidad" value="1" min="1" class="quantity-field">
+                        <button type="button" class="quantity-btn quantity-plus">+</button>
                     </div>
-                    <small class="text-muted" style="display: block; margin-top: 6px; font-size: 0.82rem;" x-show="maxStock > 0" x-cloak>
-                        Máximo disponible: <strong x-text="maxStock"></strong> unidades
-                    </small>
                 </div>
                 
                 <!-- Actions -->
                 <div class="detail-actions">
-                    <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;" :disabled="maxStock <= 0">
+                    <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -124,7 +98,7 @@
                 <div class="feature-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="1" y="3" width="15" height="13"></rect>
-                        <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
                         <circle cx="5.5" cy="18.5" r="2.5"></circle>
                         <circle cx="18.5" cy="18.5" r="2.5"></circle>
                     </svg>
@@ -171,4 +145,23 @@
     </div>
     {% endif %}
 </section>
+
+<script>
+    // Quantity selector functionality
+    document.querySelectorAll('.quantity-minus').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.nextElementSibling;
+            if (input.value > 1) {
+                input.value = parseInt(input.value) - 1;
+            }
+        });
+    });
+    
+    document.querySelectorAll('.quantity-plus').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            input.value = parseInt(input.value) + 1;
+        });
+    });
+</script>
 {% endblock %}

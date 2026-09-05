@@ -54,6 +54,7 @@ def create_app():
                     "descripcion": fila["descripcion"],
                     "marca": fila["marca"],
                     "imagen_url": fila["imagen_url"],
+                    "categorias": fila.get("categorias", ""),
                     "precio_minimo": fila["precio"]
                 }
             else:

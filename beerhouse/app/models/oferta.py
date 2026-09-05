@@ -9,10 +9,14 @@ class Oferta:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT o.*, p.nombre_producto, p.marca, p.imagen_url,
+                   GROUP_CONCAT(DISTINCT c.nombre_categoria) AS categorias,
                    v.presentacion, v.precio as precio_original
             FROM ofertas o
             JOIN productos p ON o.id_producto = p.id_producto
+            LEFT JOIN productos_categorias pc ON p.id_producto = pc.id_producto
+            LEFT JOIN categorias c ON pc.id_categoria = c.id_categoria
             LEFT JOIN variantes_producto v ON o.id_variante = v.id_variante
+            GROUP BY o.id_oferta, p.nombre_producto, p.marca, p.imagen_url, v.presentacion, v.precio
             ORDER BY o.fecha_creacion DESC
         """)
         ofertas = cursor.fetchall()
@@ -27,12 +31,16 @@ class Oferta:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT o.*, p.nombre_producto, p.marca, p.imagen_url,
+                   GROUP_CONCAT(DISTINCT c.nombre_categoria) AS categorias,
                    v.presentacion, v.precio as precio_original
             FROM ofertas o
             JOIN productos p ON o.id_producto = p.id_producto
+            LEFT JOIN productos_categorias pc ON p.id_producto = pc.id_producto
+            LEFT JOIN categorias c ON pc.id_categoria = c.id_categoria
             LEFT JOIN variantes_producto v ON o.id_variante = v.id_variante
             WHERE o.activa = TRUE
               AND (o.fecha_fin IS NULL OR o.fecha_fin > NOW())
+            GROUP BY o.id_oferta, p.nombre_producto, p.marca, p.imagen_url, v.presentacion, v.precio
             ORDER BY o.fecha_creacion DESC
         """)
         ofertas = cursor.fetchall()

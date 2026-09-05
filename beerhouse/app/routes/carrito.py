@@ -188,29 +188,16 @@ def checkout():
 
         # Enviar correo de confirmación del pedido
         try:
-            print("DEBUG: Iniciando preparación de correo de confirmación")
-            
-            # Obtener detalles del pedido y usuario
             pedido = Pedido.obtener_por_id(id_pedido)
-            print(f"DEBUG: Pedido obtenido: {pedido}")
-            
             usuario = Usuario.obtener_por_id(id_usuario)
-            print(f"DEBUG: Usuario obtenido: {usuario}")
-            
             detalles = PedidoDetalle.listar_por_pedido(id_pedido)
-            print(f"DEBUG: Detalles obtenidos: {detalles}")
-            
-            # El pedido ya contiene la información de dirección y método de pago directamente
-            print(f"DEBUG: Datos de dirección en pedido: dir_alias={pedido.get('dir_alias')}, linea_direccion={pedido.get('linea_direccion')}, ciudad={pedido.get('ciudad')}")
-            print(f"DEBUG: Datos de pago en pedido: tipo_pago={pedido.get('tipo_pago')}, detalle_pago={pedido.get('detalle_pago')}")
-            
-            # Preparar datos para el correo con todos los campos requeridos
+
             direccion_completa = f"{pedido.get('linea_direccion', '')}, {pedido.get('ciudad', '')}"
             if pedido.get('departamento'):
                 direccion_completa += f", {pedido['departamento']}"
             if pedido.get('dir_alias'):
                 direccion_completa = f"{pedido['dir_alias']}: {direccion_completa}"
-            
+
             order_details = {
                 'id_pedido': pedido['id_pedido'],
                 'fecha_creacion': pedido['fecha_pedido'],
@@ -220,10 +207,7 @@ def checkout():
                 'metodo_pago': pedido.get('tipo_pago', 'No especificado'),
                 'items': []
             }
-            
-            print(f"DEBUG: order_details base preparado: {order_details}")
-            
-            # Agregar items con sus detalles
+
             for detalle in detalles:
                 variante = VarianteProducto.obtener_por_id(detalle['id_variante'])
                 producto = Producto.obtener_por_id(variante['id_producto'])
@@ -235,26 +219,15 @@ def checkout():
                     'subtotal': detalle['subtotal']
                 }
                 order_details['items'].append(item_data)
-                print(f"DEBUG: Item agregado: {item_data}")
-            
-            print(f"DEBUG: order_details completo final: {order_details}")
-            print(f"DEBUG: Llamando a send_order_confirmation_email con:")
-            print(f"  - Email: {usuario['email']}")
-            print(f"  - Nombre: {usuario['nombre']}")
-            print(f"  - Order details: {order_details}")
-            
-            # Enviar correo
-            result = send_order_confirmation_email(
+
+            send_order_confirmation_email(
                 usuario['email'],
                 usuario['nombre'],
                 order_details
             )
-            print(f"DEBUG: Resultado de send_order_confirmation_email: {result}")
-            
+
         except Exception as e:
             print(f"Error al enviar correo de confirmación: {e}")
-            import traceback
-            traceback.print_exc()
 
         flash("¡Tu pedido ha sido confirmado con éxito!", "success")
         return redirect(url_for("carrito.confirmacion", id_pedido=id_pedido))
