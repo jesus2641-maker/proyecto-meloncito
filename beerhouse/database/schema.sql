@@ -164,3 +164,43 @@ CREATE TABLE IF NOT EXISTS pedido_detalle (
     FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
     FOREIGN KEY (id_variante) REFERENCES variantes_producto(id_variante)
 );
+
+-- --------------------------------------------
+-- Tabla: proveedores
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS proveedores (
+    id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(150) NOT NULL,
+    identificacion VARCHAR(50) NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- --------------------------------------------
+-- Tabla: compras
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS compras (
+    id_compra INT AUTO_INCREMENT PRIMARY KEY,
+    id_proveedor INT NOT NULL,
+    id_usuario INT NOT NULL,
+    fecha_compra DATETIME NOT NULL,
+    total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+-- --------------------------------------------
+-- Tabla: compra_detalle
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS compra_detalle (
+    id_detalle_compra INT AUTO_INCREMENT PRIMARY KEY,
+    id_compra INT NOT NULL,
+    id_variante INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL,
+    FOREIGN KEY (id_compra) REFERENCES compras(id_compra) ON DELETE CASCADE,
+    FOREIGN KEY (id_variante) REFERENCES variantes_producto(id_variante)
+);
+

@@ -154,6 +154,43 @@
                 </ul>
             </li>
 
+            <!-- Dropdown Compras -->
+            <li x-data="{ open: {{ 'true' if 'admin.compra' in request.endpoint or 'admin.proveedor' in request.endpoint else 'false' }} }">
+                <button type="button" class="admin-nav-dropdown-btn {% if 'admin.compra' in request.endpoint or 'admin.proveedor' in request.endpoint %}active{% endif %}" @click="open = !open">
+                    <div class="admin-dropdown-left">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                            <path d="M12 11h4"></path>
+                            <path d="M12 16h4"></path>
+                            <path d="M8 11h.01"></path>
+                            <path d="M8 16h.01"></path>
+                        </svg>
+                        <span>Compras</span>
+                    </div>
+                    <svg class="dropdown-chevron" :class="{ 'rotated': open }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <ul class="admin-submenu" x-show="open" x-transition x-cloak>
+                    <li>
+                        <a href="{{ url_for('admin.compras') }}" class="admin-subnav-item {% if request.endpoint == 'admin.compras' %}active{% endif %}">
+                            • Historial de Compras
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('admin.nueva_compra') }}" class="admin-subnav-item {% if request.endpoint == 'admin.nueva_compra' %}active{% endif %}">
+                            • + Registrar Compra
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('admin.proveedores') }}" class="admin-subnav-item {% if 'admin.proveedor' in request.endpoint %}active{% endif %}">
+                            • Proveedores
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
             <!-- Dropdown Usuarios -->
             <li x-data="{ open: {{ 'true' if 'admin.usuario' in request.endpoint else 'false' }} }">
                 <button type="button" class="admin-nav-dropdown-btn {% if 'admin.usuario' in request.endpoint %}active{% endif %}" @click="open = !open">

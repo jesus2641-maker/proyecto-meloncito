@@ -1,0 +1,117 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Eliminar Proveedor: {{ proveedor.nombre }} — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle" style="color: var(--danger);">Zona de Peligro</p>
+            <h1>Apartado para Eliminar Proveedor</h1>
+            <p>Confirmación de eliminación y validación de restricciones referenciales</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Proveedores
+        </a>
+        <a href="{{ url_for('admin.editar_proveedor', id_proveedor=proveedor.id_proveedor) }}" class="btn btn-ghost">
+            Editar Proveedor
+        </a>
+    </div>
+
+    <div class="admin-section" style="max-width: 750px; margin: 0 auto; border: 1px solid rgba(194, 74, 61, 0.4);">
+        <div class="admin-section-header" style="border-bottom-color: rgba(194, 74, 61, 0.2);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: rgba(194, 74, 61, 0.2); color: var(--danger); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h2 style="margin: 0; color: var(--text-primary);">¿Deseas eliminar este proveedor?</h2>
+                    <small style="color: var(--text-muted);">#PROV-{{ "%03d"|format(proveedor.id_proveedor) }} — {{ proveedor.nombre }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px 0;">
+            <!-- DATOS DEL PROVEEDOR -->
+            <div class="info-grid" style="margin-bottom: 24px;">
+                <div class="info-item">
+                    <span class="info-label">Nombre del Proveedor</span>
+                    <span class="info-value" style="font-size: 1.1rem; color: var(--gold-primary); font-weight: 600;">
+                        {{ proveedor.nombre }}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Identificación Fiscal</span>
+                    <span class="info-value">{{ proveedor.identificacion or 'No registrada' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Compras Asociadas</span>
+                    <span class="info-value">
+                        <strong>{{ proveedor.total_compras }}</strong> compra(s) registradas
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Facturado</span>
+                    <span class="info-value">${{ "{:,.2f}".format(proveedor.total_monto_compras) }}</span>
+                </div>
+            </div>
+
+            {% if proveedor.total_compras > 0 %}
+            <!-- ADVERTENCIA DE BLOQUEO POR COMPRAS -->
+            <div style="background: rgba(194, 74, 61, 0.12); border: 1px solid var(--danger); border-radius: 8px; padding: 18px; margin-bottom: 24px;">
+                <h3 style="color: #ffab91; margin-bottom: 8px; font-size: 1.05rem;">Acción Bloqueada por Integridad Contable</h3>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5;">
+                    No es posible eliminar al proveedor <strong>{{ proveedor.nombre }}</strong> porque existen <strong>{{ proveedor.total_compras }} compra(s) asociadas</strong> en la base de datos que respaldan el inventario actual.
+                </p>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 8px;">
+                    Para evitar que este proveedor sea seleccionado en futuras compras, desactívalo a continuación:
+                </p>
+                <div style="margin-top: 16px; display: flex; gap: 12px;">
+                    <form method="POST" action="{{ url_for('admin.toggle_proveedor', id_proveedor=proveedor.id_proveedor) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger">
+                            {{ 'Desactivar Proveedor' if proveedor.activo else 'Reactivar Proveedor' }}
+                        </button>
+                    </form>
+                    <a href="{{ url_for('admin.proveedores') }}" class="btn btn-ghost">Regresar</a>
+                </div>
+            </div>
+            {% else %}
+            <!-- CONFIRMACIÓN DE ELIMINACIÓN -->
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; margin-bottom: 24px;">
+                <p style="color: var(--text-secondary); line-height: 1.6;">
+                    Este proveedor no registra compras en el historial. Al presionar <strong>Confirmar Eliminación</strong>, se borrará definitivamente de la base de datos de Beer House.
+                </p>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.eliminar_proveedor', id_proveedor=proveedor.id_proveedor) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display: flex; gap: 16px; justify-content: flex-end;">
+                    <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">Cancelar</a>
+                    <button type="submit" class="btn btn-danger">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Confirmar Eliminación Definitiva
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

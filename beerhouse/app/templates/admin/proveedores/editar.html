@@ -1,0 +1,190 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Editar Proveedor: {{ proveedor.nombre }} — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Abastecedores</p>
+            <h1>Editar Proveedor #PROV-{{ "%03d"|format(proveedor.id_proveedor) }}</h1>
+            <p>Modificación de datos identificativos y administración del proveedor</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al Listado de Proveedores
+        </a>
+        <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Registrar Compra
+        </a>
+    </div>
+
+    <!-- APARTADO 1: FORMULARIO DE EDICIÓN DEL PROVEEDOR -->
+    <div class="admin-section" style="margin-bottom: 28px;">
+        <div class="admin-section-header">
+            <h2>1. Datos de Identificación del Proveedor</h2>
+            <span class="section-badge">
+                {% if proveedor.activo %}
+                <span class="badge badge-success">Activo</span>
+                {% else %}
+                <span class="badge badge-danger">Inactivo</span>
+                {% endif %}
+            </span>
+        </div>
+
+        <div style="max-width: 700px;">
+            <form method="POST" action="{{ url_for('admin.editar_proveedor', id_proveedor=proveedor.id_proveedor) }}" class="premium-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label class="form-label">Nombre o Razón Social *</label>
+                    <input type="text" name="nombre" class="form-input" value="{{ proveedor.nombre }}" placeholder="Ej: Cervecería Modelo S.A." required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Identificación (NIT, RUC o Cédula)</label>
+                    <input type="text" name="identificacion" class="form-input" value="{{ proveedor.identificacion or '' }}" placeholder="Ej: NIT 900.876.543-2">
+                    <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 4px;">
+                        Código o documento fiscal para identificar las compras.
+                    </small>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; color: var(--text-primary); font-size: 0.95rem;">
+                        <input type="checkbox" name="activo" value="1" {% if proveedor.activo %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--gold-primary);">
+                        <span><strong>Proveedor Activo</strong> (disponible para seleccionar en nuevas compras)</span>
+                    </label>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button type="submit" class="btn btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 13 7 21"></polyline>
+                        </svg>
+                        Guardar Cambios
+                    </button>
+                    <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- APARTADO 2: HISTORIAL DE COMPRAS ASOCIADAS -->
+    <div class="admin-section" style="margin-bottom: 28px;">
+        <div class="admin-section-header">
+            <h2>2. Historial de Compras Asociadas</h2>
+            <span class="section-badge">{{ proveedor.total_compras }} compra(s) registradas</span>
+        </div>
+
+        {% if compras_asociadas %}
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>N° Compra</th>
+                        <th>Fecha de Compra</th>
+                        <th>Productos / Unidades</th>
+                        <th>Monto Total</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in compras_asociadas %}
+                    <tr>
+                        <td><strong>#COMP-{{ "%04d"|format(c.id_compra) }}</strong></td>
+                        <td>{{ c.fecha_compra.strftime('%d/%m/%Y %H:%M') if c.fecha_compra else '—' }}</td>
+                        <td>
+                            <span class="badge badge-category">{{ c.total_items }} item(s)</span>
+                            <small style="color: var(--text-muted); display: block; margin-top: 4px;">{{ c.total_unidades }} unidades</small>
+                        </td>
+                        <td class="table-amount">${{ "{:,.2f}".format(c.total) }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.detalle_compra', id_compra=c.id_compra) }}" class="btn btn-sm btn-outline">
+                                Ver Compra
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 16px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; color: var(--text-muted);">
+            Este proveedor aún no tiene compras registradas en el sistema.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- APARTADO 3: ZONA DE PELIGRO - ELIMINAR PROVEEDOR -->
+    <div class="admin-section" style="border: 1px solid rgba(194, 74, 61, 0.4); background: rgba(194, 74, 61, 0.03);">
+        <div class="admin-section-header" style="border-bottom-color: rgba(194, 74, 61, 0.2);">
+            <h2 style="color: var(--danger); display: flex; align-items: center; gap: 8px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                3. Apartado para Eliminar Proveedor
+            </h2>
+        </div>
+
+        <div style="padding: 12px 0;">
+            {% if proveedor.total_compras > 0 %}
+            <!-- CASO A: TIENE COMPRAS ASOCIADAS -->
+            <div style="background: rgba(194, 74, 61, 0.1); border: 1px solid rgba(194, 74, 61, 0.3); border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                <h3 style="color: #ffab91; font-size: 1rem; margin-bottom: 8px;">Eliminación Protegida</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">
+                    El proveedor <strong>{{ proveedor.nombre }}</strong> tiene <strong>{{ proveedor.total_compras }} compra(s) asociada(s)</strong> con un total de <strong>${{ "{:,.2f}".format(proveedor.total_monto_compras) }}</strong>.
+                    Por integridad contable y trazabilidad del inventario, <strong>no puede ser eliminado de la base de datos</strong>.
+                </p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 8px;">
+                    Si no vas a seguir comprando a este proveedor, puedes desactivarlo para que no aparezca en el formulario de compras.
+                </p>
+                <div style="margin-top: 16px;">
+                    <form method="POST" action="{{ url_for('admin.toggle_proveedor', id_proveedor=proveedor.id_proveedor) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger">
+                            {{ 'Desactivar Proveedor' if proveedor.activo else 'Reactivar Proveedor' }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- CASO B: NO TIENE COMPRAS ASOCIADAS, SE PUEDE ELIMINAR -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+                <div>
+                    <h3 style="color: var(--text-primary); font-size: 1rem; margin-bottom: 4px;">Eliminar permanentemente este proveedor</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Como este proveedor no tiene compras registradas, puede eliminarse definitivamente de la base de datos.
+                    </p>
+                </div>
+                <form method="POST" action="{{ url_for('admin.eliminar_proveedor', id_proveedor=proveedor.id_proveedor) }}"
+                      onsubmit="return confirm('¿Estás seguro de que deseas eliminar permanentemente al proveedor {{ proveedor.nombre }}? Esta acción no se puede deshacer.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Eliminar Proveedor
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

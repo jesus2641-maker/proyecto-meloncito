@@ -1,12 +1,16 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify
+from datetime import datetime
 from decimal import Decimal
 from app.models.producto import Producto, VarianteProducto
 from app.models.categoria import Categoria
 from app.models.pedido import Pedido, PedidoDetalle
 from app.models.usuario import Usuario
 from app.models.oferta import Oferta
+from app.models.proveedor import Proveedor
+from app.models.compra import Compra, CompraDetalle
 from app.utils.cloudinary_utils import upload_image, delete_image
 from app.utils.email_service import send_order_status_update_email
+from app.utils.db import get_connection
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -259,14 +263,30 @@ def eliminar_variante(id_variante):
 # =========================================================
 @admin_bp.route("/inventario")
 def inventario():
-    """Muestra el inventario completo con alertas de stock."""
-    inventario = VarianteProducto.obtener_inventario()
+    """Muestra el inventario completo con alertas de stock y filtros."""
+    busqueda = request.args.get("busqueda", "").strip() or None
+    id_categoria = request.args.get("categoria", type=int)
+    estado_stock = request.args.get("estado_stock") or None
+    filtro_bajo = request.args.get("bajo", type=bool)
+
+    inventario = VarianteProducto.obtener_inventario(
+        filtro_bajo=filtro_bajo,
+        busqueda=busqueda,
+        id_categoria=id_categoria,
+        estado_stock=estado_stock
+    )
     alertas = VarianteProducto.obtener_alertas_stock()
-    
+    categorias = Categoria.listar()
+
     return render_template(
         "admin/inventario.html",
         inventario=inventario,
-        alertas=alertas
+        alertas=alertas,
+        categorias=categorias,
+        busqueda=busqueda,
+        id_categoria=id_categoria,
+        estado_stock=estado_stock,
+        filtro_bajo=filtro_bajo
     )
 
 
@@ -652,3 +672,259 @@ def api_variantes_producto(id_producto):
         'presentacion': v['presentacion'],
         'precio': float(v['precio'])
     } for v in variantes])
+
+
+# =========================================================
+# COMPRAS (HISTORIAL Y REGISTRO)
+# =========================================================
+@admin_bp.route("/compras")
+def compras():
+    """Historial de compras realizadas con métricas de inversión."""
+    lista_compras = Compra.listar_todas()
+    metricas = Compra.obtener_metricas()
+    return render_template("admin/compras/index.html", compras=lista_compras, metricas=metricas)
+
+
+@admin_bp.route("/compras/nueva", methods=["GET", "POST"])
+def nueva_compra():
+    """Registra una nueva compra a un proveedor con uno o varios productos."""
+    proveedores = Proveedor.listar(activos_solo=True)
+
+    # Catálogo de variantes activas con stock actual y presentación
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.sku,
+               p.nombre_producto, p.marca, c.nombre_categoria
+        FROM variantes_producto v
+        JOIN productos p ON v.id_producto = p.id_producto
+        LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
+        WHERE p.activo = TRUE
+        ORDER BY p.nombre_producto ASC, v.presentacion ASC
+    """)
+    variantes_catalogo = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if request.method == "POST":
+        id_usuario = session.get("id_usuario")
+        if not id_usuario:
+            flash("Sesión no válida para registrar compras", "danger")
+            return redirect(url_for("auth.login"))
+
+        # Determinar si es petición JSON o formulario tradicional
+        if request.is_json:
+            data = request.get_json()
+            id_proveedor = data.get("id_proveedor")
+            fecha_compra = data.get("fecha_compra")
+            raw_items = data.get("items", [])
+        else:
+            id_proveedor = request.form.get("id_proveedor", type=int)
+            fecha_compra = request.form.get("fecha_compra")
+            
+            variantes_ids = request.form.getlist("id_variante[]") or request.form.getlist("id_variante")
+            cantidades = request.form.getlist("cantidad[]") or request.form.getlist("cantidad")
+            precios = request.form.getlist("precio_unitario[]") or request.form.getlist("precio_unitario")
+            
+            raw_items = []
+            for v_id, cant, prec in zip(variantes_ids, cantidades, precios):
+                if v_id and str(v_id).strip():
+                    raw_items.append({
+                        "id_variante": v_id,
+                        "cantidad": cant,
+                        "precio_unitario": prec
+                    })
+
+        # Si no se especificó fecha, usar fecha/hora actual automáticamente
+        if not fecha_compra:
+            fecha_compra = datetime.now()
+
+        try:
+            id_compra = Compra.crear_con_transaccion(
+                id_proveedor=id_proveedor,
+                id_usuario=id_usuario,
+                fecha_compra=fecha_compra,
+                items=raw_items
+            )
+            flash(f"Compra #{id_compra} registrada exitosamente. El inventario ha sido actualizado.", "success")
+            
+            if request.is_json:
+                return jsonify({"success": True, "redirect_url": url_for("admin.detalle_compra", id_compra=id_compra)})
+            
+            return redirect(url_for("admin.detalle_compra", id_compra=id_compra))
+
+        except ValueError as ve:
+            flash(str(ve), "danger")
+            if request.is_json:
+                return jsonify({"success": False, "error": str(ve)}), 400
+        except Exception as e:
+            flash(f"Error inesperado al registrar la compra: {str(e)}", "danger")
+            if request.is_json:
+                return jsonify({"success": False, "error": str(e)}), 500
+
+    return render_template(
+        "admin/compras/formulario.html",
+        proveedores=proveedores,
+        variantes=variantes_catalogo
+    )
+
+
+@admin_bp.route("/compras/<int:id_compra>")
+def detalle_compra(id_compra):
+    """Muestra el detalle completo de una compra registrada."""
+    compra = Compra.obtener_por_id(id_compra)
+    if not compra:
+        flash("Compra no encontrada", "danger")
+        return redirect(url_for("admin.compras"))
+
+    detalles = CompraDetalle.listar_por_compra(id_compra)
+    return render_template("admin/compras/detalle.html", compra=compra, detalles=detalles)
+
+
+# =========================================================
+# CRUD PROVEEDORES (CONECTADO A BD)
+# =========================================================
+@admin_bp.route("/proveedores", methods=["GET"])
+def proveedores():
+    """Listado y gestión integral de proveedores con estadísticas de compras."""
+    busqueda = request.args.get("busqueda", "").strip() or None
+    lista_proveedores = Proveedor.listar(activos_solo=False, busqueda=busqueda)
+    
+    total_proveedores = len(lista_proveedores)
+    total_activos = sum(1 for p in lista_proveedores if p["activo"])
+    total_inactivos = total_proveedores - total_activos
+
+    return render_template(
+        "admin/proveedores/index.html",
+        proveedores=lista_proveedores,
+        busqueda=busqueda or "",
+        total_proveedores=total_proveedores,
+        total_activos=total_activos,
+        total_inactivos=total_inactivos
+    )
+
+
+@admin_bp.route("/proveedores/nuevo", methods=["POST"])
+def nuevo_proveedor():
+    """Registra un nuevo proveedor en la base de datos."""
+    nombre = request.form.get("nombre", "").strip()
+    identificacion = request.form.get("identificacion", "").strip() or None
+
+    if not nombre:
+        flash("El nombre del proveedor es obligatorio.", "danger")
+    else:
+        try:
+            nuevo_id = Proveedor.crear(nombre, identificacion)
+            flash(f"Proveedor '{nombre}' (#PROV-{nuevo_id:03d}) registrado con éxito.", "success")
+        except Exception as e:
+            flash(f"Error al registrar proveedor: {str(e)}", "danger")
+
+    return redirect(url_for("admin.proveedores"))
+
+
+@admin_bp.route("/proveedores/<int:id_proveedor>/editar", methods=["GET", "POST"])
+def editar_proveedor(id_proveedor):
+    """Apartado para editar los datos de un proveedor y gestionar su estado."""
+    proveedor = Proveedor.obtener_por_id(id_proveedor)
+    if not proveedor:
+        flash("Proveedor no encontrado en el sistema.", "danger")
+        return redirect(url_for("admin.proveedores"))
+
+    if request.method == "POST":
+        nombre = request.form.get("nombre", "").strip()
+        identificacion = request.form.get("identificacion", "").strip() or None
+        activo = True if request.form.get("activo") in ["1", "true", "on"] else False
+
+        if not nombre:
+            flash("El nombre del proveedor es obligatorio.", "danger")
+        else:
+            try:
+                Proveedor.actualizar(id_proveedor, nombre, identificacion, activo=activo)
+                flash(f"Proveedor '{nombre}' actualizado correctamente.", "success")
+                return redirect(url_for("admin.proveedores"))
+            except Exception as e:
+                flash(f"Error al actualizar proveedor: {str(e)}", "danger")
+
+    # Obtener historial de compras asociadas a este proveedor
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT c.id_compra, c.fecha_compra, c.total,
+               COUNT(cd.id_detalle_compra) as total_items,
+               COALESCE(SUM(cd.cantidad), 0) as total_unidades
+        FROM compras c
+        LEFT JOIN compra_detalle cd ON c.id_compra = cd.id_compra
+        WHERE c.id_proveedor = %s
+        GROUP BY c.id_compra, c.fecha_compra, c.total
+        ORDER BY c.fecha_compra DESC
+        LIMIT 10
+    """, (id_proveedor,))
+    compras_asociadas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "admin/proveedores/editar.html",
+        proveedor=proveedor,
+        compras_asociadas=compras_asociadas
+    )
+
+
+@admin_bp.route("/proveedores/<int:id_proveedor>/toggle", methods=["POST"])
+def toggle_proveedor(id_proveedor):
+    """Activa o desactiva un proveedor."""
+    try:
+        Proveedor.toggle_activo(id_proveedor)
+        flash("Estado del proveedor modificado.", "info")
+    except Exception as e:
+        flash(f"Error al cambiar estado del proveedor: {str(e)}", "danger")
+
+    return redirect(url_for("admin.proveedores"))
+
+
+@admin_bp.route("/proveedores/<int:id_proveedor>/eliminar", methods=["GET", "POST"])
+def eliminar_proveedor(id_proveedor):
+    """Apartado para eliminar un proveedor o confirmar su eliminación."""
+    proveedor = Proveedor.obtener_por_id(id_proveedor)
+    if not proveedor:
+        flash("Proveedor no encontrado.", "danger")
+        return redirect(url_for("admin.proveedores"))
+
+    if request.method == "POST":
+        try:
+            Proveedor.eliminar(id_proveedor)
+            flash(f"Proveedor '{proveedor['nombre']}' eliminado correctamente del sistema.", "info")
+            return redirect(url_for("admin.proveedores"))
+        except ValueError as ve:
+            flash(str(ve), "danger")
+            return redirect(url_for("admin.editar_proveedor", id_proveedor=id_proveedor))
+        except Exception as e:
+            flash(f"Error al eliminar proveedor: {str(e)}", "danger")
+            return redirect(url_for("admin.proveedores"))
+
+    return render_template("admin/proveedores/eliminar.html", proveedor=proveedor)
+
+
+
+@admin_bp.route("/api/proveedores/rapido", methods=["POST"])
+def api_crear_proveedor_rapido():
+    """API para registrar un proveedor rápido desde el formulario de compras vía modal."""
+    data = request.get_json() if request.is_json else request.form
+    nombre = (data.get("nombre") or "").strip()
+    identificacion = (data.get("identificacion") or "").strip() or None
+
+    if not nombre:
+        return jsonify({"success": False, "error": "El nombre del proveedor es obligatorio"}), 400
+
+    try:
+        nuevo_id = Proveedor.crear(nombre, identificacion)
+        return jsonify({
+            "success": True,
+            "id_proveedor": nuevo_id,
+            "nombre": nombre,
+            "identificacion": identificacion or ""
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+

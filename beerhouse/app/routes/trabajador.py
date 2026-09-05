@@ -63,14 +63,32 @@ def variantes_producto(id_producto):
 # =========================================================
 @trabajador_bp.route("/inventario")
 def inventario():
-    """Ver inventario completo."""
-    inventario = VarianteProducto.obtener_inventario()
+    """Ver inventario completo con filtros."""
+    from app.models.categoria import Categoria
+
+    busqueda = request.args.get("busqueda", "").strip() or None
+    id_categoria = request.args.get("categoria", type=int)
+    estado_stock = request.args.get("estado_stock") or None
+    filtro_bajo = request.args.get("bajo", type=bool)
+
+    inventario = VarianteProducto.obtener_inventario(
+        filtro_bajo=filtro_bajo,
+        busqueda=busqueda,
+        id_categoria=id_categoria,
+        estado_stock=estado_stock
+    )
     alertas = VarianteProducto.obtener_alertas_stock()
-    
+    categorias = Categoria.listar()
+
     return render_template(
         "trabajador/inventario.html",
         inventario=inventario,
-        alertas=alertas
+        alertas=alertas,
+        categorias=categorias,
+        busqueda=busqueda,
+        id_categoria=id_categoria,
+        estado_stock=estado_stock,
+        filtro_bajo=filtro_bajo
     )
 
 

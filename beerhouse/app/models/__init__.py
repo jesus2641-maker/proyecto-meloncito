@@ -5,6 +5,7 @@ from app.models.carrito import Carrito, CarritoItem
 from app.models.pedido import Pedido, PedidoDetalle
 from app.models.direccion import Direccion
 from app.models.metodo_pago import MetodoPago
+from app.models.proveedor import Proveedor
 
 __all__ = [
     "Usuario",
@@ -17,4 +18,6 @@ __all__ = [
     "PedidoDetalle",
     "Direccion",
     "MetodoPago",
+    "Proveedor",
 ]
+

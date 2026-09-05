@@ -294,23 +294,26 @@ class VarianteProducto:
         conn.close()
 
     @staticmethod
-    def obtener_inventario(filtro_bajo=None):
+    def obtener_inventario(filtro_bajo=None, busqueda=None, id_categoria=None, estado_stock=None):
         """
-        Obtiene el inventario completo con alertas de stock bajo.
-        
+        Obtiene el inventario completo con alertas de stock bajo y filtros avanzados.
+
         Args:
             filtro_bajo: Si es True, solo retorna items con stock bajo
-            
+            busqueda: Texto para buscar en nombre, marca, presentacion o SKU
+            id_categoria: Filtrar por categoría específica
+            estado_stock: Filtrar por estado de stock ('agotado', 'bajo', 'normal')
+
         Returns:
             Lista de variantes con información de stock y alertas
         """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         query = """
             SELECT v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.stock_minimo, v.sku,
-                   p.nombre_producto, p.marca, c.nombre_categoria,
-                   CASE 
+                   p.nombre_producto, p.marca, c.nombre_categoria, c.id_categoria,
+                   CASE
                        WHEN v.stock = 0 THEN 'agotado'
                        WHEN v.stock <= v.stock_minimo THEN 'bajo'
                        ELSE 'normal'
@@ -320,13 +323,31 @@ class VarianteProducto:
             JOIN categorias c ON p.id_categoria = c.id_categoria
             WHERE p.activo = TRUE
         """
-        
+        params = []
+
         if filtro_bajo:
             query += " AND v.stock <= v.stock_minimo"
-        
+
+        if busqueda:
+            query += " AND (p.nombre_producto LIKE %s OR p.marca LIKE %s OR v.presentacion LIKE %s OR v.sku LIKE %s)"
+            busqueda_param = f"%{busqueda}%"
+            params.extend([busqueda_param, busqueda_param, busqueda_param, busqueda_param])
+
+        if id_categoria:
+            query += " AND c.id_categoria = %s"
+            params.append(id_categoria)
+
+        if estado_stock:
+            if estado_stock == 'agotado':
+                query += " AND v.stock = 0"
+            elif estado_stock == 'bajo':
+                query += " AND v.stock > 0 AND v.stock <= v.stock_minimo"
+            elif estado_stock == 'normal':
+                query += " AND v.stock > v.stock_minimo"
+
         query += " ORDER BY v.stock ASC, p.nombre_producto ASC"
-        
-        cursor.execute(query)
+
+        cursor.execute(query, params)
         inventario = cursor.fetchall()
         cursor.close()
         conn.close()

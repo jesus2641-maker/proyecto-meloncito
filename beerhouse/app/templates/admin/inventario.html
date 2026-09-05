@@ -52,6 +52,20 @@
     {% endif %}
 
     <div class="admin-actions">
+        <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Registrar Compra
+        </a>
+        <a href="{{ url_for('admin.compras') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            Historial de Compras
+        </a>
         <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
@@ -66,6 +80,55 @@
         <div class="admin-section-header">
             <h2>Inventario Completo</h2>
             <span class="section-badge">{{ inventario|length }} variantes</span>
+        </div>
+
+        <!-- FILTROS DE INVENTARIO -->
+        <div class="admin-filters">
+            <form method="GET" action="{{ url_for('admin.inventario') }}" class="filter-form">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Buscar</label>
+                        <input type="text" name="busqueda" placeholder="Nombre, marca, presentación, SKU..." value="{{ busqueda or '' }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Categoría</label>
+                        <select name="categoria">
+                            <option value="">Todas las categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id_categoria }}" {% if id_categoria == cat.id_categoria %}selected{% endif %}>
+                                {{ cat.nombre_categoria }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Estado Stock</label>
+                        <select name="estado_stock">
+                            <option value="">Todos los estados</option>
+                            <option value="agotado" {% if estado_stock == 'agotado' %}selected{% endif %}>Agotado</option>
+                            <option value="bajo" {% if estado_stock == 'bajo' %}selected{% endif %}>Stock Bajo</option>
+                            <option value="normal" {% if estado_stock == 'normal' %}selected{% endif %}>Normal</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Mostrar</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="bajo" value="true" {% if filtro_bajo %}checked{% endif %}>
+                                Solo stock bajo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="{{ url_for('admin.inventario') }}" class="btn btn-ghost">Limpiar</a>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <div class="admin-table-container">
