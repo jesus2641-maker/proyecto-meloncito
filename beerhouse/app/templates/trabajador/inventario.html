@@ -22,6 +22,69 @@
     <div class="admin-section">
         <div class="admin-section-header">
             <h2>Inventario Completo</h2>
+            <span class="section-badge">{{ inventario|length }} variantes</span>
+        </div>
+
+        <!-- FILTROS DE INVENTARIO -->
+        <div class="admin-filters">
+            <form method="GET" action="{{ url_for('trabajador.inventario') }}" class="filter-form">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Buscar</label>
+                        <input type="text" name="busqueda" placeholder="Nombre, marca, presentación, SKU..." value="{{ busqueda or '' }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Categoría</label>
+                        <select name="categoria">
+                            <option value="">Todas las categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id_categoria }}" {% if id_categoria == cat.id_categoria %}selected{% endif %}>
+                                {{ cat.nombre_categoria }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Estado Stock</label>
+                        <select name="estado_stock">
+                            <option value="">Todos los estados</option>
+                            <option value="agotado" {% if estado_stock == 'agotado' %}selected{% endif %}>Agotado</option>
+                            <option value="bajo" {% if estado_stock == 'bajo' %}selected{% endif %}>Stock Bajo</option>
+                            <option value="normal" {% if estado_stock == 'normal' %}selected{% endif %}>Normal</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Ordenar por</label>
+                        <select name="ordenar_por">
+                            <option value="">Por defecto</option>
+                            <option value="nombre_asc" {% if ordenar_por == 'nombre_asc' %}selected{% endif %}>Nombre A-Z</option>
+                            <option value="nombre_desc" {% if ordenar_por == 'nombre_desc' %}selected{% endif %}>Nombre Z-A</option>
+                            <option value="reciente" {% if ordenar_por == 'reciente' %}selected{% endif %}>Más reciente</option>
+                            <option value="antiguo" {% if ordenar_por == 'antiguo' %}selected{% endif %}>Más antiguo</option>
+                            <option value="stock_asc" {% if ordenar_por == 'stock_asc' %}selected{% endif %}>Stock (menor a mayor)</option>
+                            <option value="stock_desc" {% if ordenar_por == 'stock_desc' %}selected{% endif %}>Stock (mayor a menor)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Mostrar</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="bajo" value="true" {% if filtro_bajo %}checked{% endif %}>
+                                Solo stock bajo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="{{ url_for('trabajador.inventario') }}" class="btn btn-ghost">Limpiar</a>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <div class="admin-table-container">

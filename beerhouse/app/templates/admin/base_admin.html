@@ -79,6 +79,25 @@
                 </a>
             </li>
             <li>
+                <a href="{{ url_for('admin.compras') }}" class="admin-nav-item {% if 'admin.compra' in request.endpoint %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+                    </svg>
+                    <span>Compras</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('admin.proveedores') }}" class="admin-nav-item {% if 'admin.proveedor' in request.endpoint %}active{% endif %}">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+                        <path d="M16 8h4l3 5v3h-7V8z"></path>
+                        <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                        <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                    </svg>
+                    <span>Proveedores</span>
+                </a>
+            </li>
+            <li>
                 <a href="{{ url_for('admin.usuarios') }}" class="admin-nav-item {% if 'admin.usuario' in request.endpoint %}active{% endif %}">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>

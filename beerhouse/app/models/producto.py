@@ -397,7 +397,7 @@ class VarianteProducto:
         conn.close()
 
     @staticmethod
-    def obtener_inventario(filtro_bajo=None, busqueda=None, id_categoria=None, estado_stock=None):
+    def obtener_inventario(filtro_bajo=None, busqueda=None, id_categoria=None, estado_stock=None, ordenar_por=None):
         """
         Obtiene el inventario completo con alertas de stock bajo y filtros avanzados.
 
@@ -406,6 +406,7 @@ class VarianteProducto:
             busqueda: Texto para buscar en nombre, marca, presentacion o SKU
             id_categoria: Filtrar por categoría específica
             estado_stock: Filtrar por estado de stock ('agotado', 'bajo', 'normal')
+            ordenar_por: Criterio de ordenamiento ('nombre_asc', 'nombre_desc', 'reciente', 'antiguo', 'stock_asc', 'stock_desc')
 
         Returns:
             Lista de variantes con información de stock y alertas
@@ -415,7 +416,7 @@ class VarianteProducto:
 
         query = """
             SELECT v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.stock_minimo, v.sku,
-                   p.nombre_producto, p.marca, GROUP_CONCAT(DISTINCT c.nombre_categoria) AS categorias,
+                   p.nombre_producto, p.marca, GROUP_CONCAT(DISTINCT c.nombre_categoria) AS categorias, p.fecha_creacion,
                    CASE
                        WHEN v.stock = 0 THEN 'agotado'
                        WHEN v.stock <= v.stock_minimo THEN 'bajo'
@@ -426,8 +427,6 @@ class VarianteProducto:
             LEFT JOIN productos_categorias pc ON p.id_producto = pc.id_producto
             LEFT JOIN categorias c ON pc.id_categoria = c.id_categoria
             WHERE p.activo = TRUE
-            GROUP BY v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.stock_minimo, v.sku,
-                     p.nombre_producto, p.marca
         """
         params = []
 
@@ -435,9 +434,11 @@ class VarianteProducto:
             query += " AND v.stock <= v.stock_minimo"
 
         if busqueda:
-            query += " AND (p.nombre_producto LIKE %s OR p.marca LIKE %s OR v.presentacion LIKE %s OR v.sku LIKE %s)"
-            busqueda_param = f"%{busqueda}%"
-            params.extend([busqueda_param, busqueda_param, busqueda_param, busqueda_param])
+            palabras = busqueda.split()
+            for palabra in palabras:
+                query += " AND (p.nombre_producto LIKE %s OR p.marca LIKE %s OR v.presentacion LIKE %s OR v.sku LIKE %s)"
+                busqueda_param = f"%{palabra}%"
+                params.extend([busqueda_param, busqueda_param, busqueda_param, busqueda_param])
 
         if id_categoria:
             query += " AND c.id_categoria = %s"
@@ -451,7 +452,26 @@ class VarianteProducto:
             elif estado_stock == 'normal':
                 query += " AND v.stock > v.stock_minimo"
 
-        query += " ORDER BY v.stock ASC, p.nombre_producto ASC"
+        query += """
+            GROUP BY v.id_variante, v.id_producto, v.presentacion, v.precio, v.stock, v.stock_minimo, v.sku,
+                     p.nombre_producto, p.marca, p.fecha_creacion
+        """
+
+        # Aplicar ordenamiento
+        if ordenar_por == 'nombre_asc':
+            query += " ORDER BY p.nombre_producto ASC"
+        elif ordenar_por == 'nombre_desc':
+            query += " ORDER BY p.nombre_producto DESC"
+        elif ordenar_por == 'reciente':
+            query += " ORDER BY p.fecha_creacion DESC"
+        elif ordenar_por == 'antiguo':
+            query += " ORDER BY p.fecha_creacion ASC"
+        elif ordenar_por == 'stock_asc':
+            query += " ORDER BY v.stock ASC"
+        elif ordenar_por == 'stock_desc':
+            query += " ORDER BY v.stock DESC"
+        else:
+            query += " ORDER BY v.stock ASC, p.nombre_producto ASC"
 
         cursor.execute(query, params)
         inventario = cursor.fetchall()

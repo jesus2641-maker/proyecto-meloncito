@@ -74,9 +74,25 @@ CREATE TABLE IF NOT EXISTS categorias (
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
     id_producto INT AUTO_INCREMENT PRIMARY KEY,
-    id_categoria INT NULL,
     nombre_producto VARCHAR(150) NOT NULL,
     descripcion TEXT,
+    marca VARCHAR(100),
+    imagen_url TEXT,
+    imagen_public_id VARCHAR(255),
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- --------------------------------------------
+-- Tabla: productos_categorias (relación muchos-a-muchos)
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS productos_categorias (
+    id_producto INT NOT NULL,
+    id_categoria INT NOT NULL,
+    PRIMARY KEY (id_producto, id_categoria),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE CASCADE
+);
     marca VARCHAR(100),
     imagen_url TEXT,
     imagen_public_id VARCHAR(255),

@@ -70,12 +70,14 @@ def inventario():
     id_categoria = request.args.get("categoria", type=int)
     estado_stock = request.args.get("estado_stock") or None
     filtro_bajo = request.args.get("bajo", type=bool)
+    ordenar_por = request.args.get("ordenar_por") or None
 
     inventario = VarianteProducto.obtener_inventario(
         filtro_bajo=filtro_bajo,
         busqueda=busqueda,
         id_categoria=id_categoria,
-        estado_stock=estado_stock
+        estado_stock=estado_stock,
+        ordenar_por=ordenar_por
     )
     alertas = VarianteProducto.obtener_alertas_stock()
     categorias = Categoria.listar()
@@ -88,7 +90,8 @@ def inventario():
         busqueda=busqueda,
         id_categoria=id_categoria,
         estado_stock=estado_stock,
-        filtro_bajo=filtro_bajo
+        filtro_bajo=filtro_bajo,
+        ordenar_por=ordenar_por
     )
 
 
