@@ -1,0 +1,67 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Pedidos — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Pedidos</p>
+            <h1>Pedidos</h1>
+            <p>Consulta y actualiza el estado de los pedidos</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Todos los Pedidos</h2>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ped in pedidos %}
+                    <tr>
+                        <td><strong>#{{ ped.id_pedido }}</strong></td>
+                        <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                        <td><strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong></td>
+                        <td>${{ "{:,.2f}".format(ped.total) }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <select name="id_estado" onchange="this.form.submit()" class="status-select">
+                                    {% for est in estados %}
+                                    <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
+                                        {{ est.nombre_estado|capitalize }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('trabajador.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Detalle</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center" style="padding: 40px;">No hay pedidos registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

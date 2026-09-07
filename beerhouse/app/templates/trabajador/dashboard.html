@@ -1,0 +1,145 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Panel Trabajador — Dashboard — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<!-- Worker Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Panel de Trabajador</p>
+            <h1>Dashboard</h1>
+            <p>Control de operaciones y gestión de pedidos</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('trabajador.pedidos') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            Ver Pedidos
+        </a>
+        <a href="{{ url_for('trabajador.inventario') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Ver Inventario
+        </a>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-card-highlight">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Ventas Totales</span>
+                <strong class="kpi-value">${{ "{:,.2f}".format(metricas.total_ventas) }}</strong>
+                <span class="kpi-sub">Ingresos acumulados</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Total de Pedidos</span>
+                <strong class="kpi-value">{{ metricas.total_pedidos }}</strong>
+                <span class="kpi-sub">Registrados en plataforma</span>
+            </div>
+        </div>
+
+        <div class="kpi-card kpi-card-warning">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Pedidos Pendientes</span>
+                <strong class="kpi-value">{{ metricas.pedidos_pendientes }}</strong>
+                <span class="kpi-sub">Requieren atención</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÚLTIMOS PEDIDOS -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Últimos Pedidos</h2>
+            <a href="{{ url_for('trabajador.pedidos') }}" class="auth-link">Ver todos →</a>
+        </div>
+
+        {% if ultimos_pedidos %}
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ped in ultimos_pedidos %}
+                    <tr>
+                        <td><strong>#{{ ped.id_pedido }}</strong></td>
+                        <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                        <td>
+                            <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong>
+                        </td>
+                        <td class="table-amount">${{ "{:,.2f}".format(ped.total) }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <select name="id_estado" onchange="this.form.submit()" class="status-select">
+                                    {% for est in estados %}
+                                    <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
+                                        {{ est.nombre_estado|capitalize }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('trabajador.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Detalle</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            <p>No hay pedidos registrados</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

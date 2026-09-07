@@ -1,0 +1,160 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Historial de Compras — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Admin Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Abastecimiento</p>
+            <h1>Historial de Compras</h1>
+            <p>Control de adquisiciones a proveedores, costos de compra y abastecimiento de stock</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Registrar Compra
+        </a>
+        <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            Gestionar Proveedores
+        </a>
+        <a href="{{ url_for('admin.inventario') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Ver Inventario
+        </a>
+    </div>
+
+    <!-- METRICAS DE COMPRAS -->
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-card-highlight">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Inversión Total en Compras</span>
+                <strong class="kpi-value">${{ "{:,.2f}".format(metricas.gasto_total) }}</strong>
+                <span class="kpi-sub">Total histórico acumulado</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    <path d="M12 11h4"></path>
+                    <path d="M12 16h4"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Compras Registradas</span>
+                <strong class="kpi-value">{{ metricas.total_compras }}</strong>
+                <span class="kpi-sub">Órdenes de compra procesadas</span>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <span class="kpi-label">Inversión Este Mes</span>
+                <strong class="kpi-value">${{ "{:,.2f}".format(metricas.gasto_mes_actual) }}</strong>
+                <span class="kpi-sub">{{ metricas.compras_mes_actual }} compra(s) en el mes</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE HISTORIAL DE COMPRAS -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Todas las Compras</h2>
+            <span class="section-badge">{{ compras|length }} registradas</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>N° Compra</th>
+                        <th>Fecha Compra</th>
+                        <th>Proveedor</th>
+                        <th>Items / Unidades</th>
+                        <th>Registrado por</th>
+                        <th>Total Invertido</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in compras %}
+                    <tr>
+                        <td><strong>#COMP-{{ "%04d"|format(c.id_compra) }}</strong></td>
+                        <td>{{ c.fecha_compra.strftime('%d/%m/%Y %H:%M') if c.fecha_compra else '—' }}</td>
+                        <td>
+                            <div class="customer-info">
+                                <strong>{{ c.nombre_proveedor }}</strong>
+                                {% if c.identificacion_proveedor %}
+                                <small>{{ c.identificacion_proveedor }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-category">{{ c.total_items }} producto(s)</span>
+                            <small style="color: var(--text-muted); display: block; margin-top: 4px;">{{ c.total_unidades }} u. en stock</small>
+                        </td>
+                        <td>{{ c.nombre_usuario }} {{ c.apellido_usuario }}</td>
+                        <td class="table-amount">${{ "{:,.2f}".format(c.total) }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.detalle_compra', id_compra=c.id_compra) }}" class="btn btn-sm btn-outline">
+                                Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state-admin">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                </svg>
+                                <h3>No se han registrado compras aún</h3>
+                                <p>Registra las compras a tus proveedores para ingresar stock a tus productos y controlar los costos.</p>
+                                <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-primary" style="margin-top: 16px;">
+                                    + Registrar Primera Compra
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

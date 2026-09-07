@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Mis Pedidos — Beer House Premium{% endblock %}
+
+{% block content %}
+<!-- Orders Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Historial de Compras</p>
+            <h1>Mis Pedidos</h1>
+            <p>Consulta el historial completo de tus pedidos y su estado actual.</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="page-actions">
+        <a href="{{ url_for('cuenta.index') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Mi Cuenta
+        </a>
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            Hacer Nuevo Pedido
+        </a>
+    </div>
+
+    {% if pedidos %}
+    <div class="orders-list">
+        {% for ped in pedidos %}
+        <div class="order-card">
+            <div class="order-card-header">
+                <div class="order-number">
+                    <span class="order-label">Pedido</span>
+                    <span class="order-id">#{{ ped.id_pedido }}</span>
+                </div>
+                <div class="order-date">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</span>
+                </div>
+                <div class="order-status">
+                    <span class="status-badge status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">{{ ped.nombre_estado|capitalize }}</span>
+                </div>
+            </div>
+            
+            <div class="order-card-body">
+                <div class="order-details-grid">
+                    <div class="order-detail-item">
+                        <span class="detail-label">Dirección de Envío</span>
+                        <span class="detail-value">{{ ped.linea_direccion or '—' }}, {{ ped.ciudad or '' }}</span>
+                    </div>
+                    <div class="order-detail-item">
+                        <span class="detail-label">Método de Pago</span>
+                        <span class="detail-value">{{ ped.tipo_pago or '—' }}</span>
+                    </div>
+                    <div class="order-detail-item">
+                        <span class="detail-label">Total</span>
+                        <span class="detail-value detail-value-price">${{ "{:,.2f}".format(ped.total) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="order-card-footer">
+                <a href="{{ url_for('cuenta.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-outline btn-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    Ver Detalle
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-orders">
+        <div class="empty-orders-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+        </div>
+        <h2>Aún No Tienes Pedidos</h2>
+        <p>Comienza tu experiencia premium añadiendo licores a tu carrito.</p>
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            Explorar el Catálogo
+        </a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

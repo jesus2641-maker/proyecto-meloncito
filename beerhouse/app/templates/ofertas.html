@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Ofertas — Beer House Premium{% endblock %}
+{% block content %}
+<!-- Offers Hero Section -->
+<section class="catalog-hero" style="background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold-primary) 50%, var(--gold-light) 100%);">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle" style="color: var(--bg-primary);">Exclusivo para Miembros</p>
+            <h1 style="color: var(--bg-primary);">Ofertas Premium</h1>
+            <p style="color: var(--bg-primary);">Descuentos exclusivos en seleccionados licores premium por tiempo limitado.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Offers -->
+<section class="container">
+    <div class="section-header">
+        <p class="section-subtitle">Selección Exclusiva</p>
+        <h2 class="section-title">Ofertas Destacadas</h2>
+        <p class="section-description">
+            Aprovecha estas ofertas especiales en licores premium de alta calidad.
+        </p>
+    </div>
+    
+    {% if ofertas %}
+    <div class="grid grid-3">
+        {% for oferta in ofertas %}
+        <div class="card offer-card">
+            <div class="offer-badge-overlay">
+                <span class="discount-badge">-{{ oferta.descuento_porcentaje }}%</span>
+            </div>
+            <div class="card-image" style="
+                {% if oferta.imagen_url %}
+                background-image: url('{{ oferta.imagen_url }}');
+                {% else %}
+                background: linear-gradient(135deg, var(--gold-primary) 0%, #b8860b 100%);
+                {% endif %}
+                background-size: cover; background-position: center;">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ oferta.titulo }}</h3>
+                <p class="card-description">{{ oferta.descripcion[:80] }}{% if oferta.descripcion and oferta.descripcion|length > 80 %}...{% endif %}</p>
+                <div class="price-container">
+                    <span class="original-price">${{ "{:,.2f}".format(oferta.precio_original) if oferta.precio_original else '0.00' }}</span>
+                    <span class="offer-price">${{ "{:,.2f}".format(oferta.precio_oferta) }}</span>
+                </div>
+                <a href="{{ url_for('productos.detalle', producto_id=oferta.id_producto) }}" class="btn btn-primary">Comprar</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+        <p>No hay ofertas disponibles en este momento.</p>
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary">Ver Catálogo</a>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Newsletter Section -->
+<section class="container" style="background: var(--bg-card); padding: 60px 24px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
+    <h2 style="margin-bottom: 16px;">No Te Pierdas Ninguna Oferta</h2>
+    <p style="margin-bottom: 32px; color: var(--text-secondary);">Suscríbete a nuestro newsletter y recibe ofertas exclusivas directamente en tu correo.</p>
+    <div style="display: flex; gap: 12px; max-width: 500px; margin: 0 auto;">
+        <input type="email" placeholder="Tu correo electrónico" class="form-input" style="flex: 1;">
+        <button class="btn btn-primary">Suscribirse</button>
+    </div>
+</section>
+{% endblock %}
