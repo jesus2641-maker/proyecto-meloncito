@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Inicio — Beer House Premium Spirits{% endblock %}
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-image"></div>
+    <div class="hero-overlay"></div>
+    
+    <div class="hero-content">
+        <p class="hero-subtitle">Premium Spirits Collection</p>
+        <h1 class="hero-title">Arte en Cada Botella</h1>
+        <p class="hero-description">
+            Descubre nuestra selección curada de los mejores licores del mundo. 
+            Desde whiskies raros hasta tequilas artesanales, cada botella cuenta una historia de excelencia.
+        </p>
+        <a href="{{ url_for('productos.catalogo') }}" class="hero-cta">
+            Explorar Catálogo
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+        </a>
+    </div>
+</section>
+
+<!-- Categories Preview Section -->
+<section class="container">
+    <div class="section-header">
+        <p class="section-subtitle">Nuestra Selección</p>
+        <h2 class="section-title">Categorías Premium</h2>
+        <p class="section-description">
+            Explora nuestra colección cuidadosamente curada de licores de alta calidad, 
+            seleccionados por expertos para satisfacer los paladares más exigentes.
+        </p>
+    </div>
+    
+    {% if categorias %}
+    <div class="grid grid-4">
+        {% for cat in categorias[:4] %}
+        <div class="card">
+            <div class="card-image" style="
+                {% if cat.imagen_url %}
+                background-image: url('{{ cat.imagen_url }}');
+                {% else %}
+                background: linear-gradient(135deg, var(--gold-primary) 0%, #b8860b 100%);
+                {% endif %}
+                background-size: cover; background-position: center;">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ cat.nombre_categoria }}</h3>
+                <p class="card-description">{{ cat.descripcion[:80] }}{% if cat.descripcion and cat.descripcion|length > 80 %}...{% endif %}</p>
+                <a href="{{ url_for('categorias.index') }}" class="btn btn-outline">Explorar</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+        <p>No hay categorías disponibles en este momento.</p>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Featured Products Section -->
+<section class="container" style="background: var(--bg-secondary); padding: 80px 24px; border-radius: 8px;">
+    <div class="section-header">
+        <p class="section-subtitle">Selección Exclusiva</p>
+        <h2 class="section-title">Productos Destacados</h2>
+        <p class="section-description">
+            Nuestra selección de licores premium, elegidos por su excepcional calidad y carácter único.
+        </p>
+    </div>
+    
+    {% if productos_destacados %}
+    <div class="grid grid-3">
+        {% for prod in productos_destacados %}
+        <div class="card">
+            <div class="card-image" style="
+                {% if prod.imagen_url %}
+                background-image: url('{{ prod.imagen_url }}');
+                {% else %}
+                background: linear-gradient(135deg, var(--gold-primary) 0%, #b8860b 100%);
+                {% endif %}
+                background-size: cover; background-position: center;">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ prod.nombre_producto }}</h3>
+                <p class="card-description">{{ prod.descripcion[:80] }}{% if prod.descripcion and prod.descripcion|length > 80 %}...{% endif %}</p>
+                <div class="card-price">${{ "{:,.0f}".format(prod.precio_minimo) if prod.precio_minimo else '0' }}</div>
+                <a href="{{ url_for('productos.detalle', producto_id=prod.id_producto) }}" class="btn btn-primary">Ver Detalle</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <p>No hay productos disponibles en este momento.</p>
+    </div>
+    {% endif %}
+    
+    <div style="text-align: center; margin-top: 48px;">
+        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-outline">Ver Todo el Catálogo</a>
+    </div>
+</section>
+
+<!-- Storytelling Section -->
+<section class="container">
+    <div class="grid grid-2" style="align-items: center;">
+        <div>
+            <p class="section-subtitle">Nuestra Historia</p>
+            <h2 class="section-title">Pasión por la Excelencia</h2>
+            <p style="margin-bottom: 24px; line-height: 1.8;">
+                Beer House nació de la pasión por los licores excepcionales. Desde 2010, hemos recorrido el mundo 
+                en busca de las mejores expresiones de whisky, ron, tequila y vino, construyendo relaciones 
+                directas con productores artesanales y destilerías legendarias.
+            </p>
+            <p style="margin-bottom: 32px; line-height: 1.8;">
+                Cada botella en nuestra colección ha sido seleccionada personalmente por nuestro equipo de expertos, 
+                garantizando autenticidad, calidad y una experiencia de degustación inolvidable.
+            </p>
+            <a href="#" class="btn btn-primary">Conocer Más</a>
+        </div>
+        <div>
+            <div style="height: 500px; background-image: url('https://images.unsplash.com/photo-1566633806327-68e152aaf26d?auto=format&fit=crop&w=800&q=80'); background-size: cover; background-position: center; border-radius: 4px;"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Special Offers Section -->
+<section class="container" style="background: linear-gradient(135deg, var(--gold-dark), var(--gold-primary)); padding: 80px 24px; border-radius: 8px; text-align: center;">
+    <h2 style="color: var(--bg-primary); margin-bottom: 24px;">Ofertas Exclusivas</h2>
+    <p style="color: var(--bg-primary); margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">
+        Suscríbete a nuestro club exclusivo y recibe acceso anticipado a lanzamientos limitados, 
+        descuentos especiales y eventos de degustación privados.
+    </p>
+    <a href="{{ url_for('productos.catalogo') }}" class="btn" style="background: var(--bg-primary); color: var(--gold-primary);">
+        Ver Ofertas
+    </a>
+</section>
+{% endblock %}

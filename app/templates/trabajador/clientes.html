@@ -1,0 +1,64 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Clientes — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Información de Clientes</p>
+            <h1>Clientes</h1>
+            <p>Consulta la información de los clientes registrados</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Clientes Registrados</h2>
+            <span class="section-badge">{{ clientes|length }} clientes</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre y Apellido</th>
+                        <th>Correo Electrónico</th>
+                        <th>Teléfono</th>
+                        <th>Rol</th>
+                        <th>Pedidos</th>
+                        <th>Fecha Registro</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in clientes %}
+                    <tr class="{% if not u.activo %}row-inactive{% endif %}">
+                        <td><strong>#{{ u.id_usuario }}</strong></td>
+                        <td><strong>{{ u.nombre }} {{ u.apellido }}</strong></td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.telefono or '—' }}</td>
+                        <td>{{ u.nombre_rol|capitalize }}</td>
+                        <td>{{ u.total_pedidos }} pedido(s)</td>
+                        <td>{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
+                        <td>
+                            {% if u.activo %}
+                            <span class="badge badge-success">Activo</span>
+                            {% else %}
+                            <span class="badge badge-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center" style="padding: 40px;">No hay clientes registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

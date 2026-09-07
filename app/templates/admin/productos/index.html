@@ -1,0 +1,152 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Administración de Productos — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Admin Products Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Catálogo</p>
+            <h1>Gestión de Productos</h1>
+            <p>Administra el catálogo de bebidas premium, precios, existencias y variantes</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.nuevo_producto') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Nuevo Producto
+        </a>
+        <a href="{{ url_for('admin.pedidos') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            Ver Pedidos
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Productos Registrados</h2>
+            <span class="section-badge">{{ productos|length }} productos</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Marca</th>
+                        <th>Variantes</th>
+                        <th>Rango de Precio</th>
+                        <th>Stock Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prod in productos %}
+                    <tr class="{% if not prod.activo %}row-inactive{% endif %}">
+                        <td><strong>#{{ prod.id_producto }}</strong></td>
+                        <td>
+                            <div class="product-cell">
+                                {% if prod.imagen_url %}
+                                <img src="{{ prod.imagen_url }}" alt="{{ prod.nombre_producto }}" class="product-thumb">
+                                {% endif %}
+                                <div class="product-info">
+                                    <strong>{{ prod.nombre_producto }}</strong>
+                                    {% if prod.descripcion %}
+                                    <small>{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-info">{{ prod.categorias or 'Sin categoría' }}</span></td>
+                        <td>{{ prod.marca or '—' }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline">
+                                <strong>{{ prod.total_variantes }} variante(s)</strong>
+                            </a>
+                        </td>
+                        <td>
+                            {% if prod.precio_minimo %}
+                                {% if prod.precio_minimo == prod.precio_maximo %}
+                                <span>${{ "{:,.0f}".format(prod.precio_minimo) }}</span>
+                                {% else %}
+                                <span>${{ "{:,.0f}".format(prod.precio_minimo) }} - ${{ "{:,.0f}".format(prod.precio_maximo) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Sin variantes</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if prod.stock_total > 10 %}
+                            <span class="badge badge-success">{{ prod.stock_total }} uds</span>
+                            {% elif prod.stock_total > 0 %}
+                            <span class="badge badge-warning">{{ prod.stock_total }} uds (Bajo)</span>
+                            {% else %}
+                            <span class="badge badge-danger">Agotado (0)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.toggle_producto', id_producto=prod.id_producto) }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm {% if prod.activo %}btn-danger{% else %}btn-primary{% endif %}">
+                                    {{ 'Desactivar' if prod.activo else 'Activar' }}
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Gestionar Variantes / Stock">Variantes</a>
+                                <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Editar">Editar</a>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarProducto({{ prod.id_producto }}, '{{ prod.nombre_producto }}')" title="Eliminar">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center" style="padding: 40px;">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                            <p>No hay productos registrados en la base de datos</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Formulario oculto para eliminar producto -->
+<form id="formEliminarProducto" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+function confirmarEliminarProducto(id, nombre) {
+    showConfirm(
+        'Eliminar Producto',
+        `¿Estás seguro de eliminar el producto "${nombre}"? Esta acción no se puede deshacer.`,
+        function() {
+            const form = document.getElementById('formEliminarProducto');
+            form.action = "/admin/productos/" + id + "/eliminar";
+            form.submit();
+        }
+    );
+}
+</script>
+{% endblock %}

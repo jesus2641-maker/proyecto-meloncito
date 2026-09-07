@@ -1,0 +1,175 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Gestión de Categorías — Admin — Beer House Premium{% endblock %}
+{% block admin_content %}
+<!-- Admin Categories Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Catálogo</p>
+            <h1>Categorías</h1>
+            <p>Organiza los tipos de bebidas del catálogo de Beer House Premium</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Productos
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Categorías Registradas</h2>
+            <span class="section-badge">{{ categorias|length }} categorías</span>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Productos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categorias %}
+                    <tr>
+                        <td><strong>#{{ cat.id_categoria }}</strong></td>
+                        <td><strong>{{ cat.nombre_categoria }}</strong></td>
+                        <td>{{ cat.descripcion or '—' }}</td>
+                        <td>
+                            <span class="badge badge-info">{{ cat.total_productos }} producto(s)</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="abrirModalEditar({{ cat.id_categoria }}, '{{ cat.nombre_categoria }}', '{{ cat.descripcion or '' }}', '{{ cat.imagen_url or '' }}')">Editar</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarCategoria({{ cat.id_categoria }}, '{{ cat.nombre_categoria }}')">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center" style="padding: 40px;">No hay categorías registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>+ Nueva Categoría</h2>
+        </div>
+
+        <div class="premium-form">
+            <form method="POST" action="{{ url_for('admin.nueva_categoria') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Categoría *</label>
+                    <input type="text" id="nombre_categoria" name="nombre_categoria" class="form-input" placeholder="Ej. Licores Nacionales, Vinos Importados" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descripción (opcional)</label>
+                    <textarea id="descripcion" name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la categoría..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">URL de la Imagen (opcional)</label>
+                    <input type="url" id="imagen_url" name="imagen_url" class="form-input" placeholder="https://ejemplo.com/imagen.jpg">
+                    <small class="text-muted">Ingresa la URL de la imagen de la categoría</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Crear Categoría</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<!-- Formulario oculto para eliminar categoría -->
+<form id="formEliminarCategoria" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<!-- Modal de Edición -->
+<div id="modalEditar" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2>Editar Categoría</h2>
+            <button type="button" class="btn-close" onclick="cerrarModalEditar()">×</button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" id="formEditarCategoria">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="editIdCategoria" name="id_categoria">
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Categoría *</label>
+                    <input type="text" id="editNombreCategoria" name="nombre_categoria" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripción (opcional)</label>
+                    <textarea id="editDescripcion" name="descripcion" rows="3" class="form-input"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">URL de la Imagen (opcional)</label>
+                    <input type="url" id="editImagenUrl" name="imagen_url" class="form-input" placeholder="https://ejemplo.com/imagen.jpg">
+                    <small class="text-muted">Ingresa la URL de la imagen de la categoría</small>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="cerrarModalEditar()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalEditar(id, nombre, descripcion, imagenUrl) {
+    document.getElementById('editIdCategoria').value = id;
+    document.getElementById('editNombreCategoria').value = nombre;
+    document.getElementById('editDescripcion').value = descripcion;
+    document.getElementById('editImagenUrl').value = imagenUrl || '';
+    document.getElementById('modalEditar').classList.add('modal-open');
+}
+
+function cerrarModalEditar() {
+    document.getElementById('modalEditar').classList.remove('modal-open');
+}
+
+function guardarEdicion() {
+    document.getElementById('formEditarCategoria').action = "/admin/categorias/" + document.getElementById('editIdCategoria').value + "/editar";
+    document.getElementById('formEditarCategoria').submit();
+}
+
+function confirmarEliminarCategoria(id, nombre) {
+    showConfirm(
+        'Eliminar Categoría',
+        `¿Estás seguro de eliminar la categoría "${nombre}"?`,
+        function() {
+            const form = document.getElementById('formEliminarCategoria');
+            form.action = "/admin/categorias/" + id + "/eliminar";
+            form.submit();
+        }
+    );
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modalEditar').addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModalEditar();
+    }
+});
+</script>
+{% endblock %}

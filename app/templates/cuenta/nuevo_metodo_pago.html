@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Método de Pago — Beer House Premium{% endblock %}
+
+{% block content %}
+<!-- New Payment Method Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Agregar Forma de Pago</p>
+            <h1>Nuevo Método de Pago</h1>
+            <p>Registra un nuevo método de pago para facilitar tus compras premium.</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="page-actions">
+        <a href="{{ url_for('cuenta.metodos_pago') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Métodos de Pago
+        </a>
+    </div>
+
+    <div class="form-container">
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                </div>
+                <h2>Información del Método de Pago</h2>
+            </div>
+            
+            <form method="POST" action="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="premium-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label class="form-label">Tipo de Método de Pago *</label>
+                    <select id="tipo" name="tipo" class="filter-select" required>
+                        <option value="">-- Selecciona una opción --</option>
+                        <option value="Tarjeta de crédito">Tarjeta de Crédito</option>
+                        <option value="Tarjeta de débito">Tarjeta de Débito</option>
+                        <option value="Transferencia Bancaria (PSE)">Transferencia Bancaria (PSE)</option>
+                        <option value="Nequi / Daviplata">Nequi / Daviplata</option>
+                        <option value="Efectivo contra entrega">Efectivo contra entrega</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Detalle o Identificador (opcional)</label>
+                    <input type="text" id="detalle" name="detalle" class="form-input" placeholder="Ej. Visa terminada en 4242, Celular 3001234567, etc.">
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="es_predeterminado" value="1">
+                        <span>Establecer como método de pago predeterminado</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 13 7 21"></polyline>
+                        </svg>
+                        Guardar Método de Pago
+                    </button>
+                    <a href="{{ url_for('cuenta.metodos_pago') }}" class="btn btn-outline btn-lg">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

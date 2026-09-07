@@ -1,0 +1,32 @@
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variables de entorno reales (nunca van en la imagen)
+.env
+
+# Git
+.git/
+.gitignore
+
+# VS Code
+.vscode/
+
+# Docker (no incluirse a sí mismo)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

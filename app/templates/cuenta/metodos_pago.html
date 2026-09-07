@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Mis Métodos de Pago — Beer House Premium{% endblock %}
+
+{% block content %}
+<!-- Payment Methods Hero Section -->
+<section class="catalog-hero">
+    <div class="container">
+        <div class="catalog-hero-content">
+            <p class="section-subtitle">Formas de Pago</p>
+            <h1>Mis Métodos de Pago</h1>
+            <p>Gestiona tus métodos de pago guardados para agilizar tus compras premium.</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="page-actions">
+        <a href="{{ url_for('cuenta.index') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Mi Cuenta
+        </a>
+        <a href="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Agregar Método de Pago
+        </a>
+    </div>
+
+    {% if metodos_pago %}
+    <div class="payment-methods-grid">
+        {% for mp in metodos_pago %}
+        <div class="payment-card">
+            <div class="payment-card-header">
+                <div class="payment-title-group">
+                    <h3>{{ mp.tipo }}</h3>
+                    {% if mp.es_predeterminado %}
+                    <span class="badge badge-category">Predeterminado</span>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('cuenta.eliminar_metodo_pago') }}" onsubmit="return confirm('¿Estás seguro de eliminar este método de pago?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id_metodo_pago" value="{{ mp.id_metodo_pago }}">
+                    <button type="submit" class="payment-delete-btn" title="Eliminar método de pago">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="payment-card-body">
+                <div class="payment-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                </div>
+                
+                <div class="payment-details">
+                    {% if mp.detalle %}
+                    <div class="payment-detail-row">
+                        <span class="payment-detail-label">Detalle:</span>
+                        <span class="payment-detail-value">{{ mp.detalle }}</span>
+                    </div>
+                    {% else %}
+                    <div class="payment-detail-row">
+                        <span class="payment-detail-value payment-detail-empty">Sin detalles adicionales</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-payments">
+        <div class="empty-payments-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+        </div>
+        <h2>No Tienes Métodos de Pago Guardados</h2>
+        <p>Agrega tu primer método de pago para facilitar tus compras premium.</p>
+        <a href="{{ url_for('cuenta.nuevo_metodo_pago') }}" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Agregar Primer Método de Pago
+        </a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
