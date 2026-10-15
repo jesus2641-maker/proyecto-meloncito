@@ -1,0 +1,231 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Inventario — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Admin Inventory Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Inventario</p>
+            <h1>Inventario Completo</h1>
+            <p>Control de stock y alertas de reposición para Beer House Premium</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <!-- ALERTAS DE STOCK -->
+    {% if alertas['agotados'] or alertas['bajo'] %}
+    <div class="inventory-alerts">
+        {% if alertas['agotados'] %}
+        <div class="alert-card alert-critical">
+            <div class="alert-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <div class="alert-content">
+                <h3>Productos Agotados</h3>
+                <p>{{ alertas['agotados']|length }} producto(s) sin stock</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if alertas['bajo'] %}
+        <div class="alert-card alert-warning">
+            <div class="alert-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <div class="alert-content">
+                <h3>Stock Bajo</h3>
+                <p>{{ alertas['bajo']|length }} producto(s) necesitan reposición</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Productos
+        </a>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Inventario Completo</h2>
+            <span class="section-badge">{{ inventario|length }} variantes</span>
+        </div>
+
+        <!-- FILTROS DE INVENTARIO -->
+        <div class="admin-filters">
+            <form method="GET" action="{{ url_for('admin.inventario') }}" class="filter-form" id="inventario-filter-form">
+                <div class="filter-row">
+                    <div class="filter-group" style="position:relative;">
+                        <label>Buscar</label>
+                        <input type="text" name="busqueda" id="inventario-busqueda"
+                               placeholder="Nombre, marca, presentación, SKU..."
+                               value="{{ busqueda or '' }}"
+                               autocomplete="off">
+                        {% if busqueda %}
+                        <a href="{{ url_for('admin.inventario') }}" class="search-clear-btn" title="Limpiar búsqueda">&#x2715;</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Categoría</label>
+                        <select name="categoria">
+                            <option value="">Todas las categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id_categoria }}" {% if id_categoria == cat.id_categoria %}selected{% endif %}>
+                                {{ cat.nombre_categoria }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Estado Stock</label>
+                        <select name="estado_stock">
+                            <option value="">Todos los estados</option>
+                            <option value="agotado" {% if estado_stock == 'agotado' %}selected{% endif %}>Agotado</option>
+                            <option value="bajo" {% if estado_stock == 'bajo' %}selected{% endif %}>Stock Bajo</option>
+                            <option value="normal" {% if estado_stock == 'normal' %}selected{% endif %}>Normal</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Ordenar por</label>
+                        <select name="ordenar_por">
+                            <option value="">Por defecto</option>
+                            <option value="nombre_asc" {% if ordenar_por == 'nombre_asc' %}selected{% endif %}>Nombre A-Z</option>
+                            <option value="nombre_desc" {% if ordenar_por == 'nombre_desc' %}selected{% endif %}>Nombre Z-A</option>
+                            <option value="reciente" {% if ordenar_por == 'reciente' %}selected{% endif %}>Más reciente</option>
+                            <option value="antiguo" {% if ordenar_por == 'antiguo' %}selected{% endif %}>Más antiguo</option>
+                            <option value="stock_asc" {% if ordenar_por == 'stock_asc' %}selected{% endif %}>Stock (menor a mayor)</option>
+                            <option value="stock_desc" {% if ordenar_por == 'stock_desc' %}selected{% endif %}>Stock (mayor a menor)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Mostrar</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="bajo" value="true" {% if filtro_bajo %}checked{% endif %}>
+                                Solo stock bajo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="{{ url_for('admin.inventario') }}" class="btn btn-ghost">Limpiar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>Estado</th>
+                        <th>Precio</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario %}
+                    <tr class="{% if item.estado_stock == 'agotado' %}row-critical{% elif item.estado_stock == 'bajo' %}row-warning{% endif %}">
+                        <td>
+                            <div class="product-cell">
+                                <strong>{{ item.nombre_producto }}</strong>
+                                <small>{{ item.marca }}</small>
+                            </div>
+                        </td>
+                        <td>{{ item.presentacion }}</td>
+                        <td>
+                            <span class="stock-value {% if item.estado_stock == 'agotado' %}stock-critical{% elif item.estado_stock == 'bajo' %}stock-warning{% endif %}">
+                                {{ item.stock }}
+                            </span>
+                        </td>
+                        <td>{{ item.stock_minimo }}</td>
+                        <td>
+                            {% if item.estado_stock == 'agotado' %}
+                            <span class="badge badge-danger">Agotado</span>
+                            {% elif item.estado_stock == 'bajo' %}
+                            <span class="badge badge-warning">Stock Bajo</span>
+                            {% else %}
+                            <span class="badge badge-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.variantes_producto', id_producto=item.id_producto) }}" class="btn btn-sm btn-outline">Gestionar</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+<style>
+.search-clear-btn {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+}
+.search-clear-btn:hover {
+    color: var(--danger);
+    background: rgba(194,74,61,0.12);
+}
+</style>
+
+<script>
+(function () {
+    const input = document.getElementById('inventario-busqueda');
+    const form  = document.getElementById('inventario-filter-form');
+    if (!input || !form) return;
+
+    let debounceTimer;
+    input.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            form.submit();
+        }, 500); // espera 500 ms después de que el usuario deja de escribir
+    });
+
+    // También enviar al presionar Enter sin tener que hacer clic en Filtrar
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            clearTimeout(debounceTimer);
+            e.preventDefault();
+            form.submit();
+        }
+    });
+})();
+</script>
+{% endblock %}

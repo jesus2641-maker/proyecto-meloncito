@@ -1,0 +1,41 @@
+services:
+
+  # ── Base de datos MySQL ─────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: beerhouse_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+      MYSQL_DATABASE: ${DATABASE_NAME}
+    volumes:
+      - beerhouse_mysql_data:/var/lib/mysql        # datos persistentes
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql  # schema inicial
+    ports:
+      - "3307:3306"   # 3307 en el host para no chocar con MySQL local
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DATABASE_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Aplicación Flask ────────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: beerhouse_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env                  # carga todas las variables del .env
+    environment:
+      DATABASE_HOST: db       # apunta al contenedor MySQL, no a localhost
+    depends_on:
+      db:
+        condition: service_healthy   # espera a que MySQL esté listo
+    volumes:
+      - .:/app                # hot-reload en desarrollo (quitar en producción)
+
+# ── Volumen persistente ─────────────────────────────────────────────────────
+volumes:
+  beerhouse_mysql_data:

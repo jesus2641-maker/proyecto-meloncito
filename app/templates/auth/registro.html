@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Registro — Beer House Premium{% endblock %}
+{% block content %}
+<!-- Registration Hero Section -->
+<section class="auth-hero">
+    <div class="container">
+        <div class="auth-hero-content">
+            <p class="section-subtitle">Únete a Nosotros</p>
+            <h1>Crear Cuenta Premium</h1>
+            <p>Descubre una experiencia exclusiva con acceso a licores premium, ofertas especiales y eventos privados.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Registration Section -->
+<section class="container">
+    <div class="auth-container">
+        <!-- Benefits Side -->
+        <div class="auth-benefits">
+            <h2 class="auth-benefits-title">Beneficios Exclusivos</h2>
+            <p class="auth-benefits-subtitle">Al registrarte obtienes acceso a:</p>
+            
+            <div class="benefit-list">
+                <div class="benefit-item">
+                    <div class="benefit-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div class="benefit-content">
+                        <h3>Productos Exclusivos</h3>
+                        <p>Acceso a ediciones limitadas y lanzamientos exclusivos antes que nadie.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <div class="benefit-content">
+                        <h3>Ofertas Especiales</h3>
+                        <p>Descuentos exclusivos y promociones especiales para miembros.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                    </div>
+                    <div class="benefit-content">
+                        <h3>Eventos Privados</h3>
+                        <p>Invitaciones a catas, eventos de lanzamiento y experiencias exclusivas.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                    </div>
+                    <div class="benefit-content">
+                        <h3>Envío Prioritario</h3>
+                        <p>Entrega express y seguimiento especial de tus pedidos.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="auth-footer-note">
+                <p>¿Ya tienes cuenta? <a href="{{ url_for('auth.login') }}" class="auth-link">Inicia sesión aquí</a></p>
+            </div>
+        </div>
+        
+        <!-- Registration Form Side -->
+        <div class="auth-form-wrapper">
+            <div class="auth-form-card">
+                <h2 class="auth-form-title">Crear Cuenta</h2>
+                <p class="auth-form-subtitle">Completa tus datos para comenzar tu experiencia premium.</p>
+                
+                <form method="POST" class="auth-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" required class="form-input" placeholder="Tu nombre">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Apellido</label>
+                            <input type="text" name="apellido" required class="form-input" placeholder="Tu apellido">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Correo Electrónico</label>
+                        <input type="email" name="email" required class="form-input" placeholder="ejemplo@correo.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Teléfono</label>
+                        <input type="tel" name="telefono" id="telefono" class="form-input" placeholder="300 123 4567" inputmode="numeric" onkeypress="return soloNumeros(event)" oninput="limpiarTelefono(this)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" required minlength="{{ min_password|default(6) }}" class="form-input" placeholder="••••••••">
+                        <p class="form-helper">Mínimo {{ min_password|default(6) }} caracteres</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" required>
+                            <span>Acepto los <a href="#" class="auth-link">términos y condiciones</a> y la <a href="#" class="auth-link">política de privacidad</a></span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                        Crear Cuenta
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </button>
+                </form>
+                
+                <div class="auth-social">
+                    <p class="auth-social-text">O regístrate con</p>
+                    <div class="social-buttons">
+                        <button class="social-btn social-google">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+                            </svg>
+                            Google
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+function soloNumeros(event) {
+    // Prevenir letras y caracteres especiales
+    const key = event.key;
+    // Permitir: números, backspace, delete, tab, flechas, home, end
+    if (!/^[0-9\s\+\-]$/.test(key) && 
+        !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+        event.preventDefault();
+        return false;
+    }
+    return true;
+}
+
+function limpiarTelefono(input) {
+    // Eliminar cualquier caracter que no sea número, espacio, + o -
+    let valor = input.value;
+    valor = valor.replace(/[^0-9\s\+\-]/g, '');
+    input.value = valor;
+}
+</script>
+{% endblock %}

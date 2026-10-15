@@ -1,0 +1,163 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Detalle de Compra #COMP-{{ "%04d"|format(compra.id_compra) }} — Admin — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Detalle de Adquisición</p>
+            <h1>Compra #COMP-{{ "%04d"|format(compra.id_compra) }}</h1>
+            <p>Fecha de adquisición: {{ compra.fecha_compra.strftime('%d/%m/%Y %H:%M') if compra.fecha_compra else '—' }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.compras') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a Compras
+        </a>
+        <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Nueva Compra
+        </a>
+        <a href="{{ url_for('admin.inventario') }}" class="btn btn-ghost">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            Ver Inventario
+        </a>
+    </div>
+
+    <div class="admin-detail-layout">
+        <!-- COLUMNA IZQUIERDA: DETALLE DE PRODUCTOS COMPRADOS -->
+        <div class="admin-detail-main">
+            <div class="admin-section">
+                <div class="admin-section-header">
+                    <h2>Productos Adquiridos ({{ detalles|length }})</h2>
+                    <span class="section-badge">{{ detalles|sum(attribute='cantidad') }} unidades totales</span>
+                </div>
+
+                <div class="admin-table-container">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Presentación</th>
+                                <th>SKU</th>
+                                <th>Cantidad Comprada</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in detalles %}
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <strong>{{ item.nombre_producto }}</strong>
+                                        {% if item.marca %}
+                                        <small>{{ item.marca }} {% if item.categorias %}• {{ item.categorias }}{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-category">{{ item.presentacion }}</span></td>
+                                <td><small>{{ item.sku or '—' }}</small></td>
+                                <td>
+                                    <strong style="color: var(--gold-light); font-size: 1.05rem;">
+                                        +{{ item.cantidad }}
+                                    </strong>
+                                </td>
+                                <td>${{ "{:,.0f}".format(item.precio_unitario) }}</td>
+                                <td class="table-amount">${{ "{:,.0f}".format(item.subtotal) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TOTAL GENERAL -->
+                <div class="order-total-section">
+                    <div class="order-total-row">
+                        <span class="order-total-label">Total de la Compra</span>
+                        <span class="order-total-amount">${{ "{:,.0f}".format(compra.total) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: INFORMACIÓN DEL PROVEEDOR Y REGISTRO -->
+        <div class="admin-detail-sidebar">
+            <!-- TARJETA DEL PROVEEDOR -->
+            <div class="admin-section">
+                <div class="admin-section-header">
+                    <h2>Datos del Proveedor</h2>
+                </div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Razón Social / Nombre</span>
+                        <span class="info-value" style="font-size: 1.1rem; color: var(--gold-primary); font-weight: 600;">
+                            {{ compra.nombre_proveedor }}
+                        </span>
+                    </div>
+                    {% if compra.identificacion_proveedor %}
+                    <div class="info-item">
+                        <span class="info-label">Identificación Fiscal / NIT</span>
+                        <span class="info-value">{{ compra.identificacion_proveedor }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="info-item">
+                        <span class="info-label">Código de Proveedor</span>
+                        <span class="info-value">#PROV-{{ "%03d"|format(compra.id_proveedor) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA DE AUDITORÍA Y CONTROL -->
+            <div class="admin-section">
+                <div class="admin-section-header">
+                    <h2>Información de Registro</h2>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Fecha de Compra</span>
+                        <span class="info-value">{{ compra.fecha_compra.strftime('%d/%m/%Y %H:%M') if compra.fecha_compra else '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Fecha de Registro en Sistema</span>
+                        <span class="info-value">{{ compra.fecha_registro.strftime('%d/%m/%Y %H:%M') if compra.fecha_registro else '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Registrado por</span>
+                        <span class="info-value">{{ compra.nombre_usuario }} {{ compra.apellido_usuario }}</span>
+                    </div>
+                    {% if compra.email_usuario %}
+                    <div class="info-item">
+                        <span class="info-label">Correo del Responsable</span>
+                        <span class="info-value">{{ compra.email_usuario }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="info-item">
+                        <span class="info-label">Impacto en Inventario</span>
+                        <span class="info-value">
+                            <span class="badge badge-success">Stock Incrementado</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

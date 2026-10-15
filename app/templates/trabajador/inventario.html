@@ -1,0 +1,127 @@
+{% extends "trabajador/base_trabajador.html" %}
+{% block title %}Inventario — Trabajador — Beer House Premium{% endblock %}
+
+{% block trabajador_content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Gestión de Stock</p>
+            <h1>Inventario</h1>
+            <p>Consulta y actualiza las existencias de productos</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    {% if alertas %}
+    <div class="alert alert-warning">
+        <strong>⚠️ Alertas de Stock Bajo:</strong> {{ alertas|length }} productos necesitan reabastecimiento
+    </div>
+    {% endif %}
+
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <h2>Inventario Completo</h2>
+            <span class="section-badge">{{ inventario|length }} variantes</span>
+        </div>
+
+        <!-- FILTROS DE INVENTARIO -->
+        <div class="admin-filters">
+            <form method="GET" action="{{ url_for('trabajador.inventario') }}" class="filter-form">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Buscar</label>
+                        <input type="text" name="busqueda" placeholder="Nombre, marca, presentación, SKU..." value="{{ busqueda or '' }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Categoría</label>
+                        <select name="categoria">
+                            <option value="">Todas las categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id_categoria }}" {% if id_categoria == cat.id_categoria %}selected{% endif %}>
+                                {{ cat.nombre_categoria }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Estado Stock</label>
+                        <select name="estado_stock">
+                            <option value="">Todos los estados</option>
+                            <option value="agotado" {% if estado_stock == 'agotado' %}selected{% endif %}>Agotado</option>
+                            <option value="bajo" {% if estado_stock == 'bajo' %}selected{% endif %}>Stock Bajo</option>
+                            <option value="normal" {% if estado_stock == 'normal' %}selected{% endif %}>Normal</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Ordenar por</label>
+                        <select name="ordenar_por">
+                            <option value="">Por defecto</option>
+                            <option value="nombre_asc" {% if ordenar_por == 'nombre_asc' %}selected{% endif %}>Nombre A-Z</option>
+                            <option value="nombre_desc" {% if ordenar_por == 'nombre_desc' %}selected{% endif %}>Nombre Z-A</option>
+                            <option value="reciente" {% if ordenar_por == 'reciente' %}selected{% endif %}>Más reciente</option>
+                            <option value="antiguo" {% if ordenar_por == 'antiguo' %}selected{% endif %}>Más antiguo</option>
+                            <option value="stock_asc" {% if ordenar_por == 'stock_asc' %}selected{% endif %}>Stock (menor a mayor)</option>
+                            <option value="stock_desc" {% if ordenar_por == 'stock_desc' %}selected{% endif %}>Stock (mayor a menor)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Mostrar</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="bajo" value="true" {% if filtro_bajo %}checked{% endif %}>
+                                Solo stock bajo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="{{ url_for('trabajador.inventario') }}" class="btn btn-ghost">Limpiar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>Precio</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>SKU</th>
+                        <th>Actualizar Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario %}
+                    <tr>
+                        <td><strong>{{ item.nombre_producto }}</strong></td>
+                        <td>{{ item.presentacion }}</td>
+                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
+                        <td>{{ item.stock }}</td>
+                        <td>{{ item.stock_minimo }}</td>
+                        <td>{{ item.sku or '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="id_variante" value="{{ item.id_variante }}">
+                                <input type="number" name="stock" value="{{ item.stock }}" min="0" class="inline-input" style="width: 80px;">
+                                <button type="submit" class="btn btn-sm btn-primary">Actualizar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

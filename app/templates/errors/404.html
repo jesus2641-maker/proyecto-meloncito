@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Página no encontrada — Beer House{% endblock %}
+{% block content %}
+<section class="bh-error-page">
+    <div class="bh-error-code bh-mono">404</div>
+    <h2>Esta cerveza no está en el barril</h2>
+    <p class="bh-error-text">
+        La página que buscas no existe o fue movida. Revisa la URL o vuelve al catálogo.
+    </p>
+    <div class="bh-error-actions">
+        <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Ir al catálogo</a>
+        <a href="{{ url_for('carrito.ver_carrito') }}" class="bh-btn bh-btn-outline">Ver carrito</a>
+    </div>
+</section>
+{% endblock %}
