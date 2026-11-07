@@ -64,6 +64,22 @@ python run.py
 
 La aplicación estará disponible en `http://127.0.0.1:5000`
 
+## Cómo correr las pruebas
+
+Ejecutar desde la raíz del proyecto:
+
+- **Solo las pruebas unitarias que no usan base de datos:**
+  ```bash
+  python -m unittest tests.test_edad tests.test_reportes tests.test_validaciones
+  ```
+
+- **Todas las pruebas (incluyendo integración con base de datos):**
+  ```bash
+  python -m unittest discover -s tests -t .
+  ```
+
+> **Nota:** `tests/test_compras.py` requiere tener la base de datos MySQL configurada y cargada con `database/schema.sql` y `database/seed_data.sql`.
+
 ## Credenciales de prueba
 
 **Administrador:**
@@ -85,8 +101,11 @@ beerhouse/
 │   ├── static/          # Archivos estáticos
 │   └── utils/           # Utilidades
 ├── database/
+│   ├── migrations/      # Migraciones incrementales SQL
 │   ├── schema.sql       # Esquema de base de datos
 │   └── seed_data.sql    # Datos de prueba
+├── scripts/             # Scripts de mantenimiento y generación de datos demo
+├── tests/               # Pruebas automatizadas (unittest)
 ├── config.py            # Configuración de la aplicación
 ├── run.py               # Punto de entrada
 └── requirements.txt     # Dependencias

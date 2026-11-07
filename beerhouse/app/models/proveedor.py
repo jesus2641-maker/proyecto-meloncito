@@ -4,8 +4,7 @@ from app.utils.db import get_connection
 class Proveedor:
     """
     Modelo para la gestión de proveedores.
-    Contiene únicamente los datos indispensables de identificación.
-    No incluye observaciones, email, teléfono ni dirección.
+    .
     """
 
     @staticmethod
@@ -60,12 +59,16 @@ class Proveedor:
 
     @staticmethod
     def crear(nombre, identificacion=None):
-        """Registra un nuevo proveedor."""
+        """Registra un nuevo proveedor con validación del nombre comercial."""
+        from app.utils.validaciones import validar_nombre_comercial
+
         nombre = (nombre or "").strip()
         identificacion = (identificacion or "").strip() or None
 
-        if not nombre:
-            raise ValueError("El nombre del proveedor es obligatorio")
+        # Validar nombre comercial del proveedor
+        nombre_valido, error_msg = validar_nombre_comercial(nombre)
+        if not nombre_valido:
+            raise ValueError(error_msg)
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -82,12 +85,16 @@ class Proveedor:
 
     @staticmethod
     def actualizar(id_proveedor, nombre, identificacion=None, activo=True):
-        """Actualiza los datos de un proveedor existente."""
+        """Actualiza los datos de un proveedor existente con validación del nombre comercial."""
+        from app.utils.validaciones import validar_nombre_comercial
+
         nombre = (nombre or "").strip()
         identificacion = (identificacion or "").strip() or None
 
-        if not nombre:
-            raise ValueError("El nombre del proveedor es obligatorio")
+        # Validar nombre comercial del proveedor
+        nombre_valido, error_msg = validar_nombre_comercial(nombre)
+        if not nombre_valido:
+            raise ValueError(error_msg)
 
         conn = get_connection()
         cursor = conn.cursor()

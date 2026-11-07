@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify, Response
 from datetime import datetime
 from decimal import Decimal
 from app.models.producto import Producto, VarianteProducto
@@ -8,6 +8,8 @@ from app.models.usuario import Usuario
 from app.models.oferta import Oferta
 from app.models.proveedor import Proveedor
 from app.models.compra import Compra, CompraDetalle
+from app.models.reporte import Reporte
+from app.utils.reportes_utils import parsear_rango_fechas, elegir_agrupacion, generar_csv
 from app.utils.cloudinary_utils import upload_image, delete_image
 from app.utils.email_service import send_order_status_update_email
 from app.utils.db import get_connection
@@ -19,8 +21,16 @@ ID_ROL_ADMIN = 2  # rol 'admin'
 
 @admin_bp.before_request
 def verificar_permisos_admin():
-    if session.get("id_rol") != ID_ROL_ADMIN:
-        flash("No tienes permisos de administrador para acceder a esta sección", "danger")
+    # Excluir rutas que no requieren verificación de admin
+    rutas_exentas = ['/admin/dashboard']  # Dashboard es la página principal, no excluir reports
+    
+    id_rol_session = session.get("id_rol")
+    print(f"DEBUG: Verificando permisos admin - id_rol en sesión: {id_rol_session}, esperado: {ID_ROL_ADMIN}")
+    print(f"DEBUG: Contenido de sesión: {dict(session)}")
+    
+    if id_rol_session != ID_ROL_ADMIN:
+        print(f"DEBUG: Acceso denegado - redirigiendo a catalogo")
+        flash(f"No tienes permisos de administrador (tu rol: {id_rol_session}).", "danger")
         return redirect(url_for("productos.catalogo"))
 
 
@@ -534,7 +544,7 @@ def editar_mi_cuenta():
         
         # Verificar contraseña actual
         usuario = Usuario.obtener_por_id(id_usuario)
-        if not Usuario.verificar_contraseña(contraseña_actual, usuario.contraseña):
+        if not Usuario.verificar_contraseña(contraseña_actual, usuario['password_hash']):
             flash("La contraseña actual es incorrecta", "danger")
             return redirect(url_for("admin.mi_cuenta"))
         
@@ -910,7 +920,7 @@ def eliminar_proveedor(id_proveedor):
 @admin_bp.route("/api/proveedores/rapido", methods=["POST"])
 def api_crear_proveedor_rapido():
     """API para registrar un proveedor rápido desde el formulario de compras vía modal."""
-    from app.utils.validaciones import validar_nombre
+    from app.utils.validaciones import validar_nombre_comercial
 
     data = request.get_json() if request.is_json else request.form
     nombre = (data.get("nombre") or "").strip()
@@ -920,7 +930,7 @@ def api_crear_proveedor_rapido():
         return jsonify({"success": False, "error": "El nombre del proveedor es obligatorio"}), 400
 
     # Validar que el nombre solo contenga letras
-    nombre_valido, error_msg = validar_nombre(nombre)
+    nombre_valido, error_msg = validar_nombre_comercial(nombre)
     if not nombre_valido:
         return jsonify({"success": False, "error": error_msg}), 400
 
@@ -934,4 +944,93 @@ def api_crear_proveedor_rapido():
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =========================================================
+# REPORTES Y EXPORTACIÓN CSV
+# =========================================================
+TIPOS_EXPORTACION_VALIDOS = ("ventas", "productos", "inventario", "compras")
+
+
+@admin_bp.route("/reportes")
+def reportes():
+    """Módulo de reportes administrativos con filtros de fecha y gráficas."""
+    desde_str = request.args.get("desde")
+    hasta_str = request.args.get("hasta")
+    desde, hasta, error = parsear_rango_fechas(desde_str, hasta_str)
+
+    if error:
+        flash(error, "warning")
+
+    agrupar = elegir_agrupacion(desde, hasta)
+    resumen = Reporte.resumen_ventas(desde, hasta)
+    ventas_periodo = Reporte.ventas_por_periodo(desde, hasta, agrupar)
+    top_productos = Reporte.productos_mas_vendidos(desde, hasta)
+    inv_critico = Reporte.inventario_critico()
+    val_inventario = Reporte.valor_inventario()
+    flujo_periodo = Reporte.compras_vs_ventas(desde, hasta)
+
+    return render_template(
+        "admin/reportes.html",
+        desde=desde.isoformat(),
+        hasta=hasta.isoformat(),
+        agrupar=agrupar,
+        resumen=resumen,
+        ventas_periodo=ventas_periodo,
+        top_productos=top_productos,
+        inventario_critico=inv_critico,
+        valor_inventario=val_inventario,
+        compras_vs_ventas=flujo_periodo
+    )
+
+
+@admin_bp.route("/reportes/exportar/<tipo>")
+def exportar_reporte(tipo):
+    """Exporta una sección de reportes en formato CSV (UTF-8 con BOM y separador ';')."""
+    if tipo not in TIPOS_EXPORTACION_VALIDOS:
+        abort(404)
+
+    desde_str = request.args.get("desde")
+    hasta_str = request.args.get("hasta")
+    desde, hasta, _ = parsear_rango_fechas(desde_str, hasta_str)
+
+    if tipo == "ventas":
+        agrupar = elegir_agrupacion(desde, hasta)
+        datos = Reporte.ventas_por_periodo(desde, hasta, agrupar)
+        encabezados = ["Período", "Pedidos", "Total vendido"]
+        filas = [[d["periodo"], d["pedidos"], d["total"]] for d in datos]
+    elif tipo == "productos":
+        datos = Reporte.productos_mas_vendidos(desde, hasta)
+        encabezados = ["Producto", "Unidades vendidas", "Ingresos"]
+        filas = [[d["producto"], d["unidades"], d["ingresos"]] for d in datos]
+    elif tipo == "inventario":
+        datos = Reporte.inventario_critico()
+        encabezados = ["Producto", "Presentación", "SKU", "Stock actual", "Stock mínimo", "Faltante"]
+        filas = [
+            [d["producto"], d["presentacion"], d["sku"] or "", d["stock"], d["stock_minimo"], d["faltante"]]
+            for d in datos
+        ]
+    else:  # compras
+        datos = Reporte.compras_vs_ventas(desde, hasta)
+        encabezados = ["Desde", "Hasta", "Ventas", "Compras", "Flujo del período", "Número de compras"]
+        filas = [[
+            desde.isoformat(),
+            hasta.isoformat(),
+            datos["ventas"],
+            datos["compras"],
+            datos["diferencia"],
+            datos["num_compras"]
+        ]]
+
+    contenido_csv = generar_csv(encabezados, filas).encode("utf-8-sig")
+    nombre_archivo = f"beerhouse_{tipo}_{desde.isoformat()}_{hasta.isoformat()}.csv"
+
+    return Response(
+        contenido_csv,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={nombre_archivo}"
+        }
+    )
+
 

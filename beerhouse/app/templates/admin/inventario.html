@@ -52,6 +52,20 @@
     {% endif %}
 
     <div class="admin-actions">
+        <a href="{{ url_for('admin.nueva_compra') }}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Registrar Compra
+        </a>
+        <a href="{{ url_for('admin.compras') }}" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            Historial de Compras
+        </a>
         <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
@@ -174,7 +188,7 @@
                             <span class="badge badge-success">Normal</span>
                             {% endif %}
                         </td>
-                        <td>${{ "{:,.2f}".format(item.precio) }}</td>
+                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
                         <td>
                             <a href="{{ url_for('admin.variantes_producto', id_producto=item.id_producto) }}" class="btn btn-sm btn-outline">Gestionar</a>
                         </td>

@@ -1,0 +1,438 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Panel Administrador — Reportes — Beer House Premium{% endblock %}
+
+{% block admin_content %}
+<!-- Admin Hero Section -->
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-content">
+            <p class="section-subtitle">Análisis Operativo</p>
+            <h1>Reportes Administrativos</h1>
+            <p>Desempeño de ventas, rotación de catálogo, inventario crítico y flujo del período</p>
+        </div>
+    </div>
+</section>
+
+<section class="container">
+    <!-- FILTRO DE FECHAS -->
+    <div class="admin-filters">
+        <form method="GET" action="{{ url_for('admin.reportes') }}" class="filter-form">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="desde">Desde</label>
+                    <input type="date" id="desde" name="desde" value="{{ desde }}" required>
+                </div>
+
+                <div class="filter-group">
+                    <label for="hasta">Hasta</label>
+                    <input type="date" id="hasta" name="hasta" value="{{ hasta }}" required>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{{ url_for('admin.reportes') }}" class="btn btn-ghost">Mes actual</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- (a) TARJETAS DE RESUMEN DE VENTAS -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <div>
+                <h2>Resumen de Ventas</h2>
+                <small class="report-period-note">Período: {{ desde }} al {{ hasta }} (excluye pedidos cancelados)</small>
+            </div>
+            <a href="{{ url_for('admin.exportar_reporte', tipo='ventas', desde=desde, hasta=hasta) }}" class="btn btn-sm btn-outline">
+                Exportar CSV
+            </a>
+        </div>
+
+        {% if resumen.num_pedidos > 0 %}
+        <div class="kpi-grid report-kpi-grid">
+            <div class="kpi-card kpi-card-highlight">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Vendido</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(resumen.total_vendido) }}</strong>
+                    <span class="kpi-sub">Ventas efectivas del período</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Número de Pedidos</span>
+                    <strong class="kpi-value">{{ resumen.num_pedidos }}</strong>
+                    <span class="kpi-sub">Órdenes activas en el rango</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Ticket Promedio</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(resumen.ticket_promedio) }}</strong>
+                    <span class="kpi-sub">Promedio por pedido</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>No hay datos en este período</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- (b) GRÁFICA DE BARRAS DE VENTAS POR PERÍODO -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <div>
+                <h2>Ventas por Período ({{ 'Agrupado por día' if agrupar == 'dia' else 'Agrupado por mes' }})</h2>
+                <small class="report-period-note">Evolución de ingresos entre {{ desde }} y {{ hasta }}</small>
+            </div>
+            <a href="{{ url_for('admin.exportar_reporte', tipo='ventas', desde=desde, hasta=hasta) }}" class="btn btn-sm btn-outline">
+                Exportar CSV
+            </a>
+        </div>
+
+        {% if resumen.num_pedidos > 0 and ventas_periodo %}
+        <div class="report-chart-wrapper">
+            <canvas id="chartVentasPeriodo"></canvas>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>No hay datos en este período</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- (c) TOP 10 PRODUCTOS MÁS VENDIDOS: TABLA + GRÁFICA DE BARRAS HORIZONTALES -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <div>
+                <h2>Top 10 Productos Más Vendidos</h2>
+                <small class="report-period-note">Suma de unidades e ingresos de todas las presentaciones</small>
+            </div>
+            <a href="{{ url_for('admin.exportar_reporte', tipo='productos', desde=desde, hasta=hasta) }}" class="btn btn-sm btn-outline">
+                Exportar CSV
+            </a>
+        </div>
+
+        {% if top_productos %}
+        <div class="report-top-grid">
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Producto</th>
+                            <th>Unidades Vendidas</th>
+                            <th>Ingresos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prod in top_productos %}
+                        <tr>
+                            <td><strong>{{ loop.index }}</strong></td>
+                            <td><strong>{{ prod.producto }}</strong></td>
+                            <td>{{ prod.unidades }}</td>
+                            <td class="table-amount">${{ "{:,.0f}".format(prod.ingresos) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="report-chart-wrapper">
+                <canvas id="chartTopProductos"></canvas>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>No hay datos en este período</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- (d) INVENTARIO CRÍTICO: TABLA CON EL VALOR TOTAL DEL INVENTARIO -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <div>
+                <h2>Inventario Crítico</h2>
+                <small class="report-period-note">
+                    Valor total del inventario activo: <strong>${{ "{:,.0f}".format(valor_inventario) }}</strong>
+                </small>
+            </div>
+            <a href="{{ url_for('admin.exportar_reporte', tipo='inventario', desde=desde, hasta=hasta) }}" class="btn btn-sm btn-outline">
+                Exportar CSV
+            </a>
+        </div>
+
+        <div class="kpi-grid report-kpi-grid">
+            <div class="kpi-card kpi-card-highlight">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Valor Total del Inventario</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(valor_inventario) }}</strong>
+                    <span class="kpi-sub">Suma de stock × precio (productos activos)</span>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-card-warning">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Variantes en Estado Crítico</span>
+                    <strong class="kpi-value">{{ inventario_critico|length }}</strong>
+                    <span class="kpi-sub">Con stock menor o igual al mínimo</span>
+                </div>
+            </div>
+        </div>
+
+        {% if inventario_critico %}
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Presentación</th>
+                        <th>SKU</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>Faltante</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventario_critico %}
+                    <tr class="{% if item.stock == 0 %}row-critical{% else %}row-warning{% endif %}">
+                        <td><strong>{{ item.producto }}</strong></td>
+                        <td>{{ item.presentacion }}</td>
+                        <td>{{ item.sku or '—' }}</td>
+                        <td>
+                            <span class="stock-value {% if item.stock == 0 %}stock-critical{% else %}stock-warning{% endif %}">
+                                {{ item.stock }}
+                            </span>
+                        </td>
+                        <td>{{ item.stock_minimo }}</td>
+                        <td><strong>{{ item.faltante }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>No hay datos en este período</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- (e) COMPRAS VS VENTAS -->
+    <div class="admin-section">
+        <div class="admin-section-header">
+            <div>
+                <h2>Compras vs Ventas</h2>
+                <small class="report-period-note">Comparativa de ventas y compras a proveedores del {{ desde }} al {{ hasta }}</small>
+            </div>
+            <a href="{{ url_for('admin.exportar_reporte', tipo='compras', desde=desde, hasta=hasta) }}" class="btn btn-sm btn-outline">
+                Exportar CSV
+            </a>
+        </div>
+
+        {% if compras_vs_ventas.ventas > 0 or compras_vs_ventas.compras > 0 or compras_vs_ventas.num_compras > 0 %}
+        <div class="kpi-grid report-kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Ventas</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(compras_vs_ventas.ventas) }}</strong>
+                    <span class="kpi-sub">Ingresos por pedidos del período</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Compras</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(compras_vs_ventas.compras) }}</strong>
+                    <span class="kpi-sub">{{ compras_vs_ventas.num_compras }} compra(s) a proveedores</span>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-card-highlight">
+                <div class="kpi-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Flujo del período</span>
+                    <strong class="kpi-value">${{ "{:,.0f}".format(compras_vs_ventas.diferencia) }}</strong>
+                    <span class="kpi-sub">Diferencia entre ventas y compras</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state-admin">
+            <p>No hay datos en este período</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Chart.js local (UMD 4.4.x) -->
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+(function () {
+    const ventasPeriodo = {{ ventas_periodo|tojson }};
+    const topProductos = {{ top_productos|tojson }};
+
+    // Obtener colores de la marca desde las variables CSS del documento
+    const estilos = getComputedStyle(document.documentElement);
+    const goldPrimary = (estilos.getPropertyValue('--gold-primary') || '#d4a853').trim();
+    const goldLight = (estilos.getPropertyValue('--gold-light') || '#e8c476').trim();
+    const textSecondary = (estilos.getPropertyValue('--text-secondary') || '#a0a0a0').trim();
+    const borderSubtle = 'rgba(255, 255, 255, 0.08)';
+
+    // (b) Gráfica de barras: Ventas por período
+    const canvasVentas = document.getElementById('chartVentasPeriodo');
+    if (canvasVentas && typeof Chart !== 'undefined' && ventasPeriodo.length > 0) {
+        new Chart(canvasVentas, {
+            type: 'bar',
+            data: {
+                labels: ventasPeriodo.map(function (item) { return item.periodo; }),
+                datasets: [{
+                    label: 'Total vendido ($)',
+                    data: ventasPeriodo.map(function (item) { return item.total; }),
+                    backgroundColor: 'rgba(212, 168, 83, 0.75)',
+                    borderColor: goldPrimary,
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: textSecondary }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                const fila = ventasPeriodo[ctx.dataIndex];
+                                const monto = Number(ctx.parsed.y || 0).toLocaleString('es-CO');
+                                return ' $' + monto + ' (' + (fila ? fila.pedidos : 0) + ' pedido(s))';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: textSecondary },
+                        grid: { color: borderSubtle }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: textSecondary,
+                            callback: function (value) {
+                                return '$' + Number(value).toLocaleString('es-CO');
+                            }
+                        },
+                        grid: { color: borderSubtle }
+                    }
+                }
+            }
+        });
+    }
+
+    // (c) Gráfica de barras horizontales: Top 10 productos por unidades
+    const canvasTop = document.getElementById('chartTopProductos');
+    if (canvasTop && typeof Chart !== 'undefined' && topProductos.length > 0) {
+        new Chart(canvasTop, {
+            type: 'bar',
+            data: {
+                labels: topProductos.map(function (item) { return item.producto; }),
+                datasets: [{
+                    label: 'Unidades vendidas',
+                    data: topProductos.map(function (item) { return item.unidades; }),
+                    backgroundColor: 'rgba(232, 196, 118, 0.75)',
+                    borderColor: goldLight,
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: textSecondary }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                const prod = topProductos[ctx.dataIndex];
+                                const ingresos = prod ? Number(prod.ingresos).toLocaleString('es-CO') : '0';
+                                return ' ' + ctx.parsed.x + ' unidades ($' + ingresos + ')';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: textSecondary,
+                            precision: 0
+                        },
+                        grid: { color: borderSubtle }
+                    },
+                    y: {
+                        ticks: { color: textSecondary },
+                        grid: { color: borderSubtle }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

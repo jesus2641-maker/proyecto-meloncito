@@ -10,7 +10,7 @@ Endpoints públicos (no requieren autenticación):
 
 Endpoints protegidos (requieren sesión Flask):
   GET  /api/v1/carrito               Items del carrito del usuario autenticado
-  POST /api/v1/carrito/agregar       Agregar producto al carrito
+  POST /api/v1/carrito/agregar       Agregar producto al carrito (requiere header X-CSRFToken además de sesión)
   GET  /api/v1/cuenta/pedidos        Historial de pedidos del cliente
 
 Endpoints exclusivos admin/trabajador:

@@ -8,9 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
 </head>
 <body class="admin-page">
-<nav class="admin-sidebar">
+<nav class="admin-sidebar" id="panel-sidebar">
     <div class="admin-sidebar-header">
         <div class="admin-logo">
             <span class="admin-logo-text">BH</span>
@@ -109,7 +110,7 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-item">
+                <a href="{{ url_for('admin.reportes') }}" class="admin-nav-item {% if 'admin.reporte' in request.endpoint %}active{% endif %}">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -142,7 +143,22 @@
     </div>
 </nav>
 
+<div class="panel-sidebar-overlay" id="panelSidebarOverlay" aria-hidden="true"></div>
+
 <div class="admin-content-wrapper">
+    <header class="panel-topbar">
+        <button type="button" class="panel-menu-toggle" id="panelMenuToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="panel-sidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <div class="admin-logo">
+            <span class="admin-logo-text">BH</span>
+            <span class="admin-logo-sub">Beer House — Admin</span>
+        </div>
+    </header>
     {% block admin_content %}{% endblock %}
 </div>
 
@@ -242,6 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
+<script src="{{ url_for('static', filename='js/panel-movil.js') }}"></script>
 </body>
 </html>

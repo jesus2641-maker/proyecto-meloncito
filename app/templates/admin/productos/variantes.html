@@ -59,7 +59,7 @@
                                 <input type="text" name="presentacion" value="{{ v.presentacion }}" required class="inline-input">
                             </td>
                             <td>
-                                <input type="number" step="1" name="precio" value="{{ v.precio }}" required class="inline-input">
+                                <input type="number" step="1" name="precio" value="{{ v.precio }}" min="0" required class="inline-input">
                             </td>
                             <td>
                                 <input type="number" name="stock" value="{{ v.stock }}" min="0" required class="inline-input">
@@ -109,7 +109,7 @@
 
             <div class="form-group">
                 <label class="form-label">Precio de Venta ($) *</label>
-                <input type="number" step="1" id="precio" name="precio" class="form-input" placeholder="Ej. 8500" required>
+                <input type="number" step="1" id="precio" name="precio" class="form-input" placeholder="Ej. 8500" min="0" required>
             </div>
 
             <div class="form-group">

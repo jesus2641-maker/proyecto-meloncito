@@ -19,7 +19,7 @@
                 <span class="logo-text">Beer House</span>
             </a>
             
-            <nav class="nav">
+            <nav class="nav" id="main-nav">
                 <a href="{{ url_for('inicio') }}" class="nav-link">Inicio</a>
                 <a href="{{ url_for('productos.catalogo') }}" class="nav-link">Catálogo</a>
                 <a href="{{ url_for('categorias.index') }}" class="nav-link">Categorías</a>
@@ -28,7 +28,7 @@
             </nav>
             
             <div class="header-actions">
-                <a href="{{ url_for('carrito.ver_carrito') }}" class="action-btn">
+                <a href="{{ url_for('carrito.ver_carrito') }}" class="action-btn" aria-label="Carrito de compras">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -64,7 +64,7 @@
                             <span>Trabajador</span>
                         </a>
                     {% endif %}
-                    <a href="{{ url_for('auth.logout') }}" class="action-btn">
+                    <a href="{{ url_for('auth.logout') }}" class="action-btn" aria-label="Cerrar sesión">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                             <polyline points="16 17 21 12 16 7"></polyline>
@@ -81,7 +81,7 @@
                     </a>
                 {% endif %}
                 
-                <button class="mobile-toggle">
+                <button type="button" class="mobile-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -154,6 +154,7 @@
             
             <div class="footer-bottom">
                 <p>&copy; 2024 Beer House. Todos los derechos reservados. Premium Spirits Collection.</p>
+                <p class="footer-legal">El exceso de alcohol es perjudicial para la salud. Prohibida la venta de bebidas alcohólicas a menores de 18 años.</p>
             </div>
         </div>
     </footer>
@@ -335,6 +336,7 @@
         }
     </style>
 
+    <script src="{{ url_for('static', filename='js/menu-movil.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

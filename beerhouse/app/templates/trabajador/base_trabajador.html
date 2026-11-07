@@ -10,7 +10,7 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body class="trabajador-page">
-<nav class="admin-sidebar">
+<nav class="admin-sidebar" id="panel-sidebar">
     <div class="admin-sidebar-header">
         <div class="admin-logo">
             <span class="admin-logo-text">BH</span>
@@ -70,13 +70,13 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('trabajador.dashboard') }}" class="admin-nav-item" style="opacity: 0.5; cursor: not-allowed;">
+                <a href="{{ url_for('trabajador.reportes') }}" class="admin-nav-item {% if request.endpoint == 'trabajador.reportes' %}active{% endif %}">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    <span>Reportes (Próximamente)</span>
+                    <span>Reportes</span>
                 </a>
             </li>
             <li>
@@ -103,7 +103,22 @@
     </div>
 </nav>
 
+<div class="panel-sidebar-overlay" id="panelSidebarOverlay" aria-hidden="true"></div>
+
 <div class="admin-content-wrapper">
+    <header class="panel-topbar">
+        <button type="button" class="panel-menu-toggle" id="panelMenuToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="panel-sidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <div class="admin-logo">
+            <span class="admin-logo-text">BH</span>
+            <span class="admin-logo-sub">Beer House — Trabajador</span>
+        </div>
+    </header>
     {% block trabajador_content %}{% endblock %}
 </div>
 
@@ -117,5 +132,6 @@
   {% endif %}
 {% endwith %}
 
+<script src="{{ url_for('static', filename='js/panel-movil.js') }}"></script>
 </body>
 </html>

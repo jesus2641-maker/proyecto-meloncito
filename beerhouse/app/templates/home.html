@@ -91,7 +91,7 @@
             <div class="card-content">
                 <h3 class="card-title">{{ prod.nombre_producto }}</h3>
                 <p class="card-description">{{ prod.descripcion[:80] }}{% if prod.descripcion and prod.descripcion|length > 80 %}...{% endif %}</p>
-                <div class="card-price">${{ "{:,.2f}".format(prod.precio_minimo) if prod.precio_minimo else '0.00' }}</div>
+                <div class="card-price">${{ "{:,.0f}".format(prod.precio_minimo) if prod.precio_minimo else '0' }}</div>
                 <a href="{{ url_for('productos.detalle', producto_id=prod.id_producto) }}" class="btn btn-primary">Ver Detalle</a>
             </div>
         </div>
@@ -131,7 +131,7 @@
             <a href="#" class="btn btn-primary">Conocer Más</a>
         </div>
         <div>
-            <div style="height: 500px; background-image: url('https://images.unsplash.com/photo-1566633806327-68e152aaf26d?auto=format&fit=crop&w=800&q=80'); background-size: cover; background-position: center; border-radius: 4px;"></div>
+            <div class="story-image" style="height: 500px; background-image: url('https://images.unsplash.com/photo-1566633806327-68e152aaf26d?auto=format&fit=crop&w=800&q=80'); background-size: cover; background-position: center; border-radius: 4px;"></div>
         </div>
     </div>
 </section>
@@ -143,7 +143,7 @@
         Suscríbete a nuestro club exclusivo y recibe acceso anticipado a lanzamientos limitados, 
         descuentos especiales y eventos de degustación privados.
     </p>
-    <a href="{{ url_for('productos.catalogo') }}" class="btn" style="background: var(--bg-primary); color: var(--gold-primary);">
+    <a href="{{ url_for('ofertas') }}" class="btn" style="background: var(--bg-primary); color: var(--gold-primary);">
         Ver Ofertas
     </a>
 </section>

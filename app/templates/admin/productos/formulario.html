@@ -79,8 +79,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Descripción</label>
-                        <textarea id="descripcion" name="descripcion" class="form-input" rows="3" placeholder="Breve descripción de notas de sabor, origen o graduación alcohólica...">{{ producto.descripcion if producto and producto.descripcion else '' }}</textarea>
+                        <label class="form-label">Descripción (máximo 100 caracteres)</label>
+                        <textarea id="descripcion" name="descripcion" class="form-input" rows="3" maxlength="100" placeholder="Breve descripción de notas de sabor, origen o graduación alcohólica...">{{ producto.descripcion if producto and producto.descripcion else '' }}</textarea>
+                        <small class="form-helper" id="descripcion-counter">0/100 caracteres</small>
                     </div>
 
                     {% if producto %}
@@ -136,4 +137,29 @@
         </div>
     </div>
 </section>
+
+<script>
+// Contador de caracteres para descripcion
+document.addEventListener('DOMContentLoaded', function() {
+    const descripcionTextarea = document.getElementById('descripcion');
+    const contador = document.getElementById('descripcion-counter');
+    
+    if (descripcionTextarea && contador) {
+        // Actualizar contador inicial
+        contador.textContent = descripcionTextarea.value.length + '/100 caracteres';
+        
+        // Actualizar contador al escribir
+        descripcionTextarea.addEventListener('input', function() {
+            contador.textContent = this.value.length + '/100 caracteres';
+            
+            // Cambiar color si se acerca al limite
+            if (this.value.length >= 90) {
+                contador.style.color = '#d4a853'; // Color dorado
+            } else {
+                contador.style.color = 'var(--text-muted)';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

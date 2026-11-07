@@ -87,7 +87,7 @@
 
     <!-- BUSCADOR -->
     <div style="margin-bottom: 24px;">
-        <form method="GET" action="{{ url_for('admin.proveedores') }}" style="display: flex; gap: 12px; max-width: 500px;">
+        <form method="GET" action="{{ url_for('admin.proveedores') }}" class="proveedores-search-form" style="display: flex; gap: 12px; max-width: 500px;">
             <input type="text" name="busqueda" value="{{ busqueda }}" placeholder="Buscar por nombre o identificación..." class="form-input" style="flex: 1;">
             <button type="submit" class="btn btn-outline">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -157,7 +157,7 @@
                         </td>
                         <td>{{ p.fecha_registro.strftime('%d/%m/%Y') if p.fecha_registro else '—' }}</td>
                         <td style="text-align: right;">
-                            <div style="display: inline-flex; gap: 8px; justify-content: flex-end;">
+                            <div class="action-buttons" style="display: inline-flex; gap: 8px; justify-content: flex-end;">
                                 <!-- Apartado para Editar Proveedor -->
                                 <a href="{{ url_for('admin.editar_proveedor', id_proveedor=p.id_proveedor) }}" class="btn btn-sm btn-outline" title="Ir al apartado de edición del proveedor">
                                     Editar

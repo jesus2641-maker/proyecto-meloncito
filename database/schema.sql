@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     telefono VARCHAR(20),
+    fecha_nacimiento DATE NULL,
     id_rol INT NOT NULL DEFAULT 1,
     activo BOOLEAN DEFAULT TRUE,
     fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS categorias (
 CREATE TABLE IF NOT EXISTS productos (
     id_producto INT AUTO_INCREMENT PRIMARY KEY,
     nombre_producto VARCHAR(150) NOT NULL,
-    descripcion TEXT,
+    descripcion VARCHAR(100),
     marca VARCHAR(100),
     imagen_url TEXT,
     imagen_public_id VARCHAR(255),
@@ -85,24 +86,6 @@ CREATE TABLE IF NOT EXISTS productos (
 
 -- --------------------------------------------
 -- Tabla: productos_categorias (relación muchos-a-muchos)
--- --------------------------------------------
-CREATE TABLE IF NOT EXISTS productos_categorias (
-    id_producto INT NOT NULL,
-    id_categoria INT NOT NULL,
-    PRIMARY KEY (id_producto, id_categoria),
-    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
-    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE CASCADE
-);
-    marca VARCHAR(100),
-    imagen_url TEXT,
-    imagen_public_id VARCHAR(255),
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria)
-);
-
--- --------------------------------------------
--- Tabla: productos_categorias (muchos a muchos)
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS productos_categorias (
     id_producto INT NOT NULL,

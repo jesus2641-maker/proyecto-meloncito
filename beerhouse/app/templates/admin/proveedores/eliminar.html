@@ -65,7 +65,7 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">Total Facturado</span>
-                    <span class="info-value">${{ "{:,.2f}".format(proveedor.total_monto_compras) }}</span>
+                    <span class="info-value">${{ "{:,.0f}".format(proveedor.total_monto_compras) }}</span>
                 </div>
             </div>
 
@@ -79,7 +79,7 @@
                 <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 8px;">
                     Para evitar que este proveedor sea seleccionado en futuras compras, desactívalo a continuación:
                 </p>
-                <div style="margin-top: 16px; display: flex; gap: 12px;">
+                <div class="form-actions" style="margin-top: 16px; display: flex; gap: 12px;">
                     <form method="POST" action="{{ url_for('admin.toggle_proveedor', id_proveedor=proveedor.id_proveedor) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-danger">
@@ -99,7 +99,7 @@
 
             <form method="POST" action="{{ url_for('admin.eliminar_proveedor', id_proveedor=proveedor.id_proveedor) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="display: flex; gap: 16px; justify-content: flex-end;">
+                <div class="form-actions" style="display: flex; gap: 16px; justify-content: flex-end;">
                     <a href="{{ url_for('admin.proveedores') }}" class="btn btn-outline">Cancelar</a>
                     <button type="submit" class="btn btn-danger">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -217,19 +217,23 @@ class Producto:
     @staticmethod
     def crear(nombre_producto, descripcion, marca, imagen_url=None, lista_categorias=None, imagen_public_id=None):
         """
-        Crea un nuevo producto en la base de datos.
+        Crea un nuevo producto en la base de datos con ID generado automaticamente.
 
         Args:
             nombre_producto: Nombre del producto
-            descripcion: Descripción detallada
+            descripcion: Descripción detallada (maximo 100 caracteres)
             marca: Marca del producto
             imagen_url: URL de la imagen (opcional)
             lista_categorias: Lista de IDs de categorías (opcional)
             imagen_public_id: ID público de Cloudinary para la imagen (opcional)
 
         Returns:
-            ID del producto creado
+            ID del producto creado (generado automaticamente por AUTO_INCREMENT)
         """
+        # Validar descripcion maximo 100 caracteres
+        if descripcion and len(descripcion) > 100:
+            descripcion = descripcion[:100]
+        
         conn = get_connection()
         cursor = conn.cursor()
         try:
@@ -239,6 +243,10 @@ class Producto:
                 (nombre_producto, descripcion, marca, imagen_url, imagen_public_id)
             )
             nuevo_id = cursor.lastrowid
+
+            # Verificar que el ID se genero correctamente
+            if nuevo_id is None or nuevo_id <= 0:
+                raise ValueError("No se pudo generar el ID del producto automaticamente")
 
             if lista_categorias:
                 for id_categoria in lista_categorias:
@@ -363,6 +371,16 @@ class VarianteProducto:
 
     @staticmethod
     def crear(id_producto, presentacion, precio, stock, sku=None, stock_minimo=5):
+        """Crea una nueva variante de producto con validaciones de valores negativos"""
+        
+        # Validar que no haya valores negativos
+        if stock < 0:
+            raise ValueError("El stock no puede ser negativo")
+        if stock_minimo < 0:
+            raise ValueError("El stock minimo no puede ser negativo")
+        if precio < 0:
+            raise ValueError("El precio no puede ser negativo")
+        
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(

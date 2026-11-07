@@ -5,21 +5,37 @@ Las variables sensibles se cargan desde el archivo .env para seguridad.
 """
 
 import os
+import logging
+from datetime import timedelta
 from dotenv import load_dotenv, find_dotenv
 
 # Cargar variables de entorno desde archivo .env
 load_dotenv()
 
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
+
 class Config:
     """Clase de configuración principal de la aplicación Flask."""
 
     # Clave secreta para sesiones y CSRF
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev")
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY no está configurada en el entorno. Configúrala en el archivo .env.")
+    if len(SECRET_KEY) < 32:
+        logger.warning("SECRET_KEY tiene menos de 32 caracteres. Se recomienda usar una clave más larga para mayor seguridad.")
 
     # Flask-WTF CSRF Configuration - Protección contra ataques CSRF
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
     WTF_CSRF_SSL_STRICT = False
+
+    # Session Configuration
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() in ("1", "true")
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
 
     # Database Configuration - Credenciales MySQL
     DATABASE_HOST = os.getenv("DATABASE_HOST", "localhost")

@@ -3,7 +3,7 @@ Beer House Premium Spirits - Aplicación Flask Principal
 Este archivo configura la aplicación Flask, registra los blueprints y define las rutas globales.
 """
 
-from flask import Flask, redirect, url_for, render_template, session, g
+from flask import Flask, redirect, url_for, render_template, session, g, request
 from flask_wtf.csrf import CSRFProtect
 from config import Config
 
@@ -17,7 +17,6 @@ def create_app():
 
     # CSRF Protection - Protege contra ataques Cross-Site Request Forgery
     csrf = CSRFProtect(app)
-    csrf.exempt("api")  # Exentamos las rutas API de CSRF
 
     # Importar y registrar blueprints (módulos de rutas organizados por funcionalidad)
     from app.routes.auth import auth_bp          # Autenticación y registro
@@ -28,6 +27,7 @@ def create_app():
     from app.routes.trabajador import trabajador_bp # Panel de trabajador
     from app.routes.categorias import categorias_bp # Gestión de categorías
     from app.routes.api import api_bp              # API endpoints
+    from app.routes.edad import edad_bp, COOKIE_MAYOR_EDAD  # Verificación de mayoría de edad
 
     # Registrar blueprints con sus prefijos de URL
     app.register_blueprint(auth_bp)
@@ -38,6 +38,31 @@ def create_app():
     app.register_blueprint(trabajador_bp)
     app.register_blueprint(categorias_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(edad_bp)
+
+    # Verificación de mayoría de edad (18+) para visitantes
+    @app.before_request
+    def exigir_mayoria_de_edad():
+        """
+        Redirige a /verificar-edad a quien no ha confirmado ser mayor de edad.
+        No aplica a: quien ya tiene la cookie, personal (admin/trabajador),
+        rutas inexistentes, archivos estáticos ni los blueprints edad, auth y api.
+        """
+        from app.utils.decoradores import ID_ROL_ADMIN, ID_ROL_TRABAJADOR
+
+        if request.cookies.get(COOKIE_MAYOR_EDAD) == "1":
+            return None
+        if session.get("id_rol") in (ID_ROL_ADMIN, ID_ROL_TRABAJADOR):
+            return None
+        if request.endpoint is None:
+            return None
+        if request.endpoint == "static" or request.blueprint in ("edad", "auth", "api"):
+            return None
+
+        # En GET se vuelve a la página pedida; en POST no se puede repetir la
+        # petición, así que se vuelve al inicio (no se pierde ningún dato guardado).
+        destino = request.full_path.rstrip("?") if request.method == "GET" else "/"
+        return redirect(url_for("edad.verificar_edad", next=destino))
 
     # Context processor para inyectar el contador del carrito en todas las plantillas
     @app.context_processor

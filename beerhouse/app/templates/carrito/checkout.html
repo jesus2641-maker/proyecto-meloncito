@@ -164,9 +164,9 @@
                 <div class="summary-row">
                     <div class="summary-info">
                         <span class="summary-name">{{ item.nombre_producto }}</span>
-                        <span class="summary-meta">{{ item.cantidad }}x {{ item.presentacion }} (${{ "{:,.2f}".format(item.precio) }})</span>
+                        <span class="summary-meta">{{ item.cantidad }}x {{ item.presentacion }} (${{ "{:,.0f}".format(item.precio) }})</span>
                     </div>
-                    <span class="summary-price">${{ "{:,.2f}".format(item.precio * item.cantidad) }}</span>
+                    <span class="summary-price">${{ "{:,.0f}".format(item.precio * item.cantidad) }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -175,8 +175,12 @@
 
             <div class="summary-row summary-total">
                 <span class="summary-label">Total a Pagar</span>
-                <span class="summary-value summary-total-amount">${{ "{:,.2f}".format(total) }}</span>
+                <span class="summary-value summary-total-amount">${{ "{:,.0f}".format(total) }}</span>
             </div>
+
+            <p class="form-helper checkout-age-notice">
+                Al finalizar tu compra confirmas que eres mayor de 18 años. La mayoría de edad podrá verificarse al momento de la entrega.
+            </p>
 
             <button type="submit" class="btn btn-primary btn-lg btn-block" 
                 {% if problemas_stock %}disabled{% endif %}>

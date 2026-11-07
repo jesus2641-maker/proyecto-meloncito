@@ -41,8 +41,8 @@
                 <h3 class="card-title">{{ oferta.titulo }}</h3>
                 <p class="card-description">{{ oferta.descripcion[:80] }}{% if oferta.descripcion and oferta.descripcion|length > 80 %}...{% endif %}</p>
                 <div class="price-container">
-                    <span class="original-price">${{ "{:,.2f}".format(oferta.precio_original) if oferta.precio_original else '0.00' }}</span>
-                    <span class="offer-price">${{ "{:,.2f}".format(oferta.precio_oferta) }}</span>
+                    <span class="original-price">${{ "{:,.0f}".format(oferta.precio_original) if oferta.precio_original else '0.00' }}</span>
+                    <span class="offer-price">${{ "{:,.0f}".format(oferta.precio_oferta) }}</span>
                 </div>
                 <a href="{{ url_for('productos.detalle', producto_id=oferta.id_producto) }}" class="btn btn-primary">Comprar</a>
             </div>
@@ -62,10 +62,10 @@
 </section>
 
 <!-- Newsletter Section -->
-<section class="container" style="background: var(--bg-card); padding: 60px 24px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
+<section class="container newsletter-box" style="background: var(--bg-card); padding: 60px 24px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
     <h2 style="margin-bottom: 16px;">No Te Pierdas Ninguna Oferta</h2>
     <p style="margin-bottom: 32px; color: var(--text-secondary);">Suscríbete a nuestro newsletter y recibe ofertas exclusivas directamente en tu correo.</p>
-    <div style="display: flex; gap: 12px; max-width: 500px; margin: 0 auto;">
+    <div class="newsletter-form" style="display: flex; gap: 12px; max-width: 500px; margin: 0 auto;">
         <input type="email" placeholder="Tu correo electrónico" class="form-input" style="flex: 1;">
         <button class="btn btn-primary">Suscribirse</button>
     </div>

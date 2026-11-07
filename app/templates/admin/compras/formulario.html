@@ -36,7 +36,7 @@
             <div style="max-width: 600px;">
                 <!-- Selector de Proveedor -->
                 <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div class="compra-proveedor-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <label class="form-label" style="margin-bottom: 0;">Seleccionar Proveedor *</label>
                         <button type="button" @click="modalProveedorOpen = true" class="btn btn-sm btn-ghost" style="padding: 2px 8px; font-size: 0.8rem; color: var(--gold-primary);">
                             + Nuevo Proveedor
@@ -159,9 +159,9 @@
             </div>
 
             <!-- RESUMEN Y TOTALES DE LA COMPRA -->
-            <div style="margin-top: 24px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
-                    <div style="display: flex; gap: 24px;">
+            <div class="compra-totales-box" style="margin-top: 24px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
+                <div class="compra-totales-row" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
+                    <div class="compra-totales-meta" style="display: flex; gap: 24px;">
                         <div>
                             <span style="display: block; color: var(--text-muted); font-size: 0.85rem;">Items Distintos</span>
                             <strong style="font-size: 1.2rem; color: var(--text-primary);" x-text="items.length"></strong>
@@ -172,7 +172,7 @@
                         </div>
                     </div>
 
-                    <div style="text-align: right;">
+                    <div class="compra-totales-final" style="text-align: right;">
                         <span style="display: block; color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">
                             Total General de la Compra
                         </span>
@@ -184,7 +184,7 @@
         </div>
 
         <!-- BOTONES DE ACCIÓN -->
-        <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px;">
+        <div class="form-actions compra-form-actions" style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px;">
             <a href="{{ url_for('admin.compras') }}" class="btn btn-outline">Cancelar</a>
             <button type="submit" class="btn btn-primary" :disabled="items.length === 0 || totalCompra <= 0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

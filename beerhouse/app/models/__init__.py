@@ -6,6 +6,8 @@ from app.models.pedido import Pedido, PedidoDetalle
 from app.models.direccion import Direccion
 from app.models.metodo_pago import MetodoPago
 from app.models.proveedor import Proveedor
+from app.models.compra import Compra, CompraDetalle
+from app.models.reporte import Reporte
 
 __all__ = [
     "Usuario",
@@ -19,5 +21,7 @@ __all__ = [
     "Direccion",
     "MetodoPago",
     "Proveedor",
+    "Compra",
+    "CompraDetalle",
+    "Reporte",
 ]
-

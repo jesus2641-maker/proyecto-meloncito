@@ -24,7 +24,7 @@
         </a>
     </div>
 
-    <form method="POST" action="{{ url_for('admin.nueva_compra') }}" class="premium-form" @submit="validarFormulario($event)">
+    <form method="POST" action="{{ url_for('admin.nueva_compra') }}" class="premium-form" @submit="enviarFormulario($event)" id="compraForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <!-- DATOS PRINCIPALES: PROVEEDOR -->
@@ -36,7 +36,7 @@
             <div style="max-width: 600px;">
                 <!-- Selector de Proveedor -->
                 <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div class="compra-proveedor-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <label class="form-label" style="margin-bottom: 0;">Seleccionar Proveedor *</label>
                         <button type="button" @click="modalProveedorOpen = true" class="btn btn-sm btn-ghost" style="padding: 2px 8px; font-size: 0.8rem; color: var(--gold-primary);">
                             + Nuevo Proveedor
@@ -130,9 +130,9 @@
                                 <td>
                                     <div style="position: relative;">
                                         <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">$</span>
-                                        <input type="number" name="precio_unitario[]" class="form-input" min="0.01" step="0.01"
+                                        <input type="number" name="precio_unitario[]" class="form-input" min="1" step="1"
                                                x-model.number="item.precio_unitario" @input="calculateSubtotal(index)" required
-                                               placeholder="0.00" style="padding-left: 24px; text-align: right;">
+                                               placeholder="0" style="padding-left: 24px; text-align: right;">
                                     </div>
                                 </td>
 
@@ -159,9 +159,9 @@
             </div>
 
             <!-- RESUMEN Y TOTALES DE LA COMPRA -->
-            <div style="margin-top: 24px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
-                    <div style="display: flex; gap: 24px;">
+            <div class="compra-totales-box" style="margin-top: 24px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
+                <div class="compra-totales-row" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
+                    <div class="compra-totales-meta" style="display: flex; gap: 24px;">
                         <div>
                             <span style="display: block; color: var(--text-muted); font-size: 0.85rem;">Items Distintos</span>
                             <strong style="font-size: 1.2rem; color: var(--text-primary);" x-text="items.length"></strong>
@@ -172,7 +172,7 @@
                         </div>
                     </div>
 
-                    <div style="text-align: right;">
+                    <div class="compra-totales-final" style="text-align: right;">
                         <span style="display: block; color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">
                             Total General de la Compra
                         </span>
@@ -184,7 +184,7 @@
         </div>
 
         <!-- BOTONES DE ACCIÓN -->
-        <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px;">
+        <div class="form-actions compra-form-actions" style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px;">
             <a href="{{ url_for('admin.compras') }}" class="btn btn-outline">Cancelar</a>
             <button type="submit" class="btn btn-primary" :disabled="items.length === 0 || totalCompra <= 0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -219,7 +219,11 @@
                 </template>
                 <div class="form-group">
                     <label class="form-label">Nombre del Proveedor *</label>
-                    <input type="text" class="form-input" x-model="nuevoProveedor.nombre" placeholder="Ej: Cervecería Modelo S.A." required>
+                    <input type="text" class="form-input" x-model="nuevoProveedor.nombre" placeholder="Ej: Cervecería Modelo S.A." required
+                           pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+"
+                           title="Solo se permiten letras y espacios (sin números ni caracteres especiales)"
+                           @input="nuevoProveedor.nombre = nuevoProveedor.nombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '')">
+                    <small style="color: var(--text-muted); font-size: 0.8rem;">Solo se permiten letras y espacios.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Identificación (NIT / RUC / Cédula)</label>
@@ -279,7 +283,7 @@ function compraForm() {
             if (this.items.length > 1) {
                 this.items.splice(index, 1);
             } else {
-                alert('La compra debe contener al menos un producto.');
+                showNotification('La compra debe contener al menos un producto.', 'warning');
             }
         },
 
@@ -313,33 +317,36 @@ function compraForm() {
 
         formatMoney(val) {
             const num = parseFloat(val) || 0;
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         },
 
-        validarFormulario(e) {
+        enviarFormulario(e) {
+            // Validar formulario antes de enviar
             if (!this.id_proveedor) {
-                alert('Por favor selecciona un proveedor.');
+                showNotification('Por favor selecciona un proveedor.', 'warning');
                 e.preventDefault();
                 return false;
             }
             for (let i = 0; i < this.items.length; i++) {
                 const it = this.items[i];
                 if (!it.id_variante) {
-                    alert(`Fila ${i + 1}: Debes seleccionar un producto.`);
+                    showNotification(`Fila ${i + 1}: Debes seleccionar un producto.`, 'error');
                     e.preventDefault();
                     return false;
                 }
                 if (!it.cantidad || it.cantidad <= 0) {
-                    alert(`Fila ${i + 1}: La cantidad debe ser mayor a 0.`);
+                    showNotification(`Fila ${i + 1}: La cantidad debe ser mayor a 0.`, 'error');
                     e.preventDefault();
                     return false;
                 }
                 if (!it.precio_unitario || it.precio_unitario <= 0) {
-                    alert(`Fila ${i + 1}: El precio de compra debe ser mayor a 0.`);
+                    showNotification(`Fila ${i + 1}: El precio de compra debe ser mayor a 0.`, 'error');
                     e.preventDefault();
                     return false;
                 }
             }
+
+            // Si la validación pasa, permitir el envío normal del formulario
             return true;
         },
 
@@ -347,6 +354,12 @@ function compraForm() {
             const nombre = (this.nuevoProveedor.nombre || '').trim();
             if (!nombre) {
                 this.proveedorError = 'El nombre del proveedor es obligatorio';
+                return;
+            }
+
+            // Validar que el nombre solo contenga letras
+            if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(nombre)) {
+                this.proveedorError = 'El nombre solo puede contener letras y espacios (sin números ni caracteres especiales)';
                 return;
             }
 
@@ -371,15 +384,58 @@ function compraForm() {
                     this.modalProveedorOpen = false;
                     this.nuevoProveedor = { nombre: '', identificacion: '' };
                     this.proveedorError = '';
+                    showNotification('Proveedor registrado exitosamente', 'success');
                 } else {
                     this.proveedorError = data.error || 'Error al guardar proveedor';
+                    showNotification(data.error || 'Error al guardar proveedor', 'error');
                 }
             })
             .catch(err => {
                 this.proveedorError = 'Error de conexión al registrar proveedor';
+                showNotification('Error de conexión al registrar proveedor', 'error');
             });
         }
     };
 }
+
+// Manejo de errores del formulario principal de compra
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('compraForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Interceptar errores de validación del servidor
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Procesando...';
+            }
+
+            // Si hay errores de Flask flash messages, convertirlos a notificaciones
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    const message = alert.textContent.trim();
+                    const isDanger = alert.classList.contains('alert-danger');
+                    const isSuccess = alert.classList.contains('alert-success');
+
+                    if (isDanger) {
+                        showNotification(message, 'error');
+                    } else if (isSuccess) {
+                        showNotification(message, 'success');
+                    }
+
+                    alert.style.display = 'none';
+                });
+
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Registrar Compra';
+                }
+            }, 100);
+        });
+    }
+});
 </script>
 {% endblock %}

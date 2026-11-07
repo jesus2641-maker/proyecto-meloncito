@@ -178,6 +178,10 @@
                 <span class="summary-value summary-total-amount">${{ "{:,.0f}".format(total) }}</span>
             </div>
 
+            <p class="form-helper checkout-age-notice">
+                Al finalizar tu compra confirmas que eres mayor de 18 años. La mayoría de edad podrá verificarse al momento de la entrega.
+            </p>
+
             <button type="submit" class="btn btn-primary btn-lg btn-block" 
                 {% if problemas_stock %}disabled{% endif %}>
                 {% if problemas_stock %}Revisa el stock en tu carrito{% else %}Confirmar y Realizar Pedido{% endif %}

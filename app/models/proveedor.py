@@ -59,14 +59,14 @@ class Proveedor:
 
     @staticmethod
     def crear(nombre, identificacion=None):
-        """Registra un nuevo proveedor con validación del nombre."""
-        from app.utils.validaciones import validar_nombre
+        """Registra un nuevo proveedor con validación del nombre comercial."""
+        from app.utils.validaciones import validar_nombre_comercial
 
         nombre = (nombre or "").strip()
         identificacion = (identificacion or "").strip() or None
 
-        # Validar que el nombre solo contenga letras
-        nombre_valido, error_msg = validar_nombre(nombre)
+        # Validar nombre comercial del proveedor
+        nombre_valido, error_msg = validar_nombre_comercial(nombre)
         if not nombre_valido:
             raise ValueError(error_msg)
 
@@ -85,14 +85,14 @@ class Proveedor:
 
     @staticmethod
     def actualizar(id_proveedor, nombre, identificacion=None, activo=True):
-        """Actualiza los datos de un proveedor existente con validación del nombre."""
-        from app.utils.validaciones import validar_nombre
+        """Actualiza los datos de un proveedor existente con validación del nombre comercial."""
+        from app.utils.validaciones import validar_nombre_comercial
 
         nombre = (nombre or "").strip()
         identificacion = (identificacion or "").strip() or None
 
-        # Validar que el nombre solo contenga letras
-        nombre_valido, error_msg = validar_nombre(nombre)
+        # Validar nombre comercial del proveedor
+        nombre_valido, error_msg = validar_nombre_comercial(nombre)
         if not nombre_valido:
             raise ValueError(error_msg)
 

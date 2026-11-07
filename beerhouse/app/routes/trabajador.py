@@ -3,6 +3,7 @@ from app.models.producto import Producto, VarianteProducto
 from app.models.pedido import Pedido
 from app.models.usuario import Usuario
 from app.models.categoria import Categoria
+from app.models.reporte import Reporte
 from app.utils.decoradores import requiere_trabajador_o_admin
 from app.utils.email_service import send_order_status_update_email
 
@@ -243,7 +244,7 @@ def editar_mi_cuenta():
             return redirect(url_for("trabajador.mi_cuenta"))
         
         usuario = Usuario.obtener_por_id(id_usuario)
-        if not Usuario.verificar_contraseña(contraseña_actual, usuario.contraseña):
+        if not Usuario.verificar_contraseña(contraseña_actual, usuario['password_hash']):
             flash("La contraseña actual es incorrecta", "danger")
             return redirect(url_for("trabajador.mi_cuenta"))
         
@@ -267,3 +268,13 @@ def editar_mi_cuenta():
         flash("Perfil actualizado correctamente", "success")
     
     return redirect(url_for("trabajador.mi_cuenta"))
+
+
+# =========================================================
+# REPORTES (SOLO INVENTARIO CRÍTICO)
+# =========================================================
+@trabajador_bp.route("/reportes")
+def reportes():
+    """Reporte operativo del trabajador: muestra únicamente el inventario crítico."""
+    inventario_critico = Reporte.inventario_critico()
+    return render_template("trabajador/reportes.html", inventario_critico=inventario_critico)
