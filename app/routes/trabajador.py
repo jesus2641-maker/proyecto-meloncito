@@ -1,11 +1,15 @@
+import logging
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from app.models.producto import Producto, VarianteProducto
-from app.models.pedido import Pedido
+from app.models.pedido import Pedido, ESTADO_CANCELADO
+from app.models.pago import Pago
 from app.models.usuario import Usuario
 from app.models.categoria import Categoria
 from app.models.reporte import Reporte
 from app.utils.decoradores import requiere_trabajador_o_admin
 from app.utils.email_service import send_order_status_update_email
+
+logger = logging.getLogger(__name__)
 
 trabajador_bp = Blueprint("trabajador", __name__, url_prefix="/trabajador")
 
@@ -28,7 +32,7 @@ def dashboard():
     metricas = Pedido.obtener_metricas_dashboard()
     ultimos_pedidos = Pedido.listar_todos()[:5]
     estados = Pedido.obtener_estados()
-    
+
     return render_template(
         "trabajador/dashboard.html",
         metricas=metricas,
@@ -54,7 +58,7 @@ def variantes_producto(id_producto):
     if not producto:
         flash("Producto no encontrado", "danger")
         return redirect(url_for("trabajador.productos"))
-    
+
     variantes = VarianteProducto.listar_por_producto(id_producto)
     return render_template("trabajador/productos/variantes.html", producto=producto, variantes=variantes)
 
@@ -65,8 +69,6 @@ def variantes_producto(id_producto):
 @trabajador_bp.route("/inventario")
 def inventario():
     """Ver inventario completo con filtros."""
-    from app.models.categoria import Categoria
-
     busqueda = request.args.get("busqueda", "").strip() or None
     id_categoria = request.args.get("categoria", type=int)
     estado_stock = request.args.get("estado_stock") or None
@@ -101,15 +103,15 @@ def actualizar_stock():
     """Actualizar stock de una variante."""
     id_variante = request.form.get("id_variante", type=int)
     nuevo_stock = request.form.get("stock", type=int)
-    
+
     if not id_variante or nuevo_stock is None:
         flash("Datos inválidos", "danger")
         return redirect(url_for("trabajador.inventario"))
-    
+
     if nuevo_stock < 0:
         flash("El stock no puede ser negativo", "danger")
         return redirect(url_for("trabajador.inventario"))
-    
+
     VarianteProducto.actualizar_stock(id_variante, nuevo_stock)
     flash("Stock actualizado correctamente", "success")
     return redirect(url_for("trabajador.inventario"))
@@ -124,7 +126,7 @@ def pedidos():
     filtro_estado = request.args.get("estado")
     pedidos_lista = Pedido.listar_todos(filtro_estado=filtro_estado)
     estados = Pedido.obtener_estados()
-    
+
     return render_template(
         "trabajador/pedidos/index.html",
         pedidos=pedidos_lista,
@@ -140,15 +142,17 @@ def detalle_pedido(id_pedido):
     if not pedido:
         flash("Pedido no encontrado", "danger")
         return redirect(url_for("trabajador.pedidos"))
-    
+
     from app.models.pedido import PedidoDetalle
     detalles = PedidoDetalle.listar_por_pedido(id_pedido)
     estados = Pedido.obtener_estados()
+    pago = Pago.obtener_por_pedido(id_pedido)
     return render_template(
         "trabajador/pedidos/detalle.html",
         pedido=pedido,
         detalles=detalles,
-        estados=estados
+        estados=estados,
+        pago=pago,
     )
 
 
@@ -157,38 +161,47 @@ def cambiar_estado_pedido(id_pedido):
     """Cambiar estado de un pedido (trabajador puede cambiar estados básicos)."""
     id_estado = request.form.get("id_estado", type=int)
     next_url = request.form.get("next") or url_for("trabajador.pedidos")
-    
+
     if not id_estado:
         flash("Estado inválido", "danger")
         return redirect(next_url)
-    
+
     # El trabajador no puede cancelar pedidos (solo admin)
-    if id_estado == 5:  # cancelado
+    if id_estado == ESTADO_CANCELADO:
         flash("No tienes permisos para cancelar pedidos. Contacta al administrador.", "warning")
         return redirect(next_url)
-    
-    # Obtener información del pedido antes de actualizar
-    pedido = Pedido.obtener_por_id(id_pedido)
-    if not pedido:
-        flash("Pedido no encontrado", "danger")
-        return redirect(next_url)
-
-    estados_info = Pedido.obtener_estados()
-    nombre_estado = next((e['nombre'] for e in estados_info if e['id_estado'] == id_estado), "Desconocido")
-
-    Pedido.actualizar_estado(id_pedido, id_estado)
 
     try:
-        usuario = Usuario.obtener_por_id(pedido['id_usuario'])
-        send_order_status_update_email(
-            usuario['email'],
-            usuario['nombre'],
-            id_pedido,
-            nombre_estado
+        pedido = Pedido.obtener_por_id(id_pedido)
+        if not pedido:
+            flash("Pedido no encontrado", "danger")
+            return redirect(next_url)
+
+        estados_info = Pedido.obtener_estados()
+        nombre_estado = next(
+            (e.get("nombre_estado") or e.get("nombre") for e in estados_info if e["id_estado"] == id_estado),
+            "Desconocido",
         )
+
+        Pedido.actualizar_estado(id_pedido, id_estado)
+
+        try:
+            usuario = Usuario.obtener_por_id(pedido["id_usuario"])
+            send_order_status_update_email(
+                usuario["email"],
+                usuario["nombre"],
+                id_pedido,
+                nombre_estado,
+            )
+        except Exception:
+            logger.exception("Error al enviar correo de actualización de estado")
+
+        flash("Estado del pedido actualizado", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
     except Exception as e:
-        print(f"Error al enviar correo de actualización de estado: {e}")
-    flash("Estado del pedido actualizado", "success")
+        flash(f"Error al actualizar el estado: {str(e)}", "danger")
+
     return redirect(next_url)
 
 
@@ -211,12 +224,12 @@ def mi_cuenta():
     id_usuario = session.get("id_usuario")
     if not id_usuario:
         return redirect(url_for("auth.login"))
-    
+
     usuario = Usuario.obtener_por_id(id_usuario)
     if not usuario:
         flash("Usuario no encontrado", "danger")
         return redirect(url_for("trabajador.dashboard"))
-    
+
     return render_template("trabajador/mi_cuenta.html", usuario=usuario)
 
 
@@ -226,28 +239,28 @@ def editar_mi_cuenta():
     id_usuario = session.get("id_usuario")
     if not id_usuario:
         return redirect(url_for("auth.login"))
-    
+
     nombre = request.form.get("nombre", "").strip()
     apellido = request.form.get("apellido", "").strip()
     telefono = request.form.get("telefono", "").strip() or None
     email = request.form.get("email", "").strip()
     contraseña_actual = request.form.get("contraseña_actual", "").strip()
     contraseña_nueva = request.form.get("contraseña_nueva", "").strip()
-    
+
     if not nombre or not apellido or not email:
         flash("Nombre, apellido y correo son obligatorios", "danger")
         return redirect(url_for("trabajador.mi_cuenta"))
-    
+
     if contraseña_nueva:
         if not contraseña_actual:
             flash("Debes ingresar tu contraseña actual para cambiarla", "danger")
             return redirect(url_for("trabajador.mi_cuenta"))
-        
+
         usuario = Usuario.obtener_por_id(id_usuario)
-        if not Usuario.verificar_contraseña(contraseña_actual, usuario['password_hash']):
+        if not Usuario.verificar_contraseña(contraseña_actual, usuario["password_hash"]):
             flash("La contraseña actual es incorrecta", "danger")
             return redirect(url_for("trabajador.mi_cuenta"))
-        
+
         Usuario.actualizar(
             id_usuario=id_usuario,
             nombre=nombre,
@@ -266,7 +279,7 @@ def editar_mi_cuenta():
             email=email
         )
         flash("Perfil actualizado correctamente", "success")
-    
+
     return redirect(url_for("trabajador.mi_cuenta"))
 
 

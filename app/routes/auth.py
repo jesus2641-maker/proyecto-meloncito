@@ -1,3 +1,5 @@
+import logging
+import math
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.usuario import Usuario
@@ -8,6 +10,8 @@ from app.utils.validaciones import (
 from app.utils.email_service import send_welcome_email
 from app.utils.login_attempts import check_login_attempt, record_failed_attempt, reset_login_attempts, get_remaining_time
 from app.routes.edad import marcar_mayor_edad
+
+logger = logging.getLogger(__name__)
 
 # IDs de roles
 ID_ROL_CLIENTE = 1
@@ -31,7 +35,12 @@ def login():
         # Verificar límite de intentos
         if not check_login_attempt(ip, email):
             remaining_time = get_remaining_time(ip, email)
-            flash(f"Demasiados intentos. Intenta de nuevo en {remaining_time // 60} minutos.", "danger")
+            if remaining_time < 60:
+                tiempo_texto = "menos de 1 minuto"
+            else:
+                minutos = math.ceil(remaining_time / 60)
+                tiempo_texto = f"{minutos} minuto" if minutos == 1 else f"{minutos} minutos"
+            flash(f"Demasiados intentos. Intenta de nuevo en {tiempo_texto}.", "danger")
             return render_template("auth/login.html")
 
         usuario = Usuario.obtener_por_email(email)
@@ -103,8 +112,8 @@ def registro():
         # Enviar correo de bienvenida (no debe fallar el registro si falla el correo)
         try:
             send_welcome_email(email, nombre)
-        except Exception as e:
-            print(f"Error al enviar correo de bienvenida: {e}")
+        except Exception:
+            logger.exception("Error al enviar correo de bienvenida")
 
         flash("Cuenta creada, ya puedes iniciar sesión", "success")
         # Ya declaró su fecha de nacimiento: no se le vuelve a preguntar la edad

@@ -122,16 +122,28 @@
     {% block trabajador_content %}{% endblock %}
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div class="flash-messages">
+<div id="notification-container" class="notification-container flash-messages" aria-live="polite">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
       {% for category, message in messages %}
-        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+        <div class="custom-notification custom-notification-{{ category }} flash-message flash-{{ category }}" data-auto-close="5000">
+            <div class="notification-content">
+                <div class="notification-icon"></div>
+                <div class="notification-message"><span>{{ message }}</span></div>
+                <button type="button" class="notification-close flash-close" aria-label="Cerrar notificación">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
       {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
+    {% endif %}
+  {% endwith %}
+</div>
 
+<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='js/panel-movil.js') }}"></script>
 </body>
 </html>

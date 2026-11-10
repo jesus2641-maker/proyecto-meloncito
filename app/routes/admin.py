@@ -1,9 +1,12 @@
+import logging
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify, Response
 from datetime import datetime
 from decimal import Decimal
 from app.models.producto import Producto, VarianteProducto
 from app.models.categoria import Categoria
-from app.models.pedido import Pedido, PedidoDetalle
+from app.models.pedido import Pedido, PedidoDetalle, ESTADO_CANCELADO
+from app.models.pago import Pago, ESTADO_PAGO_COMPLETADO, ESTADO_PAGO_PENDIENTE, ESTADO_PAGO_CANCELADO
+from app.services.pagos_paypal import cancelar_pedido_con_reembolso
 from app.models.usuario import Usuario
 from app.models.oferta import Oferta
 from app.models.proveedor import Proveedor
@@ -14,6 +17,8 @@ from app.utils.cloudinary_utils import upload_image, delete_image
 from app.utils.email_service import send_order_status_update_email
 from app.utils.db import get_connection
 
+logger = logging.getLogger(__name__)
+
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 ID_ROL_ADMIN = 2  # rol 'admin'
@@ -21,16 +26,10 @@ ID_ROL_ADMIN = 2  # rol 'admin'
 
 @admin_bp.before_request
 def verificar_permisos_admin():
-    # Excluir rutas que no requieren verificación de admin
-    rutas_exentas = ['/admin/dashboard']  # Dashboard es la página principal, no excluir reports
-    
     id_rol_session = session.get("id_rol")
-    print(f"DEBUG: Verificando permisos admin - id_rol en sesión: {id_rol_session}, esperado: {ID_ROL_ADMIN}")
-    print(f"DEBUG: Contenido de sesión: {dict(session)}")
-    
     if id_rol_session != ID_ROL_ADMIN:
-        print(f"DEBUG: Acceso denegado - redirigiendo a catalogo")
-        flash(f"No tienes permisos de administrador (tu rol: {id_rol_session}).", "danger")
+        logger.warning("Acceso denegado al panel de administración")
+        flash("No tienes permisos de administrador.", "danger")
         return redirect(url_for("productos.catalogo"))
 
 
@@ -422,12 +421,14 @@ def detalle_pedido(id_pedido):
 
     detalles = PedidoDetalle.listar_por_pedido(id_pedido)
     estados = Pedido.obtener_estados()
+    pago = Pago.obtener_por_pedido(id_pedido)
 
     return render_template(
         "admin/pedidos/detalle.html",
         pedido=pedido,
         detalles=detalles,
-        estados=estados
+        estados=estados,
+        pago=pago,
     )
 
 
@@ -444,6 +445,24 @@ def cambiar_estado_pedido(id_pedido):
                 flash("Pedido no encontrado", "danger")
                 return redirect(next_url)
 
+            # Si el admin va a cancelar el pedido, gestionar reembolso si aplica
+            if id_estado == ESTADO_CANCELADO:
+                pago = Pago.obtener_por_pedido(id_pedido)
+                if pago and pago.get("estado") == ESTADO_PAGO_COMPLETADO:
+                    try:
+                        cancelar_pedido_con_reembolso(id_pedido)
+                        flash(f"Pedido #{id_pedido} cancelado y pago de PayPal reembolsado exitosamente", "success")
+                        return redirect(next_url)
+                    except Exception as e:
+                        logger.exception("Error al reembolsar pago para pedido %s: %s", id_pedido, e)
+                        flash(f"No se pudo cancelar el pedido porque el reembolso en PayPal falló: {e}", "danger")
+                        return redirect(next_url)
+                elif pago and pago.get("estado") == ESTADO_PAGO_PENDIENTE:
+                    Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO)
+                    Pago.marcar(id_pedido, ESTADO_PAGO_CANCELADO)
+                    flash(f"Pedido #{id_pedido} cancelado y stock liberado", "success")
+                    return redirect(next_url)
+
             estados_info = Pedido.obtener_estados()
             nombre_estado = next((e.get('nombre_estado') or e.get('nombre') for e in estados_info if e['id_estado'] == id_estado), "Desconocido")
 
@@ -457,8 +476,8 @@ def cambiar_estado_pedido(id_pedido):
                     id_pedido,
                     nombre_estado
                 )
-            except Exception as e:
-                print(f"Error al enviar correo de actualización de estado: {e}")
+            except Exception:
+                logger.exception("Error al enviar correo de actualización de estado")
 
             flash(f"Estado del pedido #{id_pedido} actualizado exitosamente", "success")
         except ValueError as e:
@@ -731,10 +750,6 @@ def nueva_compra():
             cantidades = request.form.getlist("cantidad[]") or request.form.getlist("cantidad")
             precios = request.form.getlist("precio_unitario[]") or request.form.getlist("precio_unitario")
 
-            print(f"DEBUG COMPRAS: variantes_ids={variantes_ids}")
-            print(f"DEBUG COMPRAS: cantidades={cantidades}")
-            print(f"DEBUG COMPRAS: precios={precios}")
-
             raw_items = []
             for v_id, cant, prec in zip(variantes_ids, cantidades, precios):
                 if v_id and str(v_id).strip():
@@ -744,7 +759,7 @@ def nueva_compra():
                         "precio_unitario": prec
                     })
 
-            print(f"DEBUG COMPRAS: raw_items={raw_items}")
+            logger.debug("Recibidos %s items en el formulario de nueva compra", len(raw_items))
 
         # Si no se especificó fecha, usar fecha/hora actual automáticamente
         if not fecha_compra:

@@ -10,7 +10,8 @@ services:
       MYSQL_DATABASE: ${DATABASE_NAME}
     volumes:
       - beerhouse_mysql_data:/var/lib/mysql        # datos persistentes
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql  # schema inicial
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql      # schema inicial
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/02-seed_data.sql  # datos iniciales
     ports:
       - "3307:3306"   # 3307 en el host para no chocar con MySQL local
     healthcheck:

@@ -16,6 +16,28 @@ NOMBRE_COMERCIAL_REGEX = re.compile(r"^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.
 # Largo máximo de la columna `nombre` en la tabla `proveedores` (VARCHAR(150))
 MAX_NOMBRE_PROVEEDOR = 150
 
+# Opciones válidas de método de pago (deben coincidir con <select> de checkout y cuenta)
+TIPOS_PAGO = (
+    "Tarjeta de crédito",
+    "Tarjeta de débito",
+    "Transferencia Bancaria (PSE)",
+    "Nequi / Daviplata",
+    "Efectivo contra entrega",
+    "PayPal",
+)
+TIPOS_PAGO_CHECKOUT = (
+    "Efectivo contra entrega",
+    "PayPal",
+)
+MAX_DETALLE_PAGO = 100
+
+# Largos máximos de columnas en la tabla `direcciones` (database/schema.sql)
+MAX_ALIAS_DIRECCION = 50
+MAX_LINEA_DIRECCION = 500
+MAX_CIUDAD_DIRECCION = 100
+MAX_DEPARTAMENTO_DIRECCION = 100
+MAX_CODIGO_POSTAL_DIRECCION = 20
+
 
 def validar_email(email):
     if not email or not email.strip():
@@ -157,6 +179,104 @@ def validar_nombre_comercial(nombre):
             False,
             "El nombre comercial solo puede contener letras, números, espacios y los signos . , & - ' ( ) /",
         )
+
+    return True, None
+
+
+def validar_tipo_pago(tipo):
+    """
+    Valida que el tipo de pago sea una de las opciones permitidas en TIPOS_PAGO.
+
+    Returns:
+        Tuple (bool, str|None): (True, None) si es válido, (False, mensaje_error) si no
+    """
+    if not tipo or not str(tipo).strip():
+        return False, "Por favor selecciona un método de pago"
+
+    tipo_limpio = str(tipo).strip()
+    if tipo_limpio not in TIPOS_PAGO:
+        return False, "El método de pago seleccionado no es válido"
+
+    return True, None
+
+
+def validar_tipo_pago_checkout(tipo):
+    """
+    Valida que el tipo de pago sea una de las opciones permitidas en el checkout (TIPOS_PAGO_CHECKOUT).
+
+    Returns:
+        Tuple (bool, str|None): (True, None) si es válido, (False, mensaje_error) si no
+    """
+    if not tipo or not str(tipo).strip():
+        return False, "Por favor selecciona un método de pago"
+
+    tipo_limpio = str(tipo).strip()
+    if tipo_limpio not in TIPOS_PAGO_CHECKOUT:
+        return False, "El método de pago no está disponible para checkout. Selecciona Efectivo contra entrega o PayPal."
+
+    return True, None
+
+
+def validar_detalle_pago(detalle):
+    """
+    Valida el detalle o referencia de un método de pago (opcional, máximo 100 caracteres).
+    Rechaza cualquier valor que contenga 12 o más dígitos (ignorando espacios y guiones)
+    para evitar que se almacenen números completos de tarjeta en texto claro.
+
+    Returns:
+        Tuple (bool, str|None): (True, None) si es válido, (False, mensaje_error) si no
+    """
+    if detalle is None:
+        return True, None
+
+    detalle_limpio = str(detalle).strip()
+    if not detalle_limpio:
+        return True, None
+
+    if len(detalle_limpio) > MAX_DETALLE_PAGO:
+        return False, f"El detalle del método de pago no puede exceder {MAX_DETALLE_PAGO} caracteres"
+
+    sin_espacios_guiones = re.sub(r"[\s-]+", "", detalle_limpio)
+    cantidad_digitos = sum(1 for c in detalle_limpio if c.isdigit())
+    if cantidad_digitos >= 12 or re.search(r"\d{12,}", sin_espacios_guiones):
+        return (
+            False,
+            "Por seguridad no ingreses el número completo de la tarjeta; escribe solo los últimos 4 dígitos (ej. Terminada en 4242)",
+        )
+
+    return True, None
+
+
+def validar_direccion(linea_direccion, ciudad, departamento=None, codigo_postal=None, alias=None):
+    """
+    Valida los campos de una dirección y sus longitudes máximas según database/schema.sql.
+
+    Returns:
+        Tuple (bool, str|None): (True, None) si es válida, (False, mensaje_error) si no
+    """
+    linea = (linea_direccion or "").strip()
+    ciudad_limpia = (ciudad or "").strip()
+    depto = (departamento or "").strip()
+    postal = (codigo_postal or "").strip()
+    alias_limpio = (alias or "").strip()
+
+    if not linea or not ciudad_limpia:
+        return False, "Por favor ingresa la dirección de entrega y la ciudad"
+
+    if len(linea) > MAX_LINEA_DIRECCION:
+        return False, f"La dirección no puede exceder {MAX_LINEA_DIRECCION} caracteres"
+
+    if len(ciudad_limpia) > MAX_CIUDAD_DIRECCION:
+        return False, f"La ciudad no puede exceder {MAX_CIUDAD_DIRECCION} caracteres"
+
+    if depto and len(depto) > MAX_DEPARTAMENTO_DIRECCION:
+        return False, f"El departamento no puede exceder {MAX_DEPARTAMENTO_DIRECCION} caracteres"
+
+    if postal and len(postal) > MAX_CODIGO_POSTAL_DIRECCION:
+        return False, f"El código postal no puede exceder {MAX_CODIGO_POSTAL_DIRECCION} caracteres"
+
+    if alias_limpio and len(alias_limpio) > MAX_ALIAS_DIRECCION:
+        return False, f"El alias no puede exceder {MAX_ALIAS_DIRECCION} caracteres"
 
     return True, None
 

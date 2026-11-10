@@ -16,6 +16,36 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+
+def resolver_paypal_mode(modo=None):
+    """Normaliza PAYPAL_MODE: solo 'live' si se escribe explícitamente, en otro caso 'sandbox'."""
+    valor = modo if modo is not None else os.getenv("PAYPAL_MODE", "sandbox")
+    return "live" if str(valor or "").strip().lower() == "live" else "sandbox"
+
+
+def resolver_paypal_api_base(modo=None, api_base=None):
+    """
+    Devuelve la URL base de la API de PayPal según PAYPAL_MODE,
+    permitiendo sobreescribirla explícitamente con PAYPAL_API_BASE.
+    """
+    override = api_base if api_base is not None else os.getenv("PAYPAL_API_BASE", "")
+    if override and str(override).strip():
+        return str(override).strip().rstrip("/")
+    modo_efectivo = resolver_paypal_mode(modo)
+    if modo_efectivo == "live":
+        return "https://api-m.paypal.com"
+    return "https://api-m.sandbox.paypal.com"
+
+
+def _resolver_entero(nombre_env, default):
+    valor = os.getenv(nombre_env, str(default))
+    try:
+        num = int(str(valor).strip())
+        return num if num > 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
 class Config:
     """Clase de configuración principal de la aplicación Flask."""
 
@@ -52,6 +82,14 @@ class Config:
     BREVO_API_KEY = os.getenv("BREVO_API_KEY")
     BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
     BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME")
+
+    # PayPal Configuration - Pasarela de pagos (Orders v2 / Payments v2)
+    PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "") or ""
+    PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "") or ""
+    PAYPAL_MODE = resolver_paypal_mode()
+    PAYPAL_CURRENCY = (os.getenv("PAYPAL_CURRENCY", "USD") or "USD").strip().upper() or "USD"
+    PAYPAL_API_BASE = resolver_paypal_api_base(PAYPAL_MODE)
+    PAGO_EXPIRA_MINUTOS = _resolver_entero("PAGO_EXPIRA_MINUTOS", 30)
 
     @staticmethod
     def get_db_config():

@@ -4,6 +4,7 @@ Este módulo maneja todas las operaciones del carrito: agregar productos,
 actualizar cantidades, eliminar items, y el proceso de checkout completo.
 """
 
+import logging
 from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for, flash, abort
 from app.models.carrito import Carrito, CarritoItem
 from app.models.direccion import Direccion
@@ -11,9 +12,21 @@ from app.models.metodo_pago import MetodoPago
 from app.models.pedido import Pedido, PedidoDetalle
 from app.models.producto import VarianteProducto, Producto
 from app.models.usuario import Usuario
-from app.utils.validaciones import validar_stock_carrito
+from app.utils.validaciones import (
+    validar_stock_carrito,
+    validar_tipo_pago,
+    validar_tipo_pago_checkout,
+    validar_detalle_pago,
+    validar_direccion,
+    TIPOS_PAGO_CHECKOUT,
+)
 from app.utils.decoradores import requiere_login
-from app.utils.email_service import send_order_confirmation_email
+from app.utils.email_service import send_order_confirmation_email, enviar_confirmacion_pedido_por_id
+from app.utils.paypal_client import paypal_configurado
+from app.models.pago import Pago
+from config import Config
+
+logger = logging.getLogger(__name__)
 
 carrito_bp = Blueprint("carrito", __name__, url_prefix="/carrito")
 
@@ -116,49 +129,45 @@ def actualizar():
     id_item = request.form.get("id_item", type=int)
     nueva_cantidad = request.form.get("cantidad", type=int)
 
-    print(f"DEBUG: Actualizar cantidad - id_item: {id_item}, nueva_cantidad: {nueva_cantidad}")
+    logger.debug("Actualizar cantidad de carrito: id_item=%s, nueva_cantidad=%s", id_item, nueva_cantidad)
 
     if not id_item or nueva_cantidad is None:
-        print("DEBUG: Datos inválidos")
+        logger.warning("Datos inválidos al actualizar carrito")
         flash("Datos inválidos", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
     if nueva_cantidad <= 0:
-        print("DEBUG: Cantidad debe ser mayor a 0")
+        logger.warning("Cantidad no válida al actualizar carrito: %s", nueva_cantidad)
         flash("La cantidad debe ser mayor a 0", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
     # Obtener el item actual
     item = CarritoItem.obtener_por_id(id_item)
-    print(f"DEBUG: Item obtenido: {item}")
-
     if not item:
-        print("DEBUG: Item no encontrado")
+        logger.warning("Item de carrito no encontrado: id_item=%s", id_item)
         flash("Item no encontrado", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
     # Verificar stock disponible
     variante = VarianteProducto.obtener_por_id(item["id_variante"])
-    print(f"DEBUG: Variante obtenida: {variante}")
-
     if not variante:
-        print("DEBUG: Producto no disponible")
+        logger.warning("Variante de producto no disponible: id_variante=%s", item["id_variante"])
         flash("Producto no disponible", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
     if variante["stock"] <= 0:
-        print("DEBUG: Producto agotado")
+        logger.info("Producto agotado al actualizar carrito: id_variante=%s", item["id_variante"])
         flash("Este producto está agotado", "warning")
         return redirect(url_for("carrito.ver_carrito"))
 
     if nueva_cantidad > variante["stock"]:
-        print(f"DEBUG: Stock insuficiente. Solicitado: {nueva_cantidad}, Disponible: {variante['stock']}")
         disponibles = variante["stock"]
+        logger.info("Stock insuficiente al actualizar carrito: solicitado=%s, disponible=%s", nueva_cantidad, disponibles)
         flash(f"Solo hay {disponibles} unidad(es) disponible(s)", "warning")
         return redirect(url_for("carrito.ver_carrito"))
 
     # Actualizar cantidad
-    print(f"DEBUG: Actualizando cantidad a {nueva_cantidad}")
+    logger.debug("Actualizando cantidad de item %s a %s", id_item, nueva_cantidad)
     CarritoItem.actualizar_cantidad(id_item, nueva_cantidad)
     flash("Cantidad actualizada", "success")
     return redirect(url_for("carrito.ver_carrito"))
@@ -182,24 +191,85 @@ def checkout():
         if respuesta_stock:
             return respuesta_stock
 
-        # 1. Resolver Dirección
+        # 1. Validar Dirección (antes de insertar en BD)
         opcion_direccion = request.form.get("opcion_direccion")  # 'guardada' o 'nueva'
         id_direccion = request.form.get("id_direccion", type=int)
+        crear_nueva_direccion = opcion_direccion == "nueva" or not id_direccion
 
-        if opcion_direccion == "nueva" or not id_direccion:
+        if crear_nueva_direccion:
             alias = request.form.get("alias_direccion", "").strip() or None
             linea_direccion = request.form.get("linea_direccion", "").strip()
             ciudad = request.form.get("ciudad", "").strip()
             departamento = request.form.get("departamento", "").strip() or None
             codigo_postal = request.form.get("codigo_postal", "").strip() or None
-            guardar_direccion = request.form.get("guardar_direccion")
 
-            if not linea_direccion or not ciudad:
-                flash("Por favor ingresa la dirección de entrega y la ciudad", "danger")
+            dir_ok, dir_err = validar_direccion(
+                linea_direccion=linea_direccion,
+                ciudad=ciudad,
+                departamento=departamento,
+                codigo_postal=codigo_postal,
+                alias=alias,
+            )
+            if not dir_ok:
+                flash(dir_err, "danger")
                 direcciones = Direccion.listar_por_usuario(id_usuario)
-                metodos_pago = MetodoPago.listar_por_usuario(id_usuario)
-                return render_template("carrito/checkout.html", items=items, total=total, direcciones=direcciones, metodos_pago=metodos_pago)
+                metodos_pago = [mp for mp in MetodoPago.listar_por_usuario(id_usuario) if mp.get("tipo") in ("Efectivo contra entrega", "PayPal")]
+                return render_template("carrito/checkout.html", items=items, total=total, direcciones=direcciones, metodos_pago=metodos_pago, paypal_disponible=paypal_configurado())
+        else:
+            # Validar que la dirección seleccionada pertenezca al usuario
+            dir_existente = Direccion.obtener_por_id(id_direccion)
+            if not dir_existente or dir_existente["id_usuario"] != id_usuario:
+                flash("Dirección no válida", "danger")
+                return redirect(url_for("carrito.checkout"))
 
+        # 2. Validar Método de Pago (antes de insertar en BD)
+        opcion_pago = request.form.get("opcion_pago")  # 'guardado' o 'nuevo'
+        id_metodo_pago = request.form.get("id_metodo_pago", type=int)
+        crear_nuevo_pago = opcion_pago == "nuevo" or not id_metodo_pago
+
+        if crear_nuevo_pago:
+            tipo = request.form.get("tipo_pago", "").strip()
+            detalle = request.form.get("detalle_pago", "").strip() or None
+
+            tipo_ok, tipo_err = validar_tipo_pago_checkout(tipo)
+            if not tipo_ok:
+                flash(tipo_err, "danger")
+                direcciones = Direccion.listar_por_usuario(id_usuario)
+                metodos_pago = [mp for mp in MetodoPago.listar_por_usuario(id_usuario) if mp.get("tipo") in TIPOS_PAGO_CHECKOUT]
+                return render_template("carrito/checkout.html", items=items, total=total, direcciones=direcciones, metodos_pago=metodos_pago, paypal_disponible=paypal_configurado())
+
+            if tipo == "PayPal":
+                if not paypal_configurado():
+                    flash("El pago con PayPal no está disponible en este momento", "danger")
+                    return redirect(url_for("carrito.checkout"))
+                detalle = "Pago en línea con PayPal"
+            else:
+                det_ok, det_err = validar_detalle_pago(detalle)
+                if not det_ok:
+                    flash(det_err, "danger")
+                    direcciones = Direccion.listar_por_usuario(id_usuario)
+                    metodos_pago = [mp for mp in MetodoPago.listar_por_usuario(id_usuario) if mp.get("tipo") in TIPOS_PAGO_CHECKOUT]
+                    return render_template("carrito/checkout.html", items=items, total=total, direcciones=direcciones, metodos_pago=metodos_pago, paypal_disponible=paypal_configurado())
+        else:
+            # Validar que el método de pago seleccionado pertenezca al usuario
+            metodo_existente = MetodoPago.obtener_por_id(id_metodo_pago)
+            if not metodo_existente or metodo_existente["id_usuario"] != id_usuario:
+                flash("Método de pago no válido", "danger")
+                return redirect(url_for("carrito.checkout"))
+            tipo = metodo_existente["tipo"]
+            detalle = metodo_existente.get("detalle")
+
+            tipo_ok, tipo_err = validar_tipo_pago_checkout(tipo)
+            if not tipo_ok:
+                flash(tipo_err, "danger")
+                return redirect(url_for("carrito.checkout"))
+
+            if tipo == "PayPal" and not paypal_configurado():
+                flash("El pago con PayPal no está disponible en este momento", "danger")
+                return redirect(url_for("carrito.checkout"))
+
+        # 2.5 Persistir nueva dirección / nuevo método de pago una vez validados ambos
+        if crear_nueva_direccion:
             id_direccion = Direccion.crear(
                 id_usuario=id_usuario,
                 linea_direccion=linea_direccion,
@@ -209,39 +279,26 @@ def checkout():
                 alias=alias,
                 es_principal=1 if not Direccion.listar_por_usuario(id_usuario) else 0
             )
-        else:
-            # Validar que la dirección seleccionada pertenezca al usuario
-            dir_existente = Direccion.obtener_por_id(id_direccion)
-            if not dir_existente or dir_existente["id_usuario"] != id_usuario:
-                flash("Dirección no válida", "danger")
-                return redirect(url_for("carrito.checkout"))
 
-        # 2. Resolver Método de Pago
-        opcion_pago = request.form.get("opcion_pago")  # 'guardado' o 'nuevo'
-        id_metodo_pago = request.form.get("id_metodo_pago", type=int)
-
-        if opcion_pago == "nuevo" or not id_metodo_pago:
-            tipo = request.form.get("tipo_pago", "").strip()
-            detalle = request.form.get("detalle_pago", "").strip() or None
-
-            if not tipo:
-                flash("Por favor selecciona un método de pago", "danger")
-                direcciones = Direccion.listar_por_usuario(id_usuario)
-                metodos_pago = MetodoPago.listar_por_usuario(id_usuario)
-                return render_template("carrito/checkout.html", items=items, total=total, direcciones=direcciones, metodos_pago=metodos_pago)
-
+        if tipo == "PayPal":
+            metodos_usuario = MetodoPago.listar_por_usuario(id_usuario)
+            mp_paypal = next((m for m in metodos_usuario if m.get("tipo") == "PayPal"), None)
+            if mp_paypal:
+                id_metodo_pago = mp_paypal["id_metodo_pago"]
+            else:
+                id_metodo_pago = MetodoPago.crear(
+                    id_usuario=id_usuario,
+                    tipo="PayPal",
+                    detalle="Pago en línea con PayPal",
+                    es_predeterminado=1 if not metodos_usuario else 0
+                )
+        elif crear_nuevo_pago:
             id_metodo_pago = MetodoPago.crear(
                 id_usuario=id_usuario,
                 tipo=tipo,
                 detalle=detalle,
                 es_predeterminado=1 if not MetodoPago.listar_por_usuario(id_usuario) else 0
             )
-        else:
-            # Validar que el método de pago seleccionado pertenezca al usuario
-            metodo_existente = MetodoPago.obtener_por_id(id_metodo_pago)
-            if not metodo_existente or metodo_existente["id_usuario"] != id_usuario:
-                flash("Método de pago no válido", "danger")
-                return redirect(url_for("carrito.checkout"))
 
         # 3. Crear pedido completo con transacción atómica
         resultado_pedido = Pedido.crear_con_transaccion(
@@ -270,55 +327,21 @@ def checkout():
 
         id_pedido = resultado_pedido
 
-        # Enviar correo de confirmación del pedido
-        try:
-            pedido = Pedido.obtener_por_id(id_pedido)
-            usuario = Usuario.obtener_por_id(id_usuario)
-            detalles = PedidoDetalle.listar_por_pedido(id_pedido)
+        # Flujo según tipo de pago
+        if tipo == "PayPal":
+            Pago.crear_para_pedido(id_pedido=id_pedido, monto=total, moneda=Config.PAYPAL_CURRENCY)
+            return redirect(url_for("pagos.paypal_checkout", id_pedido=id_pedido))
 
-            direccion_completa = f"{pedido.get('linea_direccion', '')}, {pedido.get('ciudad', '')}"
-            if pedido.get('departamento'):
-                direccion_completa += f", {pedido['departamento']}"
-            if pedido.get('dir_alias'):
-                direccion_completa = f"{pedido['dir_alias']}: {direccion_completa}"
-
-            order_details = {
-                'id_pedido': pedido['id_pedido'],
-                'fecha_creacion': pedido['fecha_pedido'],
-                'nombre_estado': pedido.get('nombre_estado', 'Pendiente'),
-                'total': pedido['total'],
-                'direccion_entrega': direccion_completa,
-                'metodo_pago': pedido.get('tipo_pago', 'No especificado'),
-                'items': []
-            }
-
-            for detalle in detalles:
-                variante = VarianteProducto.obtener_por_id(detalle['id_variante'])
-                producto = Producto.obtener_por_id(variante['id_producto'])
-                item_data = {
-                    'nombre_producto': producto['nombre_producto'],
-                    'presentacion': variante['presentacion'],
-                    'cantidad': detalle['cantidad'],
-                    'precio_unitario': detalle['precio_unitario'],
-                    'subtotal': detalle['subtotal']
-                }
-                order_details['items'].append(item_data)
-
-            send_order_confirmation_email(
-                usuario['email'],
-                usuario['nombre'],
-                order_details
-            )
-
-        except Exception as e:
-            print(f"Error al enviar correo de confirmación: {e}")
-
+        # Efectivo contra entrega: enviar confirmación de inmediato
+        enviar_confirmacion_pedido_por_id(id_pedido, id_usuario)
         flash("¡Tu pedido ha sido confirmado con éxito!", "success")
         return redirect(url_for("carrito.confirmacion", id_pedido=id_pedido))
 
     direcciones = Direccion.listar_por_usuario(id_usuario)
-    metodos_pago = MetodoPago.listar_por_usuario(id_usuario)
+    metodos_guardados = MetodoPago.listar_por_usuario(id_usuario)
+    metodos_pago = [mp for mp in metodos_guardados if mp.get("tipo") in TIPOS_PAGO_CHECKOUT]
     problemas_stock = validar_stock_carrito(items)
+    paypal_disponible = paypal_configurado()
 
     return render_template(
         "carrito/checkout.html",
@@ -326,7 +349,8 @@ def checkout():
         total=total,
         direcciones=direcciones,
         metodos_pago=metodos_pago,
-        problemas_stock=problemas_stock
+        problemas_stock=problemas_stock,
+        paypal_disponible=paypal_disponible,
     )
 
 

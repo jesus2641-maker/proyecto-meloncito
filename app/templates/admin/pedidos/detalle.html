@@ -81,13 +81,19 @@
                     <h2>Estado del Pedido</h2>
                 </div>
                 
+                {% if pedido.id_estado in (4, 5) %}
+                <p class="status-text status-{{ pedido.nombre_estado|replace(' ', '-')|lower }}">
+                    <strong>{{ pedido.nombre_estado|capitalize }}</strong>
+                </p>
+                {% else %}
+                {% set permitidos = {1: (1, 2, 5), 2: (2, 3, 5), 3: (3, 4, 5)}.get(pedido.id_estado, (pedido.id_estado,)) %}
                 <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}" class="premium-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="next" value="{{ url_for('admin.detalle_pedido', id_pedido=pedido.id_pedido) }}">
                     <div class="form-group">
                         <label class="form-label">Modificar Estado</label>
                         <select id="id_estado" name="id_estado" class="filter-select">
-                            {% for est in estados %}
+                            {% for est in estados if est.id_estado in permitidos %}
                             <option value="{{ est.id_estado }}" {% if est.id_estado == pedido.id_estado %}selected{% endif %}>
                                 {{ est.nombre_estado|capitalize }}
                             </option>
@@ -102,6 +108,7 @@
                         Actualizar Estado
                     </button>
                 </form>
+                {% endif %}
             </div>
 
             <!-- DATOS DEL CLIENTE Y ENTREGA -->
@@ -156,10 +163,28 @@
                             <span class="info-label">Tipo</span>
                             <span class="info-value">{{ pedido.tipo_pago or 'No especificado' }}</span>
                         </div>
+                        <div class="info-item">
+                            <span class="info-label">Estado del Pago</span>
+                            <span class="info-value badge {% if pago and pago.estado == 'completado' %}badge-success{% elif pago and pago.estado == 'pendiente' %}badge-warning{% elif pago and pago.estado == 'reembolsado' %}badge-info{% else %}badge-category{% endif %}">
+                                {{ pago.estado|capitalize if pago else 'Pendiente' }}
+                            </span>
+                        </div>
                         {% if pedido.detalle_pago %}
                         <div class="info-item">
                             <span class="info-label">Detalle</span>
                             <span class="info-value">{{ pedido.detalle_pago }}</span>
+                        </div>
+                        {% endif %}
+                        {% if pago and pago.paypal_capture_id %}
+                        <div class="info-item">
+                            <span class="info-label">ID Captura PayPal</span>
+                            <span class="info-value" style="font-family: monospace; font-size: 0.85rem; color: #c5a059;">{{ pago.paypal_capture_id }}</span>
+                        </div>
+                        {% endif %}
+                        {% if pago and pago.paypal_order_id %}
+                        <div class="info-item">
+                            <span class="info-label">ID Orden PayPal</span>
+                            <span class="info-value" style="font-family: monospace; font-size: 0.85rem; color: #9ca3af;">{{ pago.paypal_order_id }}</span>
                         </div>
                         {% endif %}
                     </div>

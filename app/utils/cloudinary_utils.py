@@ -1,10 +1,13 @@
 """
 Utilidades para Cloudinary - Subida y eliminación de imágenes
 """
+import logging
 import os
 import cloudinary
 import cloudinary.uploader
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 def configure_cloudinary():
@@ -31,7 +34,7 @@ def upload_image(file, folder="beerhouse"):
     try:
         # Verificar que las credenciales estén configuradas
         if not Config.CLOUDINARY_CLOUD_NAME or not Config.CLOUDINARY_API_KEY or not Config.CLOUDINARY_API_SECRET:
-            print("Error: Credenciales de Cloudinary no configuradas en .env")
+            logger.warning("Credenciales de Cloudinary no configuradas en .env")
             return None
             
         configure_cloudinary()
@@ -45,7 +48,7 @@ def upload_image(file, folder="beerhouse"):
         file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
         
         if file_ext not in allowed_extensions:
-            print(f"Error: Extension de archivo no permitida: {file_ext}")
+            logger.warning("Extensión de archivo no permitida: %s", file_ext)
             return None
         
         # Subir imagen a Cloudinary
@@ -61,8 +64,8 @@ def upload_image(file, folder="beerhouse"):
             'public_id': result.get('public_id')
         }
         
-    except Exception as e:
-        print(f"Error al subir imagen a Cloudinary: {e}")
+    except Exception:
+        logger.exception("Error al subir imagen a Cloudinary")
         return None
 
 
@@ -85,6 +88,6 @@ def delete_image(public_id):
         result = cloudinary.uploader.destroy(public_id, resource_type='image')
         return result.get('result') == 'ok'
         
-    except Exception as e:
-        print(f"Error al eliminar imagen de Cloudinary: {e}")
+    except Exception:
+        logger.exception("Error al eliminar imagen de Cloudinary")
         return False

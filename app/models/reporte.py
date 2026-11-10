@@ -28,7 +28,7 @@ def _limites(desde, hasta):
 class Reporte:
     @staticmethod
     def resumen_ventas(desde, hasta):
-        """Total vendido, número de pedidos y ticket promedio del rango (sin cancelados)."""
+        """Total vendido, número de pedidos y ticket promedio del rango (sin cancelados ni pagos incompletos)."""
         inicio, fin = _limites(desde, hasta)
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -40,6 +40,10 @@ class Reporte:
             JOIN estados_pedido es ON pe.id_estado = es.id_estado
             WHERE es.nombre_estado <> %s
               AND pe.fecha_pedido >= %s AND pe.fecha_pedido < %s
+              AND (
+                NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido)
+                OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido AND pg.estado = 'completado')
+              )
         """, (ESTADO_CANCELADO, inicio, fin))
         fila = cursor.fetchone()
         cursor.close()
@@ -74,6 +78,10 @@ class Reporte:
             JOIN estados_pedido es ON pe.id_estado = es.id_estado
             WHERE es.nombre_estado <> %s
               AND pe.fecha_pedido >= %s AND pe.fecha_pedido < %s
+              AND (
+                NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido)
+                OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido AND pg.estado = 'completado')
+              )
             GROUP BY DATE_FORMAT(pe.fecha_pedido, '{formato}')
             ORDER BY periodo ASC
         """, (ESTADO_CANCELADO, inicio, fin))
@@ -115,6 +123,10 @@ class Reporte:
             JOIN productos p ON v.id_producto = p.id_producto
             WHERE es.nombre_estado <> %s
               AND pe.fecha_pedido >= %s AND pe.fecha_pedido < %s
+              AND (
+                NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido)
+                OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido AND pg.estado = 'completado')
+              )
             GROUP BY p.id_producto, p.nombre_producto
             ORDER BY unidades DESC, ingresos DESC, producto ASC
             LIMIT %s

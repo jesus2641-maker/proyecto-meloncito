@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Beer House — Premium Spirits{% endblock %}</title>
     <!-- Bootstrap 5 CSS (solo para utilidades de grid y responsive) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -93,21 +94,30 @@
     </header>
 
     <main>
-        {% with mensajes = get_flashed_messages(with_categories=true) %}
-            {% if mensajes %}
-                <div class="container" style="padding-top: 120px;">
-                    {% for categoria, mensaje in mensajes %}
-                        <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Sistema de Notificaciones Personalizado -->
-    <div id="notification-container"></div>
+    <!-- Sistema Unificado de Notificaciones -->
+    <div id="notification-container" class="notification-container flash-messages" aria-live="polite">
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+            {% if mensajes %}
+                {% for categoria, mensaje in mensajes %}
+                    <div class="custom-notification custom-notification-{{ categoria }} flash-message flash-{{ categoria }}" data-auto-close="5000">
+                        <div class="notification-content">
+                            <div class="notification-icon"></div>
+                            <div class="notification-message">{{ mensaje }}</div>
+                            <button type="button" class="notification-close flash-close" aria-label="Cerrar notificación">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <footer class="footer">
         <div class="container">
@@ -171,171 +181,10 @@
                 header.classList.remove('scrolled');
             }
         });
-
-        // Sistema de Notificaciones Personalizado
-        function showNotification(message, type = 'info') {
-            const container = document.getElementById('notification-container');
-            const notification = document.createElement('div');
-
-            notification.className = `custom-notification custom-notification-${type}`;
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <div class="notification-icon">
-                        ${getNotificationIcon(type)}
-                    </div>
-                    <div class="notification-message">${message}</div>
-                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-            `;
-
-            container.appendChild(notification);
-
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                setTimeout(() => notification.remove(), 300);
-            }, 5000);
-        }
-
-        function getNotificationIcon(type) {
-            const icons = {
-                'success': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
-                'error': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
-                'warning': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
-                'info': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
-            };
-            return icons[type] || icons['info'];
-        }
-
-        // Reemplazar alert() con showNotification
-        window.alert = function(message) {
-            showNotification(message, 'info');
-        };
     </script>
 
-    <style>
-        /* Sistema de Notificaciones Personalizado */
-        #notification-container {
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .custom-notification {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            padding: 16px 20px;
-            min-width: 320px;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease-out;
-            transition: opacity 0.3s ease;
-        }
-
-        .custom-notification-success {
-            border-left: 4px solid #10b981;
-        }
-
-        .custom-notification-error {
-            border-left: 4px solid #ef4444;
-        }
-
-        .custom-notification-warning {
-            border-left: 4px solid #f59e0b;
-        }
-
-        .custom-notification-info {
-            border-left: 4px solid var(--gold-primary);
-        }
-
-        .notification-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-        }
-
-        .notification-icon {
-            flex-shrink: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .custom-notification-success .notification-icon {
-            color: #10b981;
-        }
-
-        .custom-notification-error .notification-icon {
-            color: #ef4444;
-        }
-
-        .custom-notification-warning .notification-icon {
-            color: #f59e0b;
-        }
-
-        .custom-notification-info .notification-icon {
-            color: var(--gold-primary);
-        }
-
-        .notification-message {
-            flex: 1;
-            color: var(--text-primary);
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .notification-close {
-            flex-shrink: 0;
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .notification-close:hover {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @media (max-width: 768px) {
-            #notification-container {
-                right: 10px;
-                left: 10px;
-            }
-
-            .custom-notification {
-                min-width: auto;
-                max-width: none;
-            }
-        }
-    </style>
-
+    <!-- Sistema Unificado de Notificaciones y Validaciones -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     <script src="{{ url_for('static', filename='js/menu-movil.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

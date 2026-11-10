@@ -8,7 +8,7 @@ Se fija `hoy` en cada prueba para que no dependan del día en que se corran.
 
 import os
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 # config.py exige SECRET_KEY al importarse; se define un valor de prueba si no hay .env
@@ -149,6 +149,155 @@ class TestGenerarCsv(unittest.TestCase):
 
     def test_sin_filas_solo_encabezados(self):
         self.assertEqual(generar_csv(["a", "b"], []), "a;b\r\n")
+
+
+class TestReportesExclusionPagosPayPal(unittest.TestCase):
+    """
+    Verifica que pedidos con pagos PayPal en estado pendiente o reembolsado
+    NO se contabilicen en las ventas ni en las métricas de reportes o dashboard.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pedidos_creados = []
+        cls.pagos_creados = []
+        cls.usuarios_creados = []
+        cls.direcciones_creadas = []
+        cls.metodos_pago_creados = []
+
+        from app.models.direccion import Direccion
+        from app.models.metodo_pago import MetodoPago
+        from app.models.pago import Pago
+        from app.models.pedido import Pedido
+        from app.utils.db import get_connection
+
+        ts = int(datetime.now().timestamp() * 1000)
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO usuarios (nombre, apellido, email, password_hash, id_rol) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                ("TestRep", "PayPal", f"test_rep_pp_{ts}@beerhouse.test", "hash123", 1),
+            )
+            cls.id_usuario = cur.lastrowid
+            cls.usuarios_creados.append(cls.id_usuario)
+            conn.commit()
+
+            cls.id_direccion = Direccion.crear(
+                id_usuario=cls.id_usuario,
+                linea_direccion="Calle 10 # 20-30",
+                ciudad="Bogotá",
+                alias="Principal",
+            )
+            cls.direcciones_creadas.append(cls.id_direccion)
+
+            cls.id_metodo_pago = MetodoPago.crear(
+                id_usuario=cls.id_usuario,
+                tipo="PayPal",
+                detalle="Pago en línea con PayPal",
+            )
+            cls.metodos_pago_creados.append(cls.id_metodo_pago)
+
+            cls.monto_prueba = Decimal("350.00")
+            cls.id_pedido = Pedido.crear(
+                id_usuario=cls.id_usuario,
+                id_direccion=cls.id_direccion,
+                id_metodo_pago=cls.id_metodo_pago,
+                total=cls.monto_prueba,
+            )
+            cls.pedidos_creados.append(cls.id_pedido)
+
+            cls.id_pago = Pago.crear_para_pedido(
+                id_pedido=cls.id_pedido,
+                monto=cls.monto_prueba,
+                moneda="USD",
+            )
+            cls.pagos_creados.append(cls.id_pago)
+        except Exception:
+            cls.tearDownClass()
+            raise
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def tearDownClass(cls):
+        from app.utils.db import get_connection
+
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            if cls.pagos_creados:
+                ph = ", ".join(["%s"] * len(cls.pagos_creados))
+                cur.execute(f"DELETE FROM pagos WHERE id_pago IN ({ph})", tuple(cls.pagos_creados))
+
+            if cls.pedidos_creados:
+                ph = ", ".join(["%s"] * len(cls.pedidos_creados))
+                cur.execute(f"DELETE FROM pedido_detalle WHERE id_pedido IN ({ph})", tuple(cls.pedidos_creados))
+                cur.execute(f"DELETE FROM pedidos WHERE id_pedido IN ({ph})", tuple(cls.pedidos_creados))
+
+            if cls.metodos_pago_creados:
+                ph = ", ".join(["%s"] * len(cls.metodos_pago_creados))
+                cur.execute(f"DELETE FROM metodos_pago WHERE id_metodo_pago IN ({ph})", tuple(cls.metodos_pago_creados))
+
+            if cls.direcciones_creadas:
+                ph = ", ".join(["%s"] * len(cls.direcciones_creadas))
+                cur.execute(f"DELETE FROM direcciones WHERE id_direccion IN ({ph})", tuple(cls.direcciones_creadas))
+
+            if cls.usuarios_creados:
+                ph = ", ".join(["%s"] * len(cls.usuarios_creados))
+                cur.execute(f"DELETE FROM usuarios WHERE id_usuario IN ({ph})", tuple(cls.usuarios_creados))
+
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def test_pedido_paypal_pendiente_no_suma_a_ventas(self):
+        from app.models.pago import Pago
+        from app.models.pedido import Pedido
+        from app.models.reporte import Reporte
+
+        hoy = date.today()
+        desde = hoy - timedelta(days=1)
+        hasta = hoy + timedelta(days=1)
+
+        # 1. Pago en estado pendiente: NO debe sumar a ventas ni a pedidos completados
+        resumen_inicial = Reporte.resumen_ventas(desde, hasta)
+        metricas_inicial = Pedido.obtener_metricas_dashboard()
+
+        # 2. Confirmar captura (pasa a completado): ahora SÍ debe sumar a ventas
+        Pago.confirmar_captura(
+            id_pedido=self.id_pedido,
+            order_id="ORD-TEST-REP",
+            capture_id="CAP-TEST-REP",
+            monto=self.monto_prueba,
+            moneda="USD",
+        )
+        resumen_completado = Reporte.resumen_ventas(desde, hasta)
+        metricas_completado = Pedido.obtener_metricas_dashboard()
+
+        self.assertEqual(
+            round(resumen_completado["total_vendido"] - resumen_inicial["total_vendido"], 2),
+            float(self.monto_prueba),
+        )
+        self.assertEqual(
+            resumen_completado["num_pedidos"] - resumen_inicial["num_pedidos"],
+            1,
+        )
+        self.assertEqual(
+            Decimal(str(metricas_completado["total_ventas"])) - Decimal(str(metricas_inicial["total_ventas"])),
+            self.monto_prueba,
+        )
+
+        # 3. Marcar pago como reembolsado: NO debe sumar a ventas
+        Pago.marcar(self.id_pedido, Pago.ESTADO_REEMBOLSADO)
+        resumen_reembolsado = Reporte.resumen_ventas(desde, hasta)
+        metricas_reembolsado = Pedido.obtener_metricas_dashboard()
+
+        self.assertEqual(resumen_reembolsado["total_vendido"], resumen_inicial["total_vendido"])
+        self.assertEqual(metricas_reembolsado["total_ventas"], metricas_inicial["total_ventas"])
 
 
 if __name__ == "__main__":

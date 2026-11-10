@@ -4,10 +4,43 @@ Este módulo maneja la lógica de pedidos, incluyendo creación con transaccione
 gestión de estados y detalles de pedidos. Integra control de stock atómico.
 """
 
+import logging
 from app.utils.db import get_connection
+
+logger = logging.getLogger(__name__)
+
+ESTADO_PENDIENTE = 1
+ESTADO_CONFIRMADO = 2
+ESTADO_EN_CAMINO = 3
+ESTADO_ENTREGADO = 4
+ESTADO_CANCELADO = 5
+
+NOMBRES_ESTADO = {
+    ESTADO_PENDIENTE: "pendiente",
+    ESTADO_CONFIRMADO: "confirmado",
+    ESTADO_EN_CAMINO: "en camino",
+    ESTADO_ENTREGADO: "entregado",
+    ESTADO_CANCELADO: "cancelado",
+}
+
+TRANSICIONES_PERMITIDAS = {
+    ESTADO_PENDIENTE: [ESTADO_CONFIRMADO, ESTADO_CANCELADO],
+    ESTADO_CONFIRMADO: [ESTADO_EN_CAMINO, ESTADO_CANCELADO],
+    ESTADO_EN_CAMINO: [ESTADO_ENTREGADO, ESTADO_CANCELADO],
+    ESTADO_ENTREGADO: [],
+    ESTADO_CANCELADO: [],
+}
 
 
 class Pedido:
+    ESTADO_PENDIENTE = ESTADO_PENDIENTE
+    ESTADO_CONFIRMADO = ESTADO_CONFIRMADO
+    ESTADO_EN_CAMINO = ESTADO_EN_CAMINO
+    ESTADO_ENTREGADO = ESTADO_ENTREGADO
+    ESTADO_CANCELADO = ESTADO_CANCELADO
+    NOMBRES_ESTADO = NOMBRES_ESTADO
+    TRANSICIONES_PERMITIDAS = TRANSICIONES_PERMITIDAS
+
     @staticmethod
     def crear(id_usuario, id_direccion, id_metodo_pago, total):
         conn = get_connection()
@@ -44,12 +77,9 @@ class Pedido:
         Returns:
             id_pedido si se crea exitosamente, None o dict de error si falla
         """
-        from app.models.producto import VarianteProducto
-        from app.models.carrito import CarritoItem
-        
         conn = get_connection()
         cursor = conn.cursor()
-        
+
         try:
             # BEGIN TRANSACTION
             conn.start_transaction()
@@ -60,10 +90,9 @@ class Pedido:
                 VALUES (%s, %s, %s, %s)
             """, (id_usuario, id_direccion, id_metodo_pago, total))
             id_pedido = cursor.lastrowid
-            
+
             # 2. Verificar y descontar stock de cada item en una sola operación atómica
             for item in items:
-                # Intentar descontar stock solo si hay suficiente cantidad disponible
                 cursor.execute(
                     "UPDATE variantes_producto SET stock = stock - %s WHERE id_variante = %s AND stock >= %s",
                     (item["cantidad"], item["id_variante"], item["cantidad"])
@@ -71,8 +100,6 @@ class Pedido:
 
                 # Verificar si se actualizó alguna fila
                 if cursor.rowcount == 0:
-                    # No se pudo descontar porque no hay suficiente stock
-                    # Obtener el stock actual para el mensaje de error
                     cursor.execute(
                         "SELECT stock FROM variantes_producto WHERE id_variante = %s",
                         (item["id_variante"],)
@@ -83,7 +110,6 @@ class Pedido:
                     cursor.close()
                     conn.close()
 
-                    # Retornar información del error para mostrar mensaje específico
                     error_info = {
                         'error': 'stock_insuficiente',
                         'id_variante': item.get("id_variante"),
@@ -93,36 +119,33 @@ class Pedido:
                         'presentacion': item.get("presentacion", "")
                     }
                     return error_info
-            
+
             # 3. Crear detalles del pedido
             for item in items:
-                # Usar precio de oferta si está disponible, si no el precio original
                 precio_final = item.get("precio_oferta") if item.get("precio_oferta") else item["precio"]
                 cursor.execute("""
                     INSERT INTO pedido_detalle (id_pedido, id_variante, cantidad, precio_unitario)
                     VALUES (%s, %s, %s, %s)
                 """, (id_pedido, item["id_variante"], item["cantidad"], precio_final))
-            
+
             # 4. Vaciar carrito
-            id_carrito = None
             cursor.execute("SELECT id_carrito FROM carritos WHERE id_usuario = %s", (id_usuario,))
             result = cursor.fetchone()
             if result:
                 id_carrito = result[0]
                 cursor.execute("DELETE FROM carrito_items WHERE id_carrito = %s", (id_carrito,))
-            
+
             # COMMIT
             conn.commit()
             cursor.close()
             conn.close()
             return id_pedido
-            
-        except Exception as e:
-            # ROLLBACK en caso de error
+
+        except Exception:
             conn.rollback()
             cursor.close()
             conn.close()
-            print(f"Error en transacción de pedido: {e}")
+            logger.exception("Error en transacción de pedido")
             return None
 
     @staticmethod
@@ -198,45 +221,56 @@ class Pedido:
     @staticmethod
     def actualizar_estado(id_pedido, id_estado):
         """
-        Actualiza el estado de un pedido con validación de transición.
-        Si se cancela, devuelve el stock al inventario.
+        Actualiza el estado de un pedido con bloqueo FOR UPDATE y validación de transición.
+        Si pasa a cancelado desde un estado válido, devuelve el stock al inventario una sola vez.
         """
-        from app.models.producto import VarianteProducto
-        from app.models.pedido import PedidoDetalle
-        
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         try:
-            # Obtener estado actual
-            cursor.execute("SELECT id_estado FROM pedidos WHERE id_pedido = %s", (id_pedido,))
+            conn.start_transaction()
+
+            # Bloquear la fila del pedido para evitar cancelaciones simultáneas
+            cursor.execute(
+                "SELECT id_estado FROM pedidos WHERE id_pedido = %s FOR UPDATE",
+                (id_pedido,)
+            )
             pedido = cursor.fetchone()
-            
+
             if not pedido:
                 raise ValueError("Pedido no encontrado")
-            
+
             id_estado_actual = pedido["id_estado"]
-            
-            # Temporalmente desactivar validación de transiciones para depuración
-            # if not Pedido.transicion_estado_valida(id_estado_actual, id_estado):
-            #     raise ValueError(f"Transición inválida: estado {id_estado_actual} → {id_estado}")
-            
-            # Si se está cancelando, devolver stock
-            if id_estado == 5:  # cancelado
-                # Obtener detalles del pedido
-                detalles = PedidoDetalle.listar_por_pedido(id_pedido)
-                
+
+            if id_estado == id_estado_actual:
+                raise ValueError("El pedido ya está en ese estado")
+
+            if not Pedido.transicion_estado_valida(id_estado_actual, id_estado):
+                nombre_actual = NOMBRES_ESTADO.get(id_estado_actual, str(id_estado_actual))
+                nombre_nuevo = NOMBRES_ESTADO.get(id_estado, str(id_estado))
+                raise ValueError(f"No se puede cambiar un pedido de {nombre_actual} a {nombre_nuevo}")
+
+            # Si se está cancelando, devolver stock dentro de la misma transacción
+            if id_estado == ESTADO_CANCELADO:
+                cursor.execute(
+                    "SELECT id_variante, cantidad FROM pedido_detalle WHERE id_pedido = %s",
+                    (id_pedido,)
+                )
+                detalles = cursor.fetchall()
+
                 for detalle in detalles:
-                    # Devolver stock de cada variante
                     cursor.execute(
                         "UPDATE variantes_producto SET stock = stock + %s WHERE id_variante = %s",
                         (detalle["cantidad"], detalle["id_variante"])
                     )
-            
+
             # Actualizar estado
-            cursor.execute("UPDATE pedidos SET id_estado = %s WHERE id_pedido = %s", (id_estado, id_pedido))
+            cursor.execute(
+                "UPDATE pedidos SET id_estado = %s WHERE id_pedido = %s",
+                (id_estado, id_pedido)
+            )
             conn.commit()
-            
+
         except Exception as e:
             conn.rollback()
             raise e
@@ -247,26 +281,25 @@ class Pedido:
     @staticmethod
     def transicion_estado_valida(id_estado_actual, id_estado_nuevo):
         """
-        Verifica si la transición de estado es válida.
-        
-        Transiciones válidas:
-        - pendiente → confirmado
-        - pendiente → cancelado
-        - confirmado → en camino
-        - confirmado → cancelado
-        - en camino → entregado
-        - en camino → cancelado
+        Verifica si la transición de estado es válida:
+        - pendiente (1) → confirmado (2), cancelado (5)
+        - confirmado (2) → en camino (3), cancelado (5)
+        - en camino (3) → entregado (4), cancelado (5)
+        - entregado (4) → ninguno
+        - cancelado (5) → ninguno
         """
-        # Transiciones permitidas: (estado_actual, estado_nuevo)
-        transiciones_permitidas = {
-            1: [2, 5],  # pendiente → confirmado, cancelado
-            2: [3, 5],  # confirmado → en camino, cancelado
-            3: [4, 5],  # en camino → entregado, cancelado
-            4: [],     # entregado → no permite cambios
-            5: []      # cancelado → no permite cambios
-        }
-        
-        return id_estado_nuevo in transiciones_permitidas.get(id_estado_actual, [])
+        return id_estado_nuevo in TRANSICIONES_PERMITIDAS.get(id_estado_actual, [])
+
+    @staticmethod
+    def ids_estados_permitidos_select(id_estado_actual, permitir_cancelar=True):
+        """
+        Devuelve la lista de id_estado que debe mostrar el <select> para un pedido:
+        el estado actual más los estados siguientes válidos.
+        """
+        siguientes = TRANSICIONES_PERMITIDAS.get(id_estado_actual, [])
+        if not permitir_cancelar:
+            siguientes = [s for s in siguientes if s != ESTADO_CANCELADO]
+        return [id_estado_actual] + siguientes
 
     @staticmethod
     def eliminar(id_pedido):
@@ -274,9 +307,7 @@ class Pedido:
         conn = get_connection()
         cursor = conn.cursor()
         try:
-            # Primero eliminar los detalles del pedido
             cursor.execute("DELETE FROM pedido_detalle WHERE id_pedido = %s", (id_pedido,))
-            # Luego eliminar el pedido
             cursor.execute("DELETE FROM pedidos WHERE id_pedido = %s", (id_pedido,))
             conn.commit()
         except Exception as e:
@@ -301,17 +332,29 @@ class Pedido:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 1. Total ventas (excluyendo cancelados)
-        cursor.execute("SELECT COALESCE(SUM(total), 0) AS total_ventas FROM pedidos WHERE id_estado != 5")
+        # 1. Total ventas y total de pedidos (excluyendo cancelados y pagos incompletos/reembolsados)
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(pe.total), 0) AS total_ventas,
+                   COUNT(pe.id_pedido) AS total_pedidos
+            FROM pedidos pe
+            WHERE pe.id_estado != %s
+              AND (
+                NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido)
+                OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_pedido = pe.id_pedido AND pg.estado = 'completado')
+              )
+            """,
+            (ESTADO_CANCELADO,)
+        )
         ventas_row = cursor.fetchone()
         total_ventas = ventas_row["total_ventas"] if ventas_row else 0
-
-        # 2. Total de pedidos
-        cursor.execute("SELECT COUNT(*) AS total_pedidos FROM pedidos")
-        total_pedidos = cursor.fetchone()["total_pedidos"]
+        total_pedidos = ventas_row["total_pedidos"] if ventas_row else 0
 
         # 3. Pedidos pendientes
-        cursor.execute("SELECT COUNT(*) AS pedidos_pendientes FROM pedidos WHERE id_estado = 1")
+        cursor.execute(
+            "SELECT COUNT(*) AS pedidos_pendientes FROM pedidos WHERE id_estado = %s",
+            (ESTADO_PENDIENTE,)
+        )
         pedidos_pendientes = cursor.fetchone()["pedidos_pendientes"]
 
         # 4. Total productos

@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime
 from decimal import Decimal
 from app.utils.db import get_connection
+
+logger = logging.getLogger(__name__)
 
 
 class Compra:
@@ -110,14 +113,14 @@ class Compra:
 
             # D. Insertar detalles y actualizar stock sumando las cantidades
             for it in items_procesados:
-                print(f"DEBUG COMPRAS: Procesando item - variante: {it['id_variante']}, cantidad: {it['cantidad']}")
+                logger.debug("Procesando item de compra: variante=%s, cantidad=%s", it["id_variante"], it["cantidad"])
 
                 # Insertar detalle de compra
                 cursor.execute("""
                     INSERT INTO compra_detalle (id_compra, id_variante, cantidad, precio_unitario, subtotal)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (id_compra, it["id_variante"], it["cantidad"], it["precio_unitario"], it["subtotal"]))
-                print(f"DEBUG COMPRAS: Detalle insertado para variante {it['id_variante']}")
+                logger.debug("Detalle de compra insertado para variante %s", it["id_variante"])
 
                 # Actualizar automáticamente el stock en variantes_producto
                 cursor.execute("""
@@ -125,7 +128,7 @@ class Compra:
                     SET stock = stock + %s
                     WHERE id_variante = %s
                 """, (it["cantidad"], it["id_variante"]))
-                print(f"DEBUG COMPRAS: Stock actualizado - filas afectadas: {cursor.rowcount}")
+                logger.debug("Stock actualizado en compra: filas afectadas=%s", cursor.rowcount)
 
                 if cursor.rowcount == 0:
                     raise RuntimeError(f"No fue posible actualizar el stock de la variante {it['id_variante']}.")

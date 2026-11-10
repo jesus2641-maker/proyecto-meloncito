@@ -144,17 +144,22 @@
                         <td class="table-amount">${{ "{:,.0f}".format(ped.total) }}</td>
                         <td>{{ ped.tipo_pago or '—' }}</td>
                         <td>
+                            {% if ped.id_estado in (4, 5) %}
+                            <span class="status-text status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">{{ ped.nombre_estado|capitalize }}</span>
+                            {% else %}
+                            {% set permitidos = {1: (1, 2, 5), 2: (2, 3, 5), 3: (3, 4, 5)}.get(ped.id_estado, (ped.id_estado,)) %}
                             <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="next" value="{{ request.path }}">
                                 <select name="id_estado" onchange="this.form.submit()" class="status-select status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">
-                                    {% for est in estados %}
+                                    {% for est in estados if est.id_estado in permitidos %}
                                     <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
                                         {{ est.nombre_estado|capitalize }}
                                     </option>
                                     {% endfor %}
                                 </select>
                             </form>
+                            {% endif %}
                         </td>
                         <td>
                             <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Detalle</a>

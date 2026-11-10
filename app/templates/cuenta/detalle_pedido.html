@@ -7,6 +7,28 @@
     <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn-link">&larr; Volver a Mis Pedidos</a>
 </div>
 
+{% if pedido.id_estado == 1 and pago and pago.estado == 'pendiente' %}
+<div class="alert alert-warning">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; width: 100%;">
+        <div>
+            <strong style="display: block; font-size: 1.05rem; margin-bottom: 4px; color: #fff;">Pago pendiente con PayPal</strong>
+            <span>Tienes 30 minutos desde la creación del pedido para completar tu pago y asegurar tu reserva de stock.</span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{{ url_for('pagos.paypal_checkout', id_pedido=pedido.id_pedido) }}" class="btn btn-primary" style="padding: 9px 18px; font-weight: 600;">
+                Pagar ahora con PayPal
+            </a>
+            <form method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline" style="padding: 9px 16px; color: #ef4444; border-color: rgba(239, 68, 68, 0.5);" onclick="return confirm('¿Seguro que deseas cancelar este pedido? Se liberará el stock reservado.');">
+                    Cancelar pedido
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="bh-order-card">
     <div class="bh-order-header">
         <div>
@@ -41,6 +63,18 @@
             <p>
                 {{ pedido.tipo_pago or 'No especificado' }}
                 {% if pedido.detalle_pago %} ({{ pedido.detalle_pago }}){% endif %}
+            </p>
+        </div>
+        <div>
+            <span class="bh-meta-label">Estado del Pago:</span>
+            <p>
+                {% if pago %}
+                    <span class="bh-badge-tag" style="{% if pago.estado == 'completado' %}background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);{% elif pago.estado == 'pendiente' %}background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);{% elif pago.estado == 'reembolsado' %}background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);{% else %}background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);{% endif %} padding: 3px 8px; border-radius: 4px;">
+                        {{ pago.estado|capitalize }}
+                    </span>
+                {% else %}
+                    <span class="bh-badge-tag" style="padding: 3px 8px; border-radius: 4px;">Pendiente</span>
+                {% endif %}
             </p>
         </div>
     </div>

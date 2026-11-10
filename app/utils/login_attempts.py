@@ -3,6 +3,7 @@ Helper para controlar intentos de login
 Mantiene un registro en memoria de intentos fallidos por IP+email
 """
 
+import math
 import time
 from collections import defaultdict
 
@@ -69,5 +70,5 @@ def get_remaining_time(ip, email):
         if attempts_data['intentos'] >= MAX_ATTEMPTS:
             elapsed = time.time() - attempts_data['ultimo_intento']
             remaining = BLOCK_TIME - elapsed
-            return max(0, int(remaining))
+            return max(0, math.ceil(remaining))
     return 0

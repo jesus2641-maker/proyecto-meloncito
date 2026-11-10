@@ -2,9 +2,12 @@
 Servicio de envío de correos electrónicos utilizando Brevo API
 Usa datos JSON transaccionales para los templates de Brevo.
 """
+import logging
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 def configure_brevo():
@@ -21,11 +24,11 @@ def send_email(to_email, subject, html_content, sender_name=None, sender_email=N
     """
     try:
         if not Config.BREVO_API_KEY:
-            print("Error: API Key de Brevo no configurada en .env")
+            logger.warning("API Key de Brevo no configurada en .env")
             return False
 
         if not to_email or not subject or not html_content:
-            print("Error: Faltan parámetros obligatorios para enviar correo")
+            logger.warning("Faltan parámetros obligatorios para enviar correo")
             return False
 
         api_instance = configure_brevo()
@@ -41,16 +44,14 @@ def send_email(to_email, subject, html_content, sender_name=None, sender_email=N
         )
 
         api_instance.send_transac_email(smtp_email)
-        print(f"Correo enviado exitosamente a {to_email}")
+        logger.info("Correo directo enviado exitosamente")
         return True
 
-    except ApiException as e:
-        print(f"Error de API de Brevo: {e}")
-        if e.body:
-            print(f"Detalles del error: {e.body}")
+    except ApiException:
+        logger.exception("Error de API de Brevo al enviar correo directo")
         return False
-    except Exception as e:
-        print(f"Error al enviar correo: {e}")
+    except Exception:
+        logger.exception("Error al enviar correo directo")
         return False
 
 
@@ -69,20 +70,16 @@ def send_email_template(to_email, to_name, template_id, params):
         bool: True si el envío fue exitoso, False en caso contrario
     """
     try:
-        print(f"DEBUG: Iniciando envío de correo con template {template_id}")
-        print(f"DEBUG: Para: {to_email} ({to_name})")
-        print(f"DEBUG: Parámetros: {params}")
-        
+        logger.debug("Iniciando envío de correo con template %s", template_id)
+
         if not Config.BREVO_API_KEY:
-            print("Error: API Key de Brevo no configurada en .env")
+            logger.warning("API Key de Brevo no configurada en .env")
             return False
 
         api_instance = configure_brevo()
 
         sender_name = Config.BREVO_SENDER_NAME or "Beer House"
         sender_email = Config.BREVO_SENDER_EMAIL or "noreply@beerhouse.com"
-        
-        print(f"DEBUG: Remitente: {sender_name} <{sender_email}>")
 
         smtp_email = sib_api_v3_sdk.SendSmtpEmail(
             to=[{"email": to_email, "name": to_name}],
@@ -91,20 +88,15 @@ def send_email_template(to_email, to_name, template_id, params):
             params=params          # <-- aquí van los datos JSON transaccionales
         )
 
-        result = api_instance.send_transac_email(smtp_email)
-        print(f"Correo (template {template_id}) enviado exitosamente a {to_email}")
-        print(f"DEBUG: Resultado de Brevo: {result}")
+        api_instance.send_transac_email(smtp_email)
+        logger.info("Correo (template %s) enviado exitosamente", template_id)
         return True
 
-    except ApiException as e:
-        print(f"Error de API de Brevo: {e}")
-        if e.body:
-            print(f"Detalles del error: {e.body}")
+    except ApiException:
+        logger.exception("Error de API de Brevo al enviar template %s", template_id)
         return False
-    except Exception as e:
-        print(f"Error al enviar correo: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logger.exception("Error al enviar correo con template %s", template_id)
         return False
 
 
@@ -121,7 +113,7 @@ def send_welcome_email(user_email, user_name):
     Correo de bienvenida al registrarse.
     Variables que usa el template: {{ params.nombre_cliente }}
     """
-    print(f"DEBUG: send_welcome_email llamado con template_id={TEMPLATE_BIENVENIDA}")
+    logger.debug("send_welcome_email llamado con template_id=%s", TEMPLATE_BIENVENIDA)
     return send_email_template(
         to_email=user_email,
         to_name=user_name,
@@ -153,9 +145,8 @@ def send_order_confirmation_email(user_email, user_name, order_details):
         {{ item.subtotal }}
       {% endfor %}
     """
-    # Preparar items con subtotal ya formateado
-    print(f"DEBUG: send_order_confirmation_email - TEMPLATE_CONFIRMACION = {TEMPLATE_CONFIRMACION}")
-    
+    logger.debug("send_order_confirmation_email con template_id=%s", TEMPLATE_CONFIRMACION)
+
     items = []
     for item in order_details.get("items", []):
         precio = item.get("precio_unitario", item.get("precio", 0))
@@ -209,3 +200,61 @@ def send_order_status_update_email(user_email, user_name, order_id, new_status):
             "url_pedido":     f"http://127.0.0.1:5000/carrito/confirmacion/{order_id}"
         }
     )
+
+
+def enviar_confirmacion_pedido_por_id(id_pedido, id_usuario=None):
+    """
+    Construye los detalles del pedido y envía el correo de confirmación.
+    Devuelve True si se envió correctamente o si no hubo error crítico.
+    """
+    try:
+        from app.models.pedido import Pedido, PedidoDetalle
+        from app.models.usuario import Usuario
+        from app.models.producto import Producto, VarianteProducto
+
+        pedido = Pedido.obtener_por_id(id_pedido)
+        if not pedido:
+            return False
+
+        user_id = id_usuario or pedido.get("id_usuario")
+        usuario = Usuario.obtener_por_id(user_id) if user_id else None
+        if not usuario or not usuario.get("email"):
+            return False
+
+        detalles = PedidoDetalle.listar_por_pedido(id_pedido)
+        direccion_completa = f"{pedido.get('linea_direccion', '')}, {pedido.get('ciudad', '')}"
+        if pedido.get("departamento"):
+            direccion_completa += f", {pedido['departamento']}"
+        if pedido.get("dir_alias"):
+            direccion_completa = f"{pedido['dir_alias']}: {direccion_completa}"
+
+        order_details = {
+            "id_pedido": pedido["id_pedido"],
+            "fecha_creacion": pedido.get("fecha_pedido"),
+            "nombre_estado": pedido.get("nombre_estado", "Pendiente"),
+            "total": pedido.get("total", 0),
+            "direccion_entrega": direccion_completa,
+            "metodo_pago": pedido.get("tipo_pago", "No especificado"),
+            "items": [],
+        }
+
+        for detalle in detalles:
+            variante = VarianteProducto.obtener_por_id(detalle["id_variante"])
+            producto = Producto.obtener_por_id(variante["id_producto"]) if variante else None
+            item_data = {
+                "nombre_producto": producto["nombre_producto"] if producto else "",
+                "presentacion": variante["presentacion"] if variante else "",
+                "cantidad": detalle["cantidad"],
+                "precio_unitario": detalle["precio_unitario"],
+                "subtotal": detalle["subtotal"],
+            }
+            order_details["items"].append(item_data)
+
+        return send_order_confirmation_email(
+            usuario["email"],
+            usuario["nombre"],
+            order_details,
+        )
+    except Exception:
+        logger.exception("Error al enviar correo de confirmación para pedido %s", id_pedido)
+        return False

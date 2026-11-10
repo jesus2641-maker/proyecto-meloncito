@@ -99,56 +99,227 @@
         <div class="checkout-section">
             <div class="section-header">
                 <div class="step-number">2</div>
-                <h2>Método de Pago</h2>
+                <div class="section-header-content">
+                    <h2>Método de Pago</h2>
+                    <p class="section-header-subtitle">Selecciona tu forma de pago preferida para tu orden</p>
+                </div>
             </div>
 
-            {% if metodos_pago %}
-            <div class="saved-options">
-                <p class="form-helper">Selecciona uno de tus métodos de pago guardados:</p>
-                {% for mp in metodos_pago %}
-                <label class="option-card">
-                    <input type="radio" name="opcion_pago" value="guardado" {% if loop.first %}checked{% endif %} onchange="toggleNuevoPago(false)">
-                    <input type="radio" name="id_metodo_pago" value="{{ mp.id_metodo_pago }}" {% if loop.first %}checked{% endif %} style="display:none;" id="mp_radio_{{ mp.id_metodo_pago }}">
-                    <div class="option-content" onclick="document.getElementById('mp_radio_{{ mp.id_metodo_pago }}').checked = true;">
-                        <div class="option-header">
-                            <strong>{{ mp.tipo }}</strong>
-                            {% if mp.es_predeterminado %}
-                            <span class="badge badge-category">Predeterminado</span>
-                            {% endif %}
+            <!-- Recuadro unificado de métodos de pago con diseño premium permanente -->
+            <div id="payment-selection-box" class="checkout-payment-box">
+                <!-- Encabezado con icono discreto, título y descripción -->
+                <div class="checkout-payment-header">
+                    <div class="checkout-payment-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="checkout-payment-heading">
+                        <h3 class="form-section-title checkout-payment-title">Selecciona tu método de pago</h3>
+                        <p class="checkout-payment-desc">Elige la opción con la que prefieres pagar. Transacciones cifradas y protegidas.</p>
+                    </div>
+                </div>
+
+                {% if metodos_pago %}
+                <!-- Métodos de pago guardados (renderizados con tarjetas premium) -->
+                <div class="checkout-saved-section">
+                    <p class="checkout-payment-section-label">Tus métodos de pago guardados:</p>
+                    <div class="checkout-payment-options" role="radiogroup" aria-label="Métodos de pago guardados">
+                        {% for mp in metodos_pago %}
+                        <div class="checkout-payment-card {% if loop.first %}is-selected{% endif %}"
+                             id="card-mp-{{ mp.id_metodo_pago }}"
+                             data-option-type="guardado"
+                             data-id-mp="{{ mp.id_metodo_pago }}"
+                             data-method="{{ mp.tipo }}"
+                             role="radio"
+                             aria-checked="{% if loop.first %}true{% else %}false{% endif %}"
+                             tabindex="0"
+                             onclick="seleccionarMetodoGuardado({{ mp.id_metodo_pago }}, '{{ mp.tipo }}')"
+                             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();seleccionarMetodoGuardado({{ mp.id_metodo_pago }}, '{{ mp.tipo }}');}">
+                            <div class="checkout-payment-card-top">
+                                <div class="checkout-payment-card-icon {% if mp.tipo == 'PayPal' %}paypal-icon{% else %}cash-icon{% endif %}" aria-hidden="true">
+                                    {% if mp.tipo == 'PayPal' %}
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.789.789 0 0 1 .78-.663h6.812c2.404 0 4.295.539 5.342 1.517 1.05.98 1.488 2.457 1.233 4.158-.02.13-.045.266-.073.407-.635 3.197-2.735 4.887-5.914 4.887h-2.12c-.417 0-.766.304-.83.717l-.898 5.674a.64.64 0 0 1-.632.54h-1.568z"/>
+                                    </svg>
+                                    {% else %}
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                                        <circle cx="12" cy="12" r="2"></circle>
+                                        <path d="M6 12h.01M18 12h.01"></path>
+                                    </svg>
+                                    {% endif %}
+                                </div>
+                                <div class="checkout-payment-card-radio" aria-hidden="true">
+                                    <span class="checkout-radio-dot"></span>
+                                </div>
+                            </div>
+                            <div class="checkout-payment-card-body">
+                                <div class="checkout-payment-card-title-row">
+                                    <span class="checkout-payment-card-title">{{ mp.tipo }}</span>
+                                    {% if mp.es_predeterminado %}
+                                    <span class="checkout-payment-badge badge-recommended">Predeterminado</span>
+                                    {% else %}
+                                    <span class="checkout-payment-badge badge-saved">Guardado</span>
+                                    {% endif %}
+                                </div>
+                                <p class="checkout-payment-card-desc">{{ mp.detalle or 'Método guardado en tu cuenta para agilizar tu compra.' }}</p>
+                            </div>
                         </div>
-                        {% if mp.detalle %}
-                        <p class="option-desc">{{ mp.detalle }}</p>
-                        {% endif %}
-                    </div>
-                </label>
-                {% endfor %}
+                        {% endfor %}
 
-                <label class="option-card option-new">
+                        <!-- Tarjeta para alternar a otro método de pago -->
+                        <div class="checkout-payment-card checkout-payment-card-new"
+                             id="card-opcion-nuevo"
+                             data-option-type="nuevo-toggle"
+                             role="radio"
+                             aria-checked="false"
+                             tabindex="0"
+                             onclick="mostrarNuevoPago()"
+                             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mostrarNuevoPago();}">
+                            <div class="checkout-payment-card-top">
+                                <div class="checkout-payment-card-icon plus-icon" aria-hidden="true">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </div>
+                                <div class="checkout-payment-card-radio" aria-hidden="true">
+                                    <span class="checkout-radio-dot"></span>
+                                </div>
+                            </div>
+                            <div class="checkout-payment-card-body">
+                                <div class="checkout-payment-card-title-row">
+                                    <span class="checkout-payment-card-title">Usar otro método</span>
+                                    <span class="checkout-payment-badge badge-new-tag">+ Otro</span>
+                                </div>
+                                <p class="checkout-payment-card-desc">Paga con Efectivo contra entrega o PayPal para este pedido.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Opciones de nuevo método de pago (siempre con el diseño premium) -->
+                <div id="nuevo-pago-fields" class="checkout-new-methods-wrap" style="{% if metodos_pago %}display: none;{% endif %}">
+                    {% if metodos_pago %}
+                    <p class="checkout-payment-section-label">Opciones de pago disponibles:</p>
+                    {% endif %}
+                    <div class="checkout-payment-options" role="radiogroup" aria-label="Opciones de pago">
+                        <!-- Opción 1: Efectivo contra entrega -->
+                        <div class="checkout-payment-card {% if not metodos_pago %}is-selected{% endif %}"
+                             id="card-efectivo"
+                             data-option-type="nuevo"
+                             data-method="Efectivo contra entrega"
+                             role="radio"
+                             aria-checked="{% if not metodos_pago %}true{% else %}false{% endif %}"
+                             tabindex="0"
+                             onclick="seleccionarNuevoMetodo('Efectivo contra entrega')"
+                             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();seleccionarNuevoMetodo('Efectivo contra entrega');}">
+                            <div class="checkout-payment-card-top">
+                                <div class="checkout-payment-card-icon cash-icon" aria-hidden="true">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                                        <circle cx="12" cy="12" r="2"></circle>
+                                        <path d="M6 12h.01M18 12h.01"></path>
+                                    </svg>
+                                </div>
+                                <div class="checkout-payment-card-radio" aria-hidden="true">
+                                    <span class="checkout-radio-dot"></span>
+                                </div>
+                            </div>
+                            <div class="checkout-payment-card-body">
+                                <div class="checkout-payment-card-title-row">
+                                    <span class="checkout-payment-card-title">Efectivo contra entrega</span>
+                                    <span class="checkout-payment-badge badge-recommended">Recomendado</span>
+                                </div>
+                                <p class="checkout-payment-card-desc">Paga en efectivo al repartidor al momento de recibir tus productos.</p>
+                            </div>
+                        </div>
+
+                        <!-- Opción 2: PayPal -->
+                        <div class="checkout-payment-card {% if not paypal_disponible %}is-disabled{% endif %}"
+                             id="card-paypal"
+                             data-option-type="nuevo"
+                             data-method="PayPal"
+                             role="radio"
+                             aria-checked="false"
+                             tabindex="{% if paypal_disponible %}0{% else %}-1{% endif %}"
+                             onclick="{% if paypal_disponible %}seleccionarNuevoMetodo('PayPal'){% endif %}"
+                             onkeydown="{% if paypal_disponible %}if(event.key==='Enter'||event.key===' '){event.preventDefault();seleccionarNuevoMetodo('PayPal');}{% endif %}">
+                            <div class="checkout-payment-card-top">
+                                <div class="checkout-payment-card-icon paypal-icon" aria-hidden="true">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.789.789 0 0 1 .78-.663h6.812c2.404 0 4.295.539 5.342 1.517 1.05.98 1.488 2.457 1.233 4.158-.02.13-.045.266-.073.407-.635 3.197-2.735 4.887-5.914 4.887h-2.12c-.417 0-.766.304-.83.717l-.898 5.674a.64.64 0 0 1-.632.54h-1.568z"/>
+                                    </svg>
+                                </div>
+                                <div class="checkout-payment-card-radio" aria-hidden="true">
+                                    <span class="checkout-radio-dot"></span>
+                                </div>
+                            </div>
+                            <div class="checkout-payment-card-body">
+                                <div class="checkout-payment-card-title-row">
+                                    <span class="checkout-payment-card-title">PayPal</span>
+                                    {% if paypal_disponible %}
+                                    <span class="checkout-payment-badge badge-paypal-tag">Sandbox</span>
+                                    {% else %}
+                                    <span class="checkout-payment-badge badge-unavailable">No disponible</span>
+                                    {% endif %}
+                                </div>
+                                <p class="checkout-payment-card-desc">Pago en línea seguro con tu saldo PayPal, cuenta o tarjeta de crédito.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inputs de control ocultos para preservar compatibilidad con backend y scripts -->
+                <div class="payment-hidden-controls" style="position: absolute; opacity: 0; pointer-events: none; height: 0; width: 0; margin: 0; padding: 0; overflow: hidden;" aria-hidden="true">
+                    {% if metodos_pago %}
+                    {% for mp in metodos_pago %}
+                    <input type="radio" name="id_metodo_pago" value="{{ mp.id_metodo_pago }}" id="mp_radio_{{ mp.id_metodo_pago }}" {% if loop.first %}checked{% endif %}>
+                    {% endfor %}
+                    <input type="radio" name="opcion_pago" value="guardado" id="opcion_pago_guardado" checked onchange="toggleNuevoPago(false)">
                     <input type="radio" name="opcion_pago" value="nuevo" id="opcion_pago_nuevo" onchange="toggleNuevoPago(true)">
-                    <div class="option-content">
-                        <strong>+ Usar otro método de pago</strong>
-                    </div>
-                </label>
-            </div>
-            {% endif %}
-
-            <div id="nuevo-pago-fields" class="new-fields" style="{% if metodos_pago %}display: none;{% endif %}">
-                <h3 class="form-section-title">{% if metodos_pago %}Nuevo método de pago:{% else %}Selecciona tu método de pago:{% endif %}</h3>
-                <div class="form-group">
-                    <label class="form-label">Tipo de Pago *</label>
-                    <select id="tipo_pago" name="tipo_pago" class="filter-select" {% if not metodos_pago %}required{% endif %}>
+                    {% endif %}
+                    <select id="tipo_pago" name="tipo_pago" class="filter-select" onchange="toggleDetallePago(this.value)">
                         <option value="">-- Selecciona una opción --</option>
-                        <option value="Tarjeta de crédito">Tarjeta de Crédito</option>
-                        <option value="Tarjeta de débito">Tarjeta de Débito</option>
-                        <option value="Transferencia Bancaria (PSE)">Transferencia Bancaria (PSE)</option>
-                        <option value="Nequi / Daviplata">Nequi / Daviplata</option>
-                        <option value="Efectivo contra entrega">Efectivo contra entrega</option>
+                        <option value="Efectivo contra entrega" {% if not metodos_pago %}selected{% endif %}>Efectivo contra entrega</option>
+                        <option value="PayPal" {% if not paypal_disponible %}disabled{% endif %}>PayPal{% if not paypal_disponible %} (No disponible){% endif %}</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Detalle o Referencia (opcional)</label>
-                    <input type="text" id="detalle_pago" name="detalle_pago" class="form-input" placeholder="Ej. Terminada en 4242, Celular Nequi, etc.">
+                <!-- Campo de Detalle / Referencia (Efectivo) -->
+                <div class="form-group checkout-detail-group" id="detalle_pago_container">
+                    <label class="form-label checkout-detail-label" for="detalle_pago">
+                        <svg class="checkout-field-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        <span>Detalle o Referencia de Entrega <span class="checkout-label-optional">(opcional)</span></span>
+                    </label>
+                    <input type="text" id="detalle_pago" name="detalle_pago" class="form-input checkout-detail-input" maxlength="100" placeholder="Ej. Pago con billete de $50.000 (necesito cambio), dejar en recepción...">
+                    <small class="form-helper checkout-detail-helper" id="detalle_pago_helper">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>Información adicional para la entrega o confirmación con el repartidor.</span>
+                    </small>
+                </div>
+
+                <!-- Aviso informativo cuando PayPal está seleccionado -->
+                <div id="paypal_info_notice" class="checkout-paypal-notice" style="display: none;">
+                    <div class="checkout-paypal-notice-icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div class="checkout-paypal-notice-text">
+                        <strong>Pago en línea cifrado y protegido</strong>
+                        <p>Al confirmar tu pedido, serás dirigido al entorno seguro de PayPal Sandbox para completar la autorización de pago sin exponer tus datos financieros.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -175,7 +346,10 @@
 
             <div class="summary-row summary-total">
                 <span class="summary-label">Total a Pagar</span>
-                <span class="summary-value summary-total-amount">${{ "{:,.0f}".format(total) }}</span>
+                <span class="summary-value summary-total-amount">
+                    ${{ "{:,.0f}".format(total) }}
+                    <small class="summary-usd-approx" style="display: block; font-size: 0.85rem; font-weight: normal; color: var(--color-gold, #c5a059); margin-top: 4px;">(aprox. ${{ "%.2f"|format(total) }} USD)</small>
+                </span>
             </div>
 
             <p class="form-helper checkout-age-notice">
@@ -239,14 +413,146 @@ function toggleNuevaDireccion(mostrar) {
 }
 
 function toggleNuevoPago(mostrar) {
-    const contenedor = document.getElementById('nuevo-pago-fields');
-    const selectTipo = document.getElementById('tipo_pago');
-    if (contenedor) {
-        contenedor.style.display = mostrar ? 'block' : 'none';
-        if (selectTipo) {
-            selectTipo.required = mostrar;
+    if (mostrar) {
+        mostrarNuevoPago();
+    } else {
+        const checkedMp = document.querySelector('input[name="id_metodo_pago"]:checked');
+        if (checkedMp) {
+            const card = document.getElementById('card-mp-' + checkedMp.value);
+            const tipo = card ? card.getAttribute('data-method') : 'Efectivo contra entrega';
+            seleccionarMetodoGuardado(parseInt(checkedMp.value, 10), tipo);
         }
     }
 }
+
+function toggleDetallePago(tipo) {
+    const contenedor = document.getElementById('detalle_pago_container');
+    const noticePaypal = document.getElementById('paypal_info_notice');
+    if (tipo === 'PayPal') {
+        if (contenedor) contenedor.style.display = 'none';
+        if (noticePaypal) noticePaypal.style.display = 'flex';
+    } else {
+        if (contenedor) contenedor.style.display = 'block';
+        if (noticePaypal) noticePaypal.style.display = 'none';
+    }
+}
+
+function seleccionarMetodoGuardado(idMetodo, tipo) {
+    // 1. Marcar radio de id_metodo_pago
+    const radioMp = document.getElementById('mp_radio_' + idMetodo);
+    if (radioMp) radioMp.checked = true;
+
+    // 2. Marcar opcion_pago = guardado
+    const radioGuardado = document.getElementById('opcion_pago_guardado');
+    if (radioGuardado) radioGuardado.checked = true;
+
+    // 3. Ocultar sub-campos de nuevo pago
+    const nuevoWrap = document.getElementById('nuevo-pago-fields');
+    if (nuevoWrap) nuevoWrap.style.display = 'none';
+
+    // 4. Actualizar clases .is-selected en tarjetas
+    document.querySelectorAll('.checkout-payment-card').forEach(card => {
+        const cardId = card.getAttribute('data-id-mp');
+        if (cardId && parseInt(cardId, 10) === idMetodo) {
+            card.classList.add('is-selected');
+            card.setAttribute('aria-checked', 'true');
+        } else {
+            card.classList.remove('is-selected');
+            card.setAttribute('aria-checked', 'false');
+        }
+    });
+
+    // 5. Ajustar campos adicionales según el tipo de pago guardado
+    toggleDetallePago(tipo);
+}
+
+function mostrarNuevoPago() {
+    // 1. Marcar opcion_pago = nuevo
+    const radioNuevo = document.getElementById('opcion_pago_nuevo');
+    if (radioNuevo) radioNuevo.checked = true;
+
+    // 2. Mostrar sub-campos de nuevo pago
+    const nuevoWrap = document.getElementById('nuevo-pago-fields');
+    if (nuevoWrap) nuevoWrap.style.display = 'block';
+
+    // 3. Desmarcar visualmente métodos guardados
+    document.querySelectorAll('.checkout-payment-card[data-option-type="guardado"]').forEach(card => {
+        card.classList.remove('is-selected');
+        card.setAttribute('aria-checked', 'false');
+    });
+
+    // 4. Seleccionar visualmente tarjeta '+ Usar otro método'
+    const cardNuevo = document.getElementById('card-opcion-nuevo');
+    if (cardNuevo) {
+        cardNuevo.classList.add('is-selected');
+        cardNuevo.setAttribute('aria-checked', 'true');
+    }
+
+    // 5. Seleccionar por defecto Efectivo contra entrega entre los nuevos
+    const selectTipo = document.getElementById('tipo_pago');
+    const metodoActual = (selectTipo && selectTipo.value) ? selectTipo.value : 'Efectivo contra entrega';
+    seleccionarNuevoMetodo(metodoActual);
+}
+
+function seleccionarNuevoMetodo(tipo) {
+    // 1. Actualizar select oculto
+    const selectTipo = document.getElementById('tipo_pago');
+    if (selectTipo) {
+        selectTipo.value = tipo;
+        try {
+            selectTipo.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (e) {}
+    }
+
+    // 2. Marcar opcion_pago = nuevo si existen métodos guardados
+    const radioNuevo = document.getElementById('opcion_pago_nuevo');
+    if (radioNuevo) radioNuevo.checked = true;
+
+    // 3. Actualizar selección visual entre las opciones nuevas
+    document.querySelectorAll('.checkout-payment-card[data-option-type="nuevo"]').forEach(card => {
+        const m = card.getAttribute('data-method');
+        if (m === tipo) {
+            card.classList.add('is-selected');
+            card.setAttribute('aria-checked', 'true');
+        } else {
+            card.classList.remove('is-selected');
+            card.setAttribute('aria-checked', 'false');
+        }
+    });
+
+    // 4. Ajustar campos adicionales
+    toggleDetallePago(tipo);
+}
+
+function seleccionarMetodoVisual(tipo) {
+    seleccionarNuevoMetodo(tipo);
+}
+
+function actualizarCardsVisuales(tipo) {
+    seleccionarNuevoMetodo(tipo);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const selectTipo = document.getElementById('tipo_pago');
+    const radioGuardado = document.getElementById('opcion_pago_guardado');
+
+    if (radioGuardado && radioGuardado.checked) {
+        const checkedMp = document.querySelector('input[name="id_metodo_pago"]:checked');
+        if (checkedMp) {
+            const card = document.getElementById('card-mp-' + checkedMp.value);
+            const tipo = card ? card.getAttribute('data-method') : 'Efectivo contra entrega';
+            seleccionarMetodoGuardado(parseInt(checkedMp.value, 10), tipo);
+        }
+    } else {
+        const val = (selectTipo && selectTipo.value) ? selectTipo.value : 'Efectivo contra entrega';
+        seleccionarNuevoMetodo(val);
+    }
+
+    if (selectTipo) {
+        selectTipo.addEventListener('change', function() {
+            toggleDetallePago(this.value);
+        });
+    }
+});
 </script>
 {% endblock %}

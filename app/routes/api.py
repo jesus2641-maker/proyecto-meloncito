@@ -15,12 +15,13 @@ Endpoints protegidos (requieren sesión Flask):
 
 Endpoints exclusivos admin/trabajador:
   GET  /api/v1/inventario            Stock actual de todas las variantes
-  GET  /api/v1/estadisticas          Métricas generales del negocio
+  GET  /api/v1/estadisticas          Métricas generales del negocio (solo administrador)
 """
 
 from flask import Blueprint, jsonify, request, session
 from decimal import Decimal
 import datetime
+from app.utils.decoradores import ID_ROL_ADMIN, ID_ROL_TRABAJADOR
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -49,7 +50,7 @@ def _requiere_sesion():
 
 
 def _requiere_admin_o_trabajador():
-    return session.get("id_rol") in (2, 3, 4)  # admin, vendedor, trabajador
+    return session.get("id_rol") in (ID_ROL_ADMIN, ID_ROL_TRABAJADOR)
 
 
 # ── Productos ─────────────────────────────────────────────────────────────────
@@ -293,8 +294,8 @@ def inventario():
 
 @api_bp.route("/estadisticas")
 def estadisticas():
-    """GET /api/v1/estadisticas — métricas generales del negocio"""
-    if session.get("id_rol") != 2:
+    """GET /api/v1/estadisticas — métricas generales del negocio (solo para administrador)"""
+    if session.get("id_rol") != ID_ROL_ADMIN:
         return _error("Acceso denegado — solo administrador", 403)
 
     from app.utils.db import get_connection

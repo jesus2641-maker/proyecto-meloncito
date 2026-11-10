@@ -1,5 +1,9 @@
+import logging
 import mysql.connector
 from config import Config
+
+logger = logging.getLogger(__name__)
+
 
 def get_connection():
     """
@@ -10,6 +14,6 @@ def get_connection():
     try:
         conn = mysql.connector.connect(**Config.get_db_config())
         return conn
-    except mysql.connector.Error as err:
-        print(f"Error al conectar a la base de datos: {err}")
+    except mysql.connector.Error:
+        logger.exception("Error al conectar a la base de datos")
         raise

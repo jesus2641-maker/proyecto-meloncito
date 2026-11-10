@@ -35,6 +35,10 @@
                 <span class="info-value badge badge-info">{{ pedido.nombre_estado|capitalize }}</span>
             </div>
             <div class="info-item">
+                <span class="info-label">Estado del Pago:</span>
+                <span class="info-value badge badge-info">{{ pago.estado|capitalize if pago else 'Pendiente' }}</span>
+            </div>
+            <div class="info-item">
                 <span class="info-label">Total:</span>
                 <span class="info-value">${{ "{:,.0f}".format(pedido.total) }}</span>
             </div>
@@ -81,13 +85,19 @@
         <div class="admin-section-header">
             <h2>Cambiar Estado</h2>
         </div>
+        {% if pedido.id_estado in (4, 5) %}
+        <p class="status-text status-{{ pedido.nombre_estado|replace(' ', '-')|lower }}">
+            <strong>{{ pedido.nombre_estado|capitalize }}</strong>
+        </p>
+        {% else %}
+        {% set permitidos = {1: (1, 2), 2: (2, 3), 3: (3, 4)}.get(pedido.id_estado, (pedido.id_estado,)) %}
         <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}" class="premium-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ request.path }}">
             <div class="form-group">
                 <label class="form-label">Nuevo Estado</label>
                 <select name="id_estado" class="form-input">
-                    {% for est in estados %}
+                    {% for est in estados if est.id_estado in permitidos %}
                     <option value="{{ est.id_estado }}" {% if est.id_estado == pedido.id_estado %}selected{% endif %}>
                         {{ est.nombre_estado|capitalize }}
                     </option>
@@ -96,6 +106,7 @@
             </div>
             <button type="submit" class="btn btn-primary">Actualizar Estado</button>
         </form>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

@@ -64,6 +64,21 @@ python run.py
 
 La aplicación estará disponible en `http://127.0.0.1:5000`
 
+## Docker
+
+El proyecto incluye `Dockerfile` y `docker-compose.yml` con dos servicios: `db` (MySQL 8.0) y `app` (Flask).
+
+- Los scripts montados en `/docker-entrypoint-initdb.d` (`01-schema.sql` y `02-seed_data.sql`) **solo se ejecutan la primera vez** que se crea el volumen `beerhouse_mysql_data`.
+- Si deseas reiniciar la base de datos desde cero (borrar el volumen y volver a correr `initdb`), ejecuta:
+  ```bash
+  docker compose down -v
+  docker compose up --build
+  ```
+- Para cargar los datos de demostración de reportes dentro del contenedor de la aplicación (`app`):
+  ```bash
+  docker compose exec app python -m scripts.generar_datos_demo
+  ```
+
 ## Cómo correr las pruebas
 
 Ejecutar desde la raíz del proyecto:
@@ -141,6 +156,44 @@ beerhouse/
 - **Sistema de roles**: Control de acceso basado en roles
 - **Alertas de stock**: Notificaciones automáticas de stock bajo
 - **Transacciones de base de datos**: Integridad de datos garantizada
+
+## Pagos con PayPal (Sandbox)
+
+La tienda integra la pasarela de pagos oficial de PayPal mediante **PayPal Orders v2** y el **PayPal JavaScript SDK**.
+
+### 1. Obtención de Credenciales de Prueba
+1. Ingresa a [PayPal Developer](https://developer.paypal.com) con tu cuenta de PayPal.
+2. Ve a **Dashboard** &rarr; **Apps & Credentials**.
+3. Selecciona la pestaña **Sandbox** y abre la aplicación por defecto (**Default Application**) o crea una nueva app.
+4. Copia el **Client ID** y el **Secret**.
+
+### 2. Variables de Entorno en `.env`
+Configura las siguientes variables en tu archivo `.env`:
+```env
+PAYPAL_CLIENT_ID=tu_client_id_sandbox
+PAYPAL_CLIENT_SECRET=tu_client_secret_sandbox
+PAYPAL_MODE=sandbox
+PAYPAL_CURRENCY=USD
+PAGO_EXPIRA_MINUTOS=30
+```
+- `PAYPAL_MODE`: Define el entorno de ejecución (`sandbox` para pruebas, `live` para producción).
+- `PAYPAL_CURRENCY`: Moneda en la que opera la pasarela (por defecto `USD`).
+- `PAGO_EXPIRA_MINUTOS`: Tiempo en minutos que el pedido y el stock permanecen reservados mientras el usuario completa el pago antes de expirar automáticamente.
+
+### 3. Prueba de Compra con Cuenta Sandbox
+1. En el Dashboard de PayPal Developer, navega a **Testing Tools** &rarr; **Sandbox Accounts**.
+2. Identifica la cuenta con tipo **Personal (Buyer)** creada automáticamente por PayPal (o crea una cuenta personal de prueba).
+3. Haz clic en los tres puntos de la cuenta y selecciona **View/Edit Account** para ver el correo de prueba generado y la contraseña predeterminada.
+4. En Beer House, agrega productos al carrito y procede al Checkout.
+5. Selecciona la opción **PayPal** y confirma. En la pantalla de pago se mostrará el botón oficial de PayPal.
+6. En la ventana emergente de PayPal, inicia sesión con las credenciales del comprador Sandbox y completa la autorización. Al volver a Beer House, la transacción se capturará y se enviará el correo de confirmación.
+
+### 4. Moneda y Procesamiento en USD
+- **Aviso de moneda**: La integración de sandbox procesa los montos en **USD**. En el checkout y en la pantalla de pago se visualiza el total en COP y el equivalente aproximado en USD calculado según la configuración de la tienda.
+
+### 5. Disponibilidad y Contingencia Offline
+- Si las credenciales de PayPal no están configuradas en `.env`, la opción de PayPal aparecerá deshabilitada en el Checkout con la etiqueta "(No disponible)".
+- Si ocurre una falla de conectividad con los servidores de PayPal durante la carga del botón, se mostrará un mensaje amigable permitiendo al usuario volver al checkout y pagar con **Efectivo contra entrega**.
 
 ## Licencia
 

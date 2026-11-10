@@ -8,6 +8,7 @@ from app.models.metodo_pago import MetodoPago
 from app.models.proveedor import Proveedor
 from app.models.compra import Compra, CompraDetalle
 from app.models.reporte import Reporte
+from app.models.pago import Pago
 
 __all__ = [
     "Usuario",
@@ -24,4 +25,5 @@ __all__ = [
     "Compra",
     "CompraDetalle",
     "Reporte",
+    "Pago",
 ]
