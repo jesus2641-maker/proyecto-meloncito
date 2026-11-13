@@ -83,6 +83,20 @@ def paypal_checkout(id_pedido):
     detalles = PedidoDetalle.listar_por_pedido(id_pedido)
     paypal_activo = paypal_configurado()
 
+    from app.utils.moneda import cop_a_usd, obtener_tasa_cop_usd
+    try:
+        tasa_actual = obtener_tasa_cop_usd()
+    except ValueError:
+        tasa_actual = None
+
+    tasa_usada = (pago.get("tasa_cop_usd") if pago and pago.get("tasa_cop_usd") else tasa_actual)
+    monto_usd = None
+    if tasa_usada:
+        try:
+            monto_usd = cop_a_usd(pedido["total"], tasa_usada)
+        except Exception:
+            monto_usd = None
+
     return render_template(
         "pagos/paypal.html",
         pedido=pedido,
@@ -91,6 +105,8 @@ def paypal_checkout(id_pedido):
         paypal_client_id=Config.PAYPAL_CLIENT_ID,
         paypal_currency=Config.PAYPAL_CURRENCY,
         paypal_activo=paypal_activo,
+        tasa_cop_usd=tasa_usada,
+        monto_usd=monto_usd,
     )
 
 

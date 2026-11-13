@@ -31,10 +31,11 @@ class Pago:
     ESTADO_REEMBOLSADO = ESTADO_PAGO_REEMBOLSADO
 
     @staticmethod
-    def crear_para_pedido(id_pedido, monto, moneda, proveedor="paypal"):
+    def crear_para_pedido(id_pedido, monto, moneda, proveedor="paypal", tasa_cop_usd=None, monto_usd=None):
         """
         Inserta un pago en estado 'pendiente' y devuelve su id_pago.
-        Si el pedido ya tiene un pago en estado 'pendiente', lo reutiliza.
+        Si el pedido ya tiene un pago en estado 'pendiente', lo reutiliza y actualiza
+        sus importes y tasa si cambiaron.
         """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
@@ -43,7 +44,7 @@ class Pago:
 
             cursor.execute(
                 """
-                SELECT id_pago, monto, moneda
+                SELECT id_pago, monto, moneda, tasa_cop_usd, monto_usd
                 FROM pagos
                 WHERE id_pedido = %s AND estado = %s
                 ORDER BY id_pago DESC
@@ -53,23 +54,29 @@ class Pago:
                 (id_pedido, ESTADO_PAGO_PENDIENTE),
             )
             existente = cursor.fetchone()
+            monto_dec = Decimal(str(monto))
+            moneda_norm = (moneda or "USD").strip().upper()
+            tasa_dec = Decimal(str(tasa_cop_usd)) if tasa_cop_usd is not None else None
+            monto_usd_dec = Decimal(str(monto_usd)) if monto_usd is not None else None
+
             if existente:
-                monto_dec = Decimal(str(monto))
-                moneda_norm = (moneda or "USD").strip().upper()
-                if Decimal(str(existente["monto"])) != monto_dec or existente["moneda"] != moneda_norm:
-                    cursor.execute(
-                        "UPDATE pagos SET monto = %s, moneda = %s WHERE id_pago = %s",
-                        (monto_dec, moneda_norm, existente["id_pago"]),
-                    )
+                cursor.execute(
+                    """
+                    UPDATE pagos 
+                    SET monto = %s, moneda = %s, tasa_cop_usd = %s, monto_usd = %s 
+                    WHERE id_pago = %s
+                    """,
+                    (monto_dec, moneda_norm, tasa_dec, monto_usd_dec, existente["id_pago"]),
+                )
                 conn.commit()
                 return existente["id_pago"]
 
             cursor.execute(
                 """
-                INSERT INTO pagos (id_pedido, proveedor, monto, moneda, estado)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO pagos (id_pedido, proveedor, monto, moneda, estado, tasa_cop_usd, monto_usd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
-                (id_pedido, proveedor, Decimal(str(monto)), (moneda or "USD").strip().upper(), ESTADO_PAGO_PENDIENTE),
+                (id_pedido, proveedor, monto_dec, moneda_norm, ESTADO_PAGO_PENDIENTE, tasa_dec, monto_usd_dec),
             )
             id_pago = cursor.lastrowid
             conn.commit()
@@ -90,7 +97,7 @@ class Pago:
             cursor.execute(
                 """
                 SELECT id_pago, id_pedido, proveedor, paypal_order_id, paypal_capture_id,
-                       monto, moneda, estado, fecha_creacion, fecha_actualizacion
+                       monto, moneda, estado, tasa_cop_usd, monto_usd, fecha_creacion, fecha_actualizacion
                 FROM pagos
                 WHERE id_pedido = %s
                 ORDER BY id_pago DESC
@@ -144,7 +151,7 @@ class Pago:
             conn.close()
 
     @staticmethod
-    def confirmar_captura(id_pedido, order_id, capture_id, monto, moneda):
+    def confirmar_captura(id_pedido, order_id, capture_id, monto, moneda, monto_usd=None):
         """
         En una transacción con SELECT ... FOR UPDATE sobre el pago, marca 'completado'
         (idempotente: si ya estaba 'completado' devuelve False sin hacer nada más)
@@ -156,7 +163,7 @@ class Pago:
             conn.start_transaction()
             cursor.execute(
                 """
-                SELECT id_pago, paypal_order_id, paypal_capture_id, monto, moneda, estado
+                SELECT id_pago, paypal_order_id, paypal_capture_id, monto, moneda, estado, tasa_cop_usd, monto_usd
                 FROM pagos
                 WHERE id_pedido = %s
                 ORDER BY id_pago DESC
@@ -179,6 +186,8 @@ class Pago:
             if pago["paypal_order_id"] and order_id and pago["paypal_order_id"] != str(order_id).strip():
                 raise ValueError("El order_id no coincide con el registrado para este pedido")
 
+            monto_usd_final = Decimal(str(monto_usd)) if monto_usd is not None else pago.get("monto_usd")
+
             cursor.execute(
                 """
                 UPDATE pagos
@@ -186,7 +195,8 @@ class Pago:
                     paypal_order_id = COALESCE(paypal_order_id, %s),
                     paypal_capture_id = %s,
                     monto = %s,
-                    moneda = %s
+                    moneda = %s,
+                    monto_usd = COALESCE(%s, monto_usd)
                 WHERE id_pago = %s
                 """,
                 (
@@ -195,6 +205,7 @@ class Pago:
                     str(capture_id).strip() if capture_id else None,
                     Decimal(str(monto)),
                     (moneda or pago["moneda"]).strip().upper(),
+                    monto_usd_final,
                     pago["id_pago"],
                 ),
             )

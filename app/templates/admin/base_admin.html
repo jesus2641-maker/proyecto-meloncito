@@ -19,116 +19,117 @@
         </div>
     </div>
     
-    <div class="admin-nav-section">
-        <h3 class="admin-nav-title">Navegación</h3>
-        <ul class="admin-nav-list">
-            <li>
-                <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+    {#- Sección activa: usa `admin_section` si la plantilla hija la define (set a nivel superior);
+        si no, cae en request.endpoint para que ninguna vista pierda el resaltado. -#}
+    {% set _ep = request.endpoint or '' %}
+    {% set _s = admin_section if (admin_section is defined and admin_section) else none %}
+
+    {% macro nav_item(url, label, active) %}
+    <li>
+        <a href="{{ url }}" class="admin-nav-item{% if active %} active{% endif %}"{% if active %} aria-current="page"{% endif %}>
+            {{ caller() }}
+            <span>{{ label }}</span>
+        </a>
+    </li>
+    {% endmacro %}
+
+    <div class="admin-nav-groups">
+        <div class="admin-nav-group">
+            <h3 class="admin-nav-title">Operación</h3>
+            <ul class="admin-nav-list">
+                {% call nav_item(url_for('admin.dashboard'), 'Inicio', (_s == 'dashboard') if _s else (_ep == 'admin.dashboard')) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                    <span>Inicio</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.productos') }}" class="admin-nav-item {% if 'admin.producto' in request.endpoint or 'admin.variante' in request.endpoint %}active{% endif %}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    <span>Productos</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.categorias') }}" class="admin-nav-item {% if 'admin.categoria' in request.endpoint %}active{% endif %}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                    </svg>
-                    <span>Categorías</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.inventario') }}" class="admin-nav-item {% if request.endpoint == 'admin.inventario' %}active{% endif %}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    <span>Inventario</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.ofertas') }}" class="admin-nav-item {% if 'admin.oferta' in request.endpoint %}active{% endif %}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                    </svg>
-                    <span>Ofertas</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.pedidos') }}" class="admin-nav-item {% if 'admin.pedido' in request.endpoint %}active{% endif %}">
+                {% endcall %}
+                {% call nav_item(url_for('admin.pedidos'), 'Pedidos', (_s == 'pedidos') if _s else ('pedido' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <path d="M16 10a4 4 0 0 1-8 0"></path>
                     </svg>
-                    <span>Pedidos</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.compras') }}" class="admin-nav-item {% if 'admin.compra' in request.endpoint %}active{% endif %}">
+                {% endcall %}
+                {% call nav_item(url_for('admin.ofertas'), 'Ofertas', (_s == 'ofertas') if _s else ('oferta' in _ep)) %}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                {% endcall %}
+            </ul>
+        </div>
+
+        <div class="admin-nav-group">
+            <h3 class="admin-nav-title">Catálogo</h3>
+            <ul class="admin-nav-list">
+                {% call nav_item(url_for('admin.productos'), 'Productos', (_s == 'productos') if _s else ('producto' in _ep or 'variante' in _ep)) %}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                {% endcall %}
+                {% call nav_item(url_for('admin.categorias'), 'Categorías', (_s == 'categorias') if _s else ('categoria' in _ep)) %}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                {% endcall %}
+                {% call nav_item(url_for('admin.inventario'), 'Inventario', (_s == 'inventario') if _s else (_ep == 'admin.inventario')) %}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                {% endcall %}
+            </ul>
+        </div>
+
+        <div class="admin-nav-group">
+            <h3 class="admin-nav-title">Abastecimiento</h3>
+            <ul class="admin-nav-list">
+                {% call nav_item(url_for('admin.compras'), 'Compras', (_s == 'compras') if _s else ('compra' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
                     </svg>
-                    <span>Compras</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.proveedores') }}" class="admin-nav-item {% if 'admin.proveedor' in request.endpoint %}active{% endif %}">
+                {% endcall %}
+                {% call nav_item(url_for('admin.proveedores'), 'Proveedores', (_s == 'proveedores') if _s else ('proveedor' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="1" y="3" width="15" height="13" rx="2"></rect>
                         <path d="M16 8h4l3 5v3h-7V8z"></path>
                         <circle cx="5.5" cy="18.5" r="2.5"></circle>
                         <circle cx="18.5" cy="18.5" r="2.5"></circle>
                     </svg>
-                    <span>Proveedores</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.usuarios') }}" class="admin-nav-item {% if 'admin.usuario' in request.endpoint %}active{% endif %}">
+                {% endcall %}
+            </ul>
+        </div>
+
+        <div class="admin-nav-group">
+            <h3 class="admin-nav-title">Administración</h3>
+            <ul class="admin-nav-list">
+                {% call nav_item(url_for('admin.usuarios'), 'Usuarios', (_s == 'usuarios') if _s else ('usuario' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
-                    <span>Usuarios</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.reportes') }}" class="admin-nav-item {% if 'admin.reporte' in request.endpoint %}active{% endif %}">
+                {% endcall %}
+                {% call nav_item(url_for('admin.reportes'), 'Reportes', (_s == 'reportes') if _s else ('reporte' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    <span>Reportes</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('admin.mi_cuenta') }}" class="admin-nav-item {% if request.endpoint == 'admin.mi_cuenta' %}active{% endif %}">
+                {% endcall %}
+                {% call nav_item(url_for('admin.mi_cuenta'), 'Mi cuenta', (_s == 'mi_cuenta') if _s else ('mi_cuenta' in _ep)) %}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2h.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
-                    <span>Mi cuenta</span>
-                </a>
-            </li>
-        </ul>
+                {% endcall %}
+            </ul>
+        </div>
     </div>
     
     <div class="admin-sidebar-footer">

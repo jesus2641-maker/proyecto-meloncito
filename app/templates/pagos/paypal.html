@@ -7,7 +7,7 @@
         <div class="admin-hero-content">
             <p class="section-subtitle">Pasarela de Pago Segura</p>
             <h1>Completar Pago con PayPal</h1>
-            <p>Pedido #{{ pedido.id_pedido }} &bull; Total: ${{ "{:,.0f}".format(pedido.total) }} (aprox. ${{ "%.2f"|format(pedido.total) }} {{ paypal_currency }})</p>
+            <p>Pedido #{{ pedido.id_pedido }} &bull; Total: ${{ "{:,.0f}".format(pedido.total) }} COP</p>
         </div>
     </div>
 </section>
@@ -133,13 +133,15 @@
 
                 <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                        <span style="font-size: 1.1rem; color: #e5e7eb;">Total a Pagar (COP)</span>
-                        <strong style="font-size: 1.4rem; color: #fff;">${{ "{:,.0f}".format(pedido.total) }}</strong>
+                        <span style="font-size: 1.1rem; color: #e5e7eb;">Total: ${{ "{:,.0f}".format(pedido.total) }} COP</span>
+                        <strong style="font-size: 1.4rem; color: #fff;">${{ "{:,.0f}".format(pedido.total) }} COP</strong>
                     </div>
+                    {% if monto_usd and tasa_cop_usd %}
                     <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                        <span style="font-size: 0.9rem; color: #c5a059;">Equivalente en PayPal ({{ paypal_currency }})</span>
-                        <strong style="font-size: 1.15rem; color: #c5a059;">${{ "%.2f"|format(pedido.total) }} {{ paypal_currency }}</strong>
+                        <span style="font-size: 0.9rem; color: #c5a059;">Se cobrará US${{ "%.2f"|format(monto_usd) }} (tasa: 1 USD = {{ "{:,.0f}".format(tasa_cop_usd) }} COP)</span>
+                        <strong style="font-size: 1.15rem; color: #c5a059;">US${{ "%.2f"|format(monto_usd) }}</strong>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

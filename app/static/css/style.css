@@ -7618,21 +7618,40 @@ video {
    HOME PAGE — Rediseño Visual Premium y Responsivo
    ===================================================== */
 
-/* Hero Section */
+/* Hero Section — Presentación Visual Calibrada y Proporcional */
 .home-hero {
     position: relative;
-    min-height: 86vh;
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     overflow: hidden;
     margin-top: -80px;
-    padding: 132px 0 88px;
+    padding: 100px 0 44px;
+    box-sizing: border-box;
     border-bottom: 1px solid rgba(212, 168, 83, 0.14);
 }
 
+.home-hero .hero-image {
+    background-position: 74% 38%;
+    background-size: cover;
+    opacity: 0.44;
+    filter: saturate(0.9) brightness(0.96);
+}
+
 .home-hero .hero-overlay {
-    background: radial-gradient(circle at 22% 50%, rgba(212, 168, 83, 0.08) 0%, transparent 55%),
-                linear-gradient(180deg, rgba(10, 10, 10, 0.72) 0%, rgba(10, 10, 10, 0.56) 50%, rgba(10, 10, 10, 0.94) 100%);
+    background: 
+        radial-gradient(circle at 16% 45%, rgba(212, 168, 83, 0.09) 0%, transparent 60%),
+        linear-gradient(90deg, 
+            rgba(10, 10, 10, 0.95) 0%, 
+            rgba(10, 10, 10, 0.84) 42%, 
+            rgba(10, 10, 10, 0.38) 74%, 
+            rgba(10, 10, 10, 0.7) 100%),
+        linear-gradient(180deg, 
+            rgba(10, 10, 10, 0.65) 0%, 
+            transparent 30%, 
+            rgba(10, 10, 10, 0.35) 70%, 
+            rgba(10, 10, 10, 0.95) 100%);
 }
 
 .home-hero-inner {
@@ -7642,31 +7661,19 @@ video {
 }
 
 .home-hero-content {
-    max-width: 760px;
+    max-width: 640px;
     animation: fadeInUp 0.9s ease-out;
 }
 
-.home-hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 16px;
-    border-radius: 999px;
-    background: rgba(212, 168, 83, 0.1);
-    border: 1px solid rgba(212, 168, 83, 0.3);
-    color: var(--gold-primary);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    margin-bottom: 22px;
-}
-
 .home-hero-title {
-    font-size: clamp(2.75rem, 5.5vw, 4.6rem);
-    line-height: 1.08;
-    margin-bottom: 22px;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(2.1rem, 3.5vw, 3.6rem);
+    line-height: 1.14;
+    letter-spacing: -0.015em;
+    margin-top: 0;
+    margin-bottom: 18px;
     color: var(--text-primary);
+    font-weight: 700;
 }
 
 .home-hero-title span {
@@ -7676,11 +7683,11 @@ video {
 }
 
 .home-hero-description {
-    font-size: 1.12rem;
+    font-size: clamp(0.98rem, 1.08vw, 1.08rem);
     color: var(--text-secondary);
-    margin-bottom: 36px;
-    max-width: 600px;
-    line-height: 1.75;
+    margin-bottom: 28px;
+    max-width: 580px;
+    line-height: 1.68;
 }
 
 .home-hero-actions {
@@ -7688,44 +7695,72 @@ video {
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    margin-bottom: 48px;
+    margin-bottom: 34px;
 }
 
 .home-hero-actions .btn,
 .home-hero-actions .hero-cta {
-    min-height: 50px;
-    padding: 14px 32px;
+    min-height: 48px;
+    padding: 13px 30px;
     border-radius: 4px;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     letter-spacing: 0.12em;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-normal);
+}
+
+.home-hero-actions .btn.btn-outline {
+    border: 1px solid rgba(212, 168, 83, 0.42);
+    color: var(--text-primary);
+    background: rgba(10, 10, 10, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.home-hero-actions .btn.btn-outline:hover {
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+    background: rgba(212, 168, 83, 0.1);
+    transform: translateY(-2px);
+}
+
+.home-hero-actions .hero-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(212, 168, 83, 0.28);
 }
 
 .home-hero-highlights {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 210px));
-    gap: 24px;
-    padding-top: 28px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 620px;
+    gap: 20px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(212, 168, 83, 0.18);
 }
 
 .home-highlight-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 }
 
 .home-highlight-value {
     font-family: 'Playfair Display', Georgia, serif;
-    font-size: 1.35rem;
+    font-size: 1.22rem;
     font-weight: 600;
     color: var(--gold-primary);
     line-height: 1.2;
 }
 
 .home-highlight-label {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
+    line-height: 1.35;
 }
 
 /* Secciones de Inicio — Espaciado Vertical Armonioso */
@@ -8104,8 +8139,18 @@ video {
 
 @media (max-width: 1024px) {
     .home-hero {
-        min-height: 76vh;
-        padding: 120px 0 72px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 96px 0 40px;
+    }
+
+    .home-hero-content {
+        max-width: 580px;
+    }
+
+    .home-hero .hero-image {
+        background-position: 78% center;
+        opacity: 0.38;
     }
 
     .home-section {
@@ -8132,13 +8177,55 @@ video {
 
 @media (max-width: 768px) {
     .home-hero {
-        min-height: auto;
-        padding: 112px 0 60px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 92px 0 36px;
+    }
+
+    .home-hero-content {
+        max-width: 100%;
+    }
+
+    .home-hero-title {
+        font-size: clamp(1.95rem, 4.8vw, 2.45rem);
+        margin-bottom: 14px;
+    }
+
+    .home-hero-description {
+        font-size: 0.98rem;
+        margin-bottom: 24px;
+    }
+
+    .home-hero-actions {
+        margin-bottom: 28px;
+        gap: 12px;
     }
 
     .home-hero-highlights {
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+        gap: 14px;
+        padding-top: 18px;
+        max-width: 100%;
+    }
+
+    .home-highlight-value {
+        font-size: 1.1rem;
+    }
+
+    .home-highlight-label {
+        font-size: 0.75rem;
+    }
+
+    .home-hero .hero-image {
+        background-position: center center;
+        opacity: 0.28;
+    }
+
+    .home-hero .hero-overlay {
+        background: linear-gradient(180deg, 
+            rgba(10, 10, 10, 0.88) 0%, 
+            rgba(10, 10, 10, 0.72) 45%, 
+            rgba(10, 10, 10, 0.96) 100%);
     }
 
     .home-section {
@@ -8189,34 +8276,43 @@ video {
 
 @media (max-width: 480px) {
     .home-hero {
-        padding: 100px 0 48px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 86px 0 32px;
+    }
+
+    .home-hero-title {
+        font-size: clamp(1.75rem, 6.8vw, 2.15rem);
+        line-height: 1.16;
     }
 
     .home-hero-actions {
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
-        margin-bottom: 36px;
+        gap: 10px;
+        margin-bottom: 24px;
     }
 
     .home-hero-actions .btn,
     .home-hero-actions .hero-cta {
         width: 100%;
         justify-content: center;
+        min-height: 46px;
+        padding: 12px 20px;
     }
 
     .home-hero-highlights {
         grid-template-columns: 1fr;
-        gap: 14px;
-        padding-top: 22px;
+        gap: 12px;
+        padding-top: 16px;
     }
 
     .home-highlight-item {
         flex-direction: row;
         align-items: baseline;
         justify-content: space-between;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 8px;
+        border-bottom: 1px dashed rgba(212, 168, 83, 0.16);
     }
 
     .home-highlight-item:last-child {
@@ -8760,4 +8856,49 @@ video {
         position: static;
         margin-top: 8px;
     }
+}
+
+
+/* ============================================
+   ADMIN — Navegación agrupada y enlace de regreso
+   ============================================ */
+.admin-nav-groups {
+    flex: 1;
+    padding: 8px 0 16px;
+}
+
+.admin-nav-group {
+    padding: 12px 0 4px;
+}
+
+.admin-nav-group + .admin-nav-group {
+    margin-top: 4px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.admin-nav-group .admin-nav-title {
+    margin-bottom: 8px;
+}
+
+.admin-nav-group .admin-nav-item {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.admin-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 12px;
+    color: var(--gold-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: var(--transition-smooth);
+}
+
+.admin-back-link:hover,
+.admin-back-link:focus-visible {
+    color: var(--text-primary);
+    text-decoration: underline;
 }

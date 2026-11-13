@@ -3,9 +3,11 @@ Servicio de envío de correos electrónicos utilizando Brevo API
 Usa datos JSON transaccionales para los templates de Brevo.
 """
 import logging
+import os
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from config import Config
+from app.utils.moneda import formatear_cop, cop_a_usd, obtener_tasa_cop_usd
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +122,7 @@ def send_welcome_email(user_email, user_name):
         template_id=TEMPLATE_BIENVENIDA,
         params={
             "nombre_cliente": user_name,
-            "url_catalogo": "http://127.0.0.1:5000/productos/"
+            "url_catalogo": f"{os.getenv('BASE_URL', 'http://127.0.0.1:5000').rstrip('/')}/productos/"
         }
     )
 
@@ -151,15 +153,33 @@ def send_order_confirmation_email(user_email, user_name, order_details):
     for item in order_details.get("items", []):
         precio = item.get("precio_unitario", item.get("precio", 0))
         cantidad = item.get("cantidad", 0)
+        subtotal = item.get("subtotal", precio * cantidad)
         items.append({
             "nombre_producto": item.get("nombre_producto", ""),
             "presentacion":    item.get("presentacion", ""),
             "cantidad":        cantidad,
-            "subtotal":        f"${precio * cantidad:,.0f}"
+            "subtotal":        formatear_cop(subtotal)
         })
 
     total = order_details.get("total", 0)
     id_pedido = order_details.get("id_pedido", "")
+    metodo_pago = order_details.get("metodo_pago", "")
+
+    # Si el método de pago es PayPal (o se especifica monto_usd/tasa), mostrar también el monto en USD
+    metodo_pago_texto = metodo_pago
+    if "paypal" in str(metodo_pago).lower() or order_details.get("monto_usd"):
+        monto_usd = order_details.get("monto_usd")
+        tasa = order_details.get("tasa_cop_usd")
+        if not monto_usd:
+            try:
+                tasa = tasa or obtener_tasa_cop_usd()
+                monto_usd = cop_a_usd(total, tasa)
+            except Exception:
+                monto_usd = None
+
+        if monto_usd:
+            tasa_str = f" (tasa: 1 USD = {formatear_cop(tasa)} COP)" if tasa else ""
+            metodo_pago_texto = f"{metodo_pago} — Cobrado por PayPal: US${'%.2f' % monto_usd}{tasa_str}"
 
     return send_email_template(
         to_email=user_email,
@@ -171,10 +191,10 @@ def send_order_confirmation_email(user_email, user_name, order_details):
             "fecha_pedido":     str(order_details.get("fecha_creacion", "")),
             "estado":           order_details.get("nombre_estado", "Pendiente"),
             "direccion_entrega": order_details.get("direccion_entrega", ""),
-            "metodo_pago":      order_details.get("metodo_pago", ""),
-            "total":            f"${total:,.0f}",
+            "metodo_pago":      metodo_pago_texto,
+            "total":            f"{formatear_cop(total)} COP",
             "items":            items,
-            "url_pedido":       f"http://127.0.0.1:5000/carrito/confirmacion/{id_pedido}"
+            "url_pedido":       f"{os.getenv('BASE_URL', 'http://127.0.0.1:5000').rstrip('/')}/carrito/confirmacion/{id_pedido}"
         }
     )
 
@@ -197,7 +217,7 @@ def send_order_status_update_email(user_email, user_name, order_id, new_status):
             "nombre_cliente": user_name,
             "id_pedido":      order_id,
             "nuevo_estado":   new_status,
-            "url_pedido":     f"http://127.0.0.1:5000/carrito/confirmacion/{order_id}"
+            "url_pedido":     f"{os.getenv('BASE_URL', 'http://127.0.0.1:5000').rstrip('/')}/carrito/confirmacion/{order_id}"
         }
     )
 
@@ -211,6 +231,7 @@ def enviar_confirmacion_pedido_por_id(id_pedido, id_usuario=None):
         from app.models.pedido import Pedido, PedidoDetalle
         from app.models.usuario import Usuario
         from app.models.producto import Producto, VarianteProducto
+        from app.models.pago import Pago
 
         pedido = Pedido.obtener_por_id(id_pedido)
         if not pedido:
@@ -220,6 +241,8 @@ def enviar_confirmacion_pedido_por_id(id_pedido, id_usuario=None):
         usuario = Usuario.obtener_por_id(user_id) if user_id else None
         if not usuario or not usuario.get("email"):
             return False
+
+        pago = Pago.obtener_por_pedido(id_pedido)
 
         detalles = PedidoDetalle.listar_por_pedido(id_pedido)
         direccion_completa = f"{pedido.get('linea_direccion', '')}, {pedido.get('ciudad', '')}"
@@ -235,6 +258,8 @@ def enviar_confirmacion_pedido_por_id(id_pedido, id_usuario=None):
             "total": pedido.get("total", 0),
             "direccion_entrega": direccion_completa,
             "metodo_pago": pedido.get("tipo_pago", "No especificado"),
+            "monto_usd": pago.get("monto_usd") if pago else None,
+            "tasa_cop_usd": pago.get("tasa_cop_usd") if pago else None,
             "items": [],
         }
 

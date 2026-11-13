@@ -28,4 +28,4 @@ COPY . .
 EXPOSE 5000
 
 # ── Comando de inicio ─────────────────────────────────────────────────────────
-CMD ["python", "run.py"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT:-5000} run:app"]

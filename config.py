@@ -92,6 +92,10 @@ class Config:
     PAYPAL_API_BASE = resolver_paypal_api_base(PAYPAL_MODE)
     PAGO_EXPIRA_MINUTOS = _resolver_entero("PAGO_EXPIRA_MINUTOS", 30)
 
+    # Tasa de conversión: pesos colombianos (COP) por 1 dólar (USD).
+    # Si vale 0 o falta, el cálculo de un pago debe fallar con un error claro.
+    TASA_COP_USD = float(os.getenv("TASA_COP_USD", "0"))
+
     @staticmethod
     def get_db_config():
         return {

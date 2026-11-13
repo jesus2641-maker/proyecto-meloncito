@@ -329,7 +329,20 @@ def checkout():
 
         # Flujo según tipo de pago
         if tipo == "PayPal":
-            Pago.crear_para_pedido(id_pedido=id_pedido, monto=total, moneda=Config.PAYPAL_CURRENCY)
+            from app.utils.moneda import cop_a_usd, obtener_tasa_cop_usd
+            try:
+                tasa_cop_usd = obtener_tasa_cop_usd()
+                monto_usd = cop_a_usd(total, tasa_cop_usd)
+            except ValueError:
+                tasa_cop_usd = None
+                monto_usd = None
+            Pago.crear_para_pedido(
+                id_pedido=id_pedido,
+                monto=total,
+                moneda=Config.PAYPAL_CURRENCY,
+                tasa_cop_usd=tasa_cop_usd,
+                monto_usd=monto_usd
+            )
             return redirect(url_for("pagos.paypal_checkout", id_pedido=id_pedido))
 
         # Efectivo contra entrega: enviar confirmación de inmediato

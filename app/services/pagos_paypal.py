@@ -11,7 +11,6 @@ from config import Config
 from app.models.pago import (
     ESTADO_PAGO_CANCELADO,
     ESTADO_PAGO_COMPLETADO,
-    ESTADO_PAGO_FALLIDO,
     ESTADO_PAGO_PENDIENTE,
     ESTADO_PAGO_REEMBOLSADO,
     Pago,
@@ -25,6 +24,7 @@ from app.models.pedido import (
 from app.utils.db import get_connection
 from app.utils import paypal_client
 from app.utils.paypal_client import PayPalError
+from app.utils.moneda import cop_a_usd, obtener_tasa_cop_usd
 
 logger = logging.getLogger(__name__)
 
@@ -122,17 +122,25 @@ def iniciar_pago(id_usuario, id_pedido):
         raise ValueError("El tiempo para pagar este pedido ha expirado")
 
     monto_bd = Decimal(str(pedido["total"]))
-    moneda = _moneda_configurada()
+    moneda = _moneda_configurada()  # PAYPAL_CURRENCY (USD)
+    tasa_cop_usd = obtener_tasa_cop_usd()
+    monto_usd = cop_a_usd(monto_bd, tasa_cop_usd)
 
-    # Sincronizar monto y moneda en el pago pendiente con el total real de la BD
-    Pago.crear_para_pedido(id_pedido, monto_bd, moneda)
+    # Sincronizar monto en COP, moneda PayPal, tasa y monto en USD en el pago pendiente
+    Pago.crear_para_pedido(
+        id_pedido=id_pedido,
+        monto=monto_bd,
+        moneda=moneda,
+        tasa_cop_usd=tasa_cop_usd,
+        monto_usd=monto_usd
+    )
 
     n_intento = _contar_intentos_pago(id_pedido)
     request_id = f"crear-{id_pedido}-{n_intento}"
 
     order_id = paypal_client.crear_orden(
         id_pedido=id_pedido,
-        monto=monto_bd,
+        monto=monto_usd,
         moneda=moneda,
         request_id=request_id,
     )
@@ -186,7 +194,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
     - Verifica que el pedido siga en estado pendiente ANTES de capturar.
     - Si PayPal rechaza con INSTRUMENT_DECLINED, no marca nada definitivo y devuelve
       un estado de reintento para el navegador.
-    - Exige estado COMPLETED, monto == pedidos.total, moneda == PAYPAL_CURRENCY y custom_id == str(id_pedido).
+    - Exige estado COMPLETED, monto == monto_usd del pago, moneda == PAYPAL_CURRENCY y custom_id == str(id_pedido).
     - Si alguna verificación posterior a la captura falla o el pedido no puede pasar a confirmado,
       reembolsa automáticamente la captura, marca el pago 'reembolsado', registra con logger.error
       incluyendo `capture_id` y lanza ValueError.
@@ -245,21 +253,50 @@ def capturar_pago(id_usuario, id_pedido, order_id):
     moneda_cap = (resultado.get("moneda") or "").strip().upper()
     custom_id_cap = str(resultado.get("custom_id") or "").strip()
 
-    if estado_cap != "COMPLETED" or not capture_id:
-        raise ValueError(f"La captura de PayPal no se completó (estado: {estado_cap or 'desconocido'})")
+    # Obtener monto esperado en USD guardado en pagos y moneda configurada
+    monto_usd_guardado = pago.get("monto_usd")
+    if monto_usd_guardado is None:
+        raise ValueError("El registro de pago no tiene monto_usd para validar la captura")
 
-    monto_esperado = Decimal(str(pedido["total"])).quantize(Decimal("0.01"))
+    try:
+        monto_esperado = Decimal(str(monto_usd_guardado)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f"El monto_usd registrado en el pago es inválido: {monto_usd_guardado}") from exc
+
     moneda_esperada = _moneda_configurada()
+
+    if estado_cap != "COMPLETED" or not capture_id:
+        status_details = resultado.get("status_details")
+        processor_response = resultado.get("processor_response")
+        campos_principales = list(resultado.keys())
+
+        logger.warning(
+            "La captura de PayPal no se completó para el pedido=%s (orden=%s). "
+            "Estado: %s, capture_id: %s, status_details: %s, processor_response: %s, "
+            "campos_respuesta: %s, monto_esperado: %s %s (PAYPAL_CURRENCY), monto_recibido: %s %s",
+            id_pedido,
+            order_id_str,
+            estado_cap or "desconocido",
+            capture_id or "ninguno",
+            status_details,
+            processor_response,
+            campos_principales,
+            monto_esperado,
+            moneda_esperada,
+            monto_cap_raw,
+            moneda_cap,
+        )
+        raise ValueError(f"La captura de PayPal no se completó (estado: {estado_cap or 'desconocido'})")
 
     try:
         monto_capturado = Decimal(str(monto_cap_raw)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
         monto_capturado = Decimal("-1.00")
 
-    # Validar integridad de monto, moneda y custom_id tras la captura
+    # Validar integridad de monto (en USD), moneda y custom_id tras la captura
     motivo_invalido = None
     if monto_capturado != monto_esperado:
-        motivo_invalido = f"El monto capturado ({monto_capturado}) no coincide con el total del pedido ({monto_esperado})"
+        motivo_invalido = f"El monto capturado ({monto_capturado} USD) no coincide con el total esperado en USD ({monto_esperado} USD)"
     elif moneda_cap != moneda_esperada:
         motivo_invalido = f"La moneda capturada ({moneda_cap}) no coincide con la moneda configurada ({moneda_esperada})"
     elif custom_id_cap != str(id_pedido):
@@ -276,8 +313,9 @@ def capturar_pago(id_usuario, id_pedido, order_id):
             id_pedido=id_pedido,
             order_id=order_id_str,
             capture_id=capture_id,
-            monto=monto_capturado,
+            monto=Decimal(str(pago["monto"])),
             moneda=moneda_cap,
+            monto_usd=monto_capturado,
         )
         if transicion_pago:
             Pedido.actualizar_estado(id_pedido, ESTADO_CONFIRMADO)

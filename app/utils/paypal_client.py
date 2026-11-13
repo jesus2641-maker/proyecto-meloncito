@@ -360,14 +360,22 @@ def capturar_orden(order_id, request_id):
     monto = amount.get("value")
     moneda = amount.get("currency_code")
     custom_id = cap0.get("custom_id") if cap0.get("custom_id") is not None else pu0.get("custom_id")
+    status_details = cap0.get("status_details") or data.get("status_details")
+    processor_response = cap0.get("processor_response") or data.get("processor_response")
 
-    return {
+    res = {
         "estado": str(estado) if estado is not None else None,
         "capture_id": str(capture_id) if capture_id is not None else None,
         "monto": str(monto) if monto is not None else None,
         "moneda": str(moneda) if moneda is not None else None,
         "custom_id": str(custom_id) if custom_id is not None else None,
     }
+    if status_details is not None:
+        res["status_details"] = status_details
+    if processor_response is not None:
+        res["processor_response"] = processor_response
+
+    return res
 
 
 def reembolsar_captura(capture_id, request_id):

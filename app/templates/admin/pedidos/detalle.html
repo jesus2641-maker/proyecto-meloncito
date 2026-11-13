@@ -1,4 +1,5 @@
 {% extends "admin/base_admin.html" %}
+{% set admin_section = 'pedidos' %}
 {% block title %}Detalle de Pedido #{{ pedido.id_pedido }} — Admin — Beer House Premium{% endblock %}
 
 {% block admin_content %}
@@ -8,6 +9,7 @@
         <div class="admin-hero-content">
             <p class="section-subtitle">Detalle de Orden</p>
             <h1>Pedido #{{ pedido.id_pedido }}</h1>
+            <a href="{{ url_for('admin.pedidos') }}" class="admin-back-link">&larr; Volver a Pedidos</a>
             <p>Fecha: {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—' }}</p>
         </div>
     </div>

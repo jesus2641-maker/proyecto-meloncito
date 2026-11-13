@@ -14,14 +14,13 @@
 
 <section class="container">
     <div class="admin-actions">
-        <a href="{{ url_for('admin.productos') }}" class="btn btn-ghost">
+        <button type="button" class="btn btn-primary" onclick="abrirModalNueva()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Productos
-        </a>
+            Nueva Categoría
+        </button>
     </div>
 
     <div class="admin-section">
@@ -66,41 +65,46 @@
             </table>
         </div>
     </div>
-
-    <div class="admin-section">
-        <div class="admin-section-header">
-            <h2>+ Nueva Categoría</h2>
-        </div>
-
-        <div class="premium-form">
-            <form method="POST" action="{{ url_for('admin.nueva_categoria') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="form-group">
-                    <label class="form-label">Nombre de la Categoría *</label>
-                    <input type="text" id="nombre_categoria" name="nombre_categoria" class="form-input" placeholder="Ej. Licores Nacionales, Vinos Importados" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Descripción (opcional)</label>
-                    <textarea id="descripcion" name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la categoría..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">URL de la Imagen (opcional)</label>
-                    <input type="url" id="imagen_url" name="imagen_url" class="form-input" placeholder="https://ejemplo.com/imagen.jpg">
-                    <small class="text-muted">Ingresa la URL de la imagen de la categoría</small>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Crear Categoría</button>
-            </form>
-        </div>
-    </div>
 </section>
 
 <!-- Formulario oculto para eliminar categoría -->
 <form id="formEliminarCategoria" method="POST" style="display: none;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
+
+<!-- Modal de Nueva Categoría -->
+<div id="modalNueva" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2>Nueva Categoría</h2>
+            <button type="button" class="btn-close" onclick="cerrarModalNueva()">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.nueva_categoria') }}" id="formNuevaCategoria">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="nombre_categoria_nueva">Nombre de la Categoría *</label>
+                    <input type="text" id="nombre_categoria_nueva" name="nombre_categoria" class="form-input" placeholder="Ej. Licores Nacionales, Vinos Importados" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="descripcion_nueva">Descripción (opcional)</label>
+                    <textarea id="descripcion_nueva" name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la categoría..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="imagen_url_nueva">URL de la Imagen (opcional)</label>
+                    <input type="url" id="imagen_url_nueva" name="imagen_url" class="form-input" placeholder="https://ejemplo.com/imagen.jpg">
+                    <small class="text-muted">Ingresa la URL de la imagen de la categoría</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="cerrarModalNueva()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear Categoría</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Modal de Edición -->
 <div id="modalEditar" class="modal-overlay">
@@ -136,6 +140,16 @@
 </div>
 
 <script>
+function abrirModalNueva() {
+    document.getElementById('formNuevaCategoria').reset();
+    document.getElementById('modalNueva').classList.add('modal-open');
+    document.getElementById('nombre_categoria_nueva').focus();
+}
+
+function cerrarModalNueva() {
+    document.getElementById('modalNueva').classList.remove('modal-open');
+}
+
 function abrirModalEditar(id, nombre, descripcion, imagenUrl) {
     document.getElementById('editIdCategoria').value = id;
     document.getElementById('editNombreCategoria').value = nombre;
@@ -169,6 +183,19 @@ function confirmarEliminarCategoria(id, nombre) {
 document.getElementById('modalEditar').addEventListener('click', function(e) {
     if (e.target === this) {
         cerrarModalEditar();
+    }
+});
+
+// Modal de nueva categoría: clic fuera y tecla Escape
+document.getElementById('modalNueva').addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModalNueva();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('modalNueva').classList.contains('modal-open')) {
+        cerrarModalNueva();
     }
 });
 </script>

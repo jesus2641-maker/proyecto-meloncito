@@ -1,4 +1,5 @@
 {% extends "admin/base_admin.html" %}
+{% set admin_section = 'compras' %}
 {% block title %}Detalle de Compra #COMP-{{ "%04d"|format(compra.id_compra) }} — Admin — Beer House Premium{% endblock %}
 
 {% block admin_content %}
@@ -8,6 +9,7 @@
         <div class="admin-hero-content">
             <p class="section-subtitle">Detalle de Adquisición</p>
             <h1>Compra #COMP-{{ "%04d"|format(compra.id_compra) }}</h1>
+            <a href="{{ url_for('admin.compras') }}" class="admin-back-link">&larr; Volver a Compras</a>
             <p>Fecha de adquisición: {{ compra.fecha_compra.strftime('%d/%m/%Y %H:%M') if compra.fecha_compra else '—' }}</p>
         </div>
     </div>
