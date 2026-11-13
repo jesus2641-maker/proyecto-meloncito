@@ -15,6 +15,12 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Detrás del proxy de Railway (o cualquier PaaS) la petición llega por HTTP
+    # interno; ProxyFix lee X-Forwarded-* para que Flask sepa que el cliente
+    # usó HTTPS y el host real (necesario para url_for externos y cookies Secure).
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     # CSRF Protection - Protege contra ataques Cross-Site Request Forgery
     csrf = CSRFProtect(app)
 
@@ -60,7 +66,7 @@ def create_app():
             return None
         if request.endpoint is None:
             return None
-        if request.endpoint == "static" or request.blueprint in ("edad", "auth", "api"):
+        if request.endpoint in ("static", "health") or request.blueprint in ("edad", "auth", "api"):
             return None
 
         # En GET se vuelve a la página pedida; en POST no se puede repetir la
@@ -80,6 +86,17 @@ def create_app():
         if session.get('id_usuario'):
             cart_count = CarritoItem.contar_items(session['id_usuario'])
         return {'cart_count': cart_count}
+
+    # Healthcheck para Railway: responde 200 si la app y la BD están vivas.
+    @app.route("/health")
+    def health():
+        from app.utils.db import get_connection
+        try:
+            conn = get_connection()
+            conn.close()
+            return {"status": "ok", "db": "ok"}, 200
+        except Exception:
+            return {"status": "error", "db": "unreachable"}, 503
 
     # Ruta principal - Página de inicio
     @app.route("/")

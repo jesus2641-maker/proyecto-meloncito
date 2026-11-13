@@ -3,6 +3,9 @@ venv/
 .venv/
 env/
 
+# Tests (no van a producción)
+tests/
+
 # Cache de Python
 __pycache__/
 *.pyc

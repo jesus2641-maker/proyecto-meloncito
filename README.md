@@ -198,3 +198,51 @@ PAGO_EXPIRA_MINUTOS=30
 ## Licencia
 
 Este proyecto es de uso educativo.
+
+## Despliegue en Railway
+
+La app se despliega con el `Dockerfile` (Railway lo detecta solo). Al arrancar,
+`start.sh` ejecuta `scripts/init_db.py`, que crea las tablas y carga el seed si
+la base está vacía (es idempotente), y luego levanta gunicorn en `$PORT`.
+
+### 1. Crear el proyecto
+1. En Railway: **New Project → Deploy from GitHub repo** y elige este repo.
+2. En el mismo proyecto: **+ New → Database → MySQL**.
+
+### 2. Variables del servicio de la app (pestaña *Variables*)
+```
+DATABASE_URL=${{MySQL.MYSQL_URL}}
+SECRET_KEY=<cadena aleatoria de 32+ caracteres>
+SESSION_COOKIE_SECURE=true
+TASA_COP_USD=4000
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+BREVO_API_KEY=...
+BREVO_SENDER_EMAIL=...
+BREVO_SENDER_NAME=...
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_MODE=sandbox
+PAYPAL_CURRENCY=USD
+```
+`${{MySQL.MYSQL_URL}}` es una referencia: Railway la reemplaza por la URL
+privada del servicio MySQL (el nombre debe coincidir con el del servicio).
+
+Generar una SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))"`
+
+### 3. Ajustes del servicio (pestaña *Settings*)
+- **Networking → Generate Domain** para obtener la URL pública.
+- **Deploy → Healthcheck Path:** `/health` (responde 200 si la app y la BD están vivas).
+
+### Variables opcionales
+| Variable | Default | Uso |
+|---|---|---|
+| `RUN_DB_INIT` | `1` | `0` para no tocar la BD al arrancar |
+| `WEB_CONCURRENCY` | `2` | workers de gunicorn |
+| `GUNICORN_THREADS` | `4` | hilos por worker |
+| `GUNICORN_TIMEOUT` | `60` | segundos |
+
+### Conexión a la BD
+`config.py` acepta, en este orden: `DATABASE_URL`/`MYSQL_URL`, las variables
+`DATABASE_*` (incluye `DATABASE_PORT`) o las `MYSQL*` que inyecta Railway.

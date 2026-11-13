@@ -4,28 +4,26 @@ FROM python:3.13-slim
 # ── Variables de entorno del contenedor ──────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    FLASK_APP=run.py \
-    FLASK_ENV=production
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    FLASK_APP=run.py
 
-# ── Directorio de trabajo ─────────────────────────────────────────────────────
 WORKDIR /app
 
-# ── Dependencias del sistema (mysql-connector las necesita) ───────────────────
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    default-libmysqlclient-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
 # ── Dependencias Python ───────────────────────────────────────────────────────
+# mysql-connector-python trae un wheel puro, así que no hacen falta gcc ni
+# libmysqlclient: la imagen queda mucho más liviana y compila más rápido.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # ── Código del proyecto ───────────────────────────────────────────────────────
 COPY . .
 
-# ── Puerto expuesto ───────────────────────────────────────────────────────────
+# ── Usuario sin privilegios ───────────────────────────────────────────────────
+RUN useradd --create-home appuser && chown -R appuser /app
+USER appuser
+
+# Railway inyecta PORT; en local se usa 5000.
 EXPOSE 5000
 
-# ── Comando de inicio ─────────────────────────────────────────────────────────
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT:-5000} run:app"]
+CMD ["sh", "./start.sh"]
