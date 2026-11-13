@@ -1,118 +1,433 @@
 {% extends "base.html" %}
-{% block title %}Detalle de Pedido #{{ pedido.id_pedido }} — Beer House{% endblock %}
+{% block title %}Detalle del Pedido #{{ pedido.id_pedido }} — Beer House{% endblock %}
 
 {% block content %}
-<div class="bh-page-header">
-    <h2>Detalle del Pedido #{{ pedido.id_pedido }}</h2>
-    <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn-link">&larr; Volver a Mis Pedidos</a>
-</div>
+<section class="order-detail-page">
+    <div class="container order-detail-container">
 
-{% if pedido.id_estado == 1 and pago and pago.estado == 'pendiente' %}
-<div class="alert alert-warning">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; width: 100%;">
-        <div>
-            <strong style="display: block; font-size: 1.05rem; margin-bottom: 4px; color: #fff;">Pago pendiente con PayPal</strong>
-            <span>Tienes 30 minutos desde la creación del pedido para completar tu pago y asegurar tu reserva de stock.</span>
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <a href="{{ url_for('pagos.paypal_checkout', id_pedido=pedido.id_pedido) }}" class="btn btn-primary" style="padding: 9px 18px; font-weight: 600;">
-                Pagar ahora con PayPal
+        <!-- 6. Navegación superior / Volver a Mis Pedidos -->
+        <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('cuenta.pedidos') }}" class="btn btn-outline btn-sm d-inline-flex align-items-center gap-2" style="padding: 8px 16px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Volver a Mis Pedidos</span>
             </a>
-            <form method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-outline" style="padding: 9px 16px; color: #ef4444; border-color: rgba(239, 68, 68, 0.5);" onclick="return confirm('¿Seguro que deseas cancelar este pedido? Se liberará el stock reservado.');">
-                    Cancelar pedido
-                </button>
-            </form>
+            <span class="text-muted small">Seguimiento de orden en tiempo real</span>
         </div>
-    </div>
-</div>
-{% endif %}
 
-<div class="bh-order-card">
-    <div class="bh-order-header">
-        <div>
-            <span class="bh-meta-label">Número de Pedido</span>
-            <h3>#{{ pedido.id_pedido }}</h3>
+        <!-- Banner de alerta: Pago Pendiente con PayPal (si aplica) -->
+        {% if pedido.id_estado == 1 and pago and pago.estado == 'pendiente' %}
+        <div class="order-pending-alert mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="order-pending-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <strong class="d-block text-light fs-6 mb-1">Pago pendiente con PayPal</strong>
+                        <span class="text-muted small">Tienes 30 minutos desde la creación del pedido para completar tu pago y asegurar tu reserva de stock.</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <a href="{{ url_for('pagos.paypal_checkout', id_pedido=pedido.id_pedido) }}" class="btn btn-primary btn-sm px-3 py-2 fw-semibold" style="letter-spacing: 0.03em;">
+                        Pagar ahora con PayPal
+                    </a>
+                    <form method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline btn-sm px-3 py-2" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.45);" onclick="return confirm('¿Seguro que deseas cancelar este pedido? Se liberará el stock reservado.');">
+                            Cancelar pedido
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div style="text-align: right;">
-            <span class="bh-meta-label">Estado actual</span>
-            <div><span class="bh-status-badge bh-status-{{ pedido.nombre_estado }}">{{ pedido.nombre_estado|capitalize }}</span></div>
-        </div>
-    </div>
+        {% endif %}
 
-    <div class="bh-order-meta-grid">
-        <div>
-            <span class="bh-meta-label">Fecha del Pedido:</span>
-            <p>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—' }}</p>
-        </div>
-        <div>
-            <span class="bh-meta-label">Cliente:</span>
-            <p>{{ pedido.usuario_nombre }} ({{ pedido.usuario_email }})</p>
-        </div>
-        <div>
-            <span class="bh-meta-label">Dirección de Entrega:</span>
-            <p>
-                {% if pedido.dir_alias %}<strong>{{ pedido.dir_alias }}: </strong>{% endif %}
-                {{ pedido.linea_direccion }}, {{ pedido.ciudad }}
-                {% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}
-            </p>
-        </div>
-        <div>
-            <span class="bh-meta-label">Método de Pago:</span>
-            <p>
-                {{ pedido.tipo_pago or 'No especificado' }}
-                {% if pedido.detalle_pago %} ({{ pedido.detalle_pago }}){% endif %}
-            </p>
-        </div>
-        <div>
-            <span class="bh-meta-label">Estado del Pago:</span>
-            <p>
-                {% if pago %}
-                    <span class="bh-badge-tag" style="{% if pago.estado == 'completado' %}background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);{% elif pago.estado == 'pendiente' %}background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);{% elif pago.estado == 'reembolsado' %}background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);{% else %}background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);{% endif %} padding: 3px 8px; border-radius: 4px;">
-                        {{ pago.estado|capitalize }}
-                    </span>
-                {% else %}
-                    <span class="bh-badge-tag" style="padding: 3px 8px; border-radius: 4px;">Pendiente</span>
-                {% endif %}
-            </p>
-        </div>
-    </div>
+        <!-- 2. ENCABEZADO DEL PEDIDO CON INDICADOR DE PROGRESO -->
+        <div class="order-header-card mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <h1 class="order-title">Pedido <span class="order-number-highlight">#{{ pedido.id_pedido }}</span></h1>
+                        <span class="order-badge-pill badge-estado-{{ pedido.nombre_estado|replace(' ', '-')|lower }}">
+                            <span class="status-dot"></span>
+                            {{ pedido.nombre_estado|capitalize }}
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-2 text-muted small flex-wrap">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gold">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>Registrado el <strong class="text-light">{{ pedido.fecha_pedido.strftime('%d/%m/%Y a las %H:%M') if pedido.fecha_pedido else '—' }}</strong></span>
+                    </div>
+                </div>
 
-    <h4 class="bh-subtitle" style="margin-top: 24px;">Detalle de Productos</h4>
-    <div class="bh-table-container">
-        <table class="bh-table">
-            <thead>
-                <tr>
-                    <th>Producto</th>
-                    <th>Presentación</th>
-                    <th>Cantidad</th>
-                    <th>Precio Unitario</th>
-                    <th>Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in detalles %}
-                <tr>
-                    <td><strong>{{ item.nombre_producto }}</strong></td>
-                    <td><span class="bh-badge-tag">{{ item.presentacion }}</span></td>
-                    <td>{{ item.cantidad }}</td>
-                    <td class="bh-mono">${{ "{:,.0f}".format(item.precio_unitario) }}</td>
-                    <td class="bh-mono">${{ "{:,.0f}".format(item.subtotal) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('productos.catalogo') }}" class="btn btn-outline btn-sm py-2 px-3">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        Seguir Comprando
+                    </a>
+                </div>
+            </div>
 
-    <div class="bh-table-total" style="margin-top: 20px;">
-        <span>Total del Pedido:</span>
-        <strong class="bh-total-amount">${{ "{:,.0f}".format(pedido.total) }}</strong>
-    </div>
-</div>
+            <!-- Indicador Visual del Progreso del Pedido (Etapas del Sistema) -->
+            {% if pedido.id_estado != 5 %}
+            <div class="order-tracker-card mt-4 pt-3 border-top border-secondary border-opacity-25">
+                <div class="order-tracker-steps">
+                    <!-- Etapa 1: Pendiente (id_estado = 1) -->
+                    <div class="tracker-step {% if pedido.id_estado >= 1 %}is-completed{% endif %} {% if pedido.id_estado == 1 %}is-active{% endif %}">
+                        <div class="tracker-step-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <span class="tracker-step-label">Pendiente</span>
+                    </div>
 
-<div class="bh-form-actions" style="margin-top: 24px;">
-    <a href="{{ url_for('cuenta.pedidos') }}" class="bh-btn bh-btn-outline">&larr; Volver a Mis Pedidos</a>
-    <a href="{{ url_for('productos.catalogo') }}" class="bh-btn bh-btn-primary">Ir al Catálogo</a>
-</div>
+                    <div class="tracker-line {% if pedido.id_estado >= 2 %}is-completed{% endif %}"></div>
+
+                    <!-- Etapa 2: Confirmado (id_estado = 2) -->
+                    <div class="tracker-step {% if pedido.id_estado >= 2 %}is-completed{% endif %} {% if pedido.id_estado == 2 %}is-active{% endif %}">
+                        <div class="tracker-step-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <span class="tracker-step-label">Confirmado</span>
+                    </div>
+
+                    <div class="tracker-line {% if pedido.id_estado >= 3 %}is-completed{% endif %}"></div>
+
+                    <!-- Etapa 3: En camino (id_estado = 3) -->
+                    <div class="tracker-step {% if pedido.id_estado >= 3 %}is-completed{% endif %} {% if pedido.id_estado == 3 %}is-active{% endif %}">
+                        <div class="tracker-step-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="1" y="3" width="15" height="13"></rect>
+                                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                            </svg>
+                        </div>
+                        <span class="tracker-step-label">En camino</span>
+                    </div>
+
+                    <div class="tracker-line {% if pedido.id_estado >= 4 %}is-completed{% endif %}"></div>
+
+                    <!-- Etapa 4: Entregado (id_estado = 4) -->
+                    <div class="tracker-step {% if pedido.id_estado >= 4 %}is-completed{% endif %} {% if pedido.id_estado == 4 %}is-active{% endif %}">
+                        <div class="tracker-step-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <span class="tracker-step-label">Entregado</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Etapa alternativa: Cancelado (id_estado = 5) -->
+            <div class="order-tracker-card mt-3 pt-3 border-top border-secondary border-opacity-25">
+                <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);">
+                    <div style="color: #f87171;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="fw-semibold text-danger">Pedido Cancelado</div>
+                        <span class="text-muted small">Este pedido fue cancelado y el stock fue reincorporado al inventario de la tienda.</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 3. INFORMACIÓN DEL CLIENTE, ENTREGA Y PAGO (4 Tarjetas Independientes) -->
+        <div class="row g-3 g-lg-4 mb-4">
+            <!-- Tarjeta 1: Información del Cliente -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="order-info-card">
+                    <div class="order-info-card-header">
+                        <div class="order-info-icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="order-info-title">Cliente</h3>
+                    </div>
+                    <div class="order-info-card-body">
+                        <div class="order-info-primary">{{ pedido.usuario_nombre }} {{ pedido.usuario_apellido or '' }}</div>
+                        <div class="order-info-secondary">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gold">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            <span>{{ pedido.usuario_email }}</span>
+                        </div>
+                        {% if pedido.usuario_telefono %}
+                        <div class="order-info-secondary">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gold">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                            </svg>
+                            <span>{{ pedido.usuario_telefono }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 2: Dirección de Entrega -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="order-info-card">
+                    <div class="order-info-card-header">
+                        <div class="order-info-icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="order-info-title">Entrega</h3>
+                    </div>
+                    <div class="order-info-card-body">
+                        {% if pedido.dir_alias %}
+                        <div class="mb-1">
+                            <span class="badge bg-black border border-warning text-gold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                {{ pedido.dir_alias }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        <div class="order-info-primary">{{ pedido.linea_direccion or 'Dirección no especificada' }}</div>
+                        <div class="order-info-secondary">
+                            <span>{{ pedido.ciudad }}{% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}{% if pedido.codigo_postal %} &bull; CP {{ pedido.codigo_postal }}{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 3: Método de Pago -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="order-info-card">
+                    <div class="order-info-card-header">
+                        <div class="order-info-icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                                <line x1="1" y1="10" x2="23" y2="10"></line>
+                            </svg>
+                        </div>
+                        <h3 class="order-info-title">Método de Pago</h3>
+                    </div>
+                    <div class="order-info-card-body">
+                        <div class="order-info-primary">{{ pedido.tipo_pago or 'Efectivo contra entrega' }}</div>
+                        <div class="order-info-secondary">
+                            <span>{{ pedido.detalle_pago or 'Pago acordado para este pedido' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 4: Estado del Pago -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="order-info-card">
+                    <div class="order-info-card-header">
+                        <div class="order-info-icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="order-info-title">Estado del Pago</h3>
+                    </div>
+                    <div class="order-info-card-body">
+                        <div class="mb-2">
+                            {% if pago %}
+                                <span class="payment-status-badge payment-{{ pago.estado|lower }}">
+                                    {{ pago.estado|capitalize }}
+                                </span>
+                            {% elif pedido.id_estado in (2, 3, 4) %}
+                                <span class="payment-status-badge payment-completado">
+                                    Confirmado
+                                </span>
+                            {% else %}
+                                <span class="payment-status-badge payment-pendiente">
+                                    Pendiente
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {% if pago and pago.paypal_capture_id %}
+                        <div class="order-info-secondary pt-1 mt-1 border-top border-secondary border-opacity-10">
+                            <span>Transacción:</span>
+                            <code class="text-gold" style="font-size: 0.75rem;">{{ pago.paypal_capture_id }}</code>
+                        </div>
+                        {% else %}
+                        <div class="order-info-secondary">
+                            <small class="text-muted">Sin cobros pendientes</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. PRODUCTOS DEL PEDIDO & 5. RESUMEN DE COMPRA -->
+        <div class="row g-4">
+            <!-- Columna Izquierda: Detalle de Productos -->
+            <div class="col-lg-8">
+                <div class="order-section-card">
+                    <div class="order-section-header d-flex justify-content-between align-items-center">
+                        <h3 class="order-section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gold">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <path d="M16 10a4 4 0 0 1-8 0"></path>
+                            </svg>
+                            <span>Productos del Pedido</span>
+                        </h3>
+                        <span class="badge bg-black border border-secondary text-secondary" style="font-size: 0.78rem;">
+                            {{ detalles|length }} ítem{% if detalles|length != 1 %}s{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Tabla para escritorio / tablets -->
+                    <div class="d-none d-md-block">
+                        <table class="order-products-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 44%;">Producto</th>
+                                    <th class="text-center" style="width: 18%;">Presentación</th>
+                                    <th class="text-center" style="width: 12%;">Cant.</th>
+                                    <th class="text-end" style="width: 13%;">Precio Unit.</th>
+                                    <th class="text-end" style="width: 13%;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in detalles %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="product-mini-thumb">
+                                                {% if item.imagen_url %}
+                                                    <img src="{{ item.imagen_url }}" alt="{{ item.nombre_producto }}">
+                                                {% else %}
+                                                    <span class="thumb-placeholder">BH</span>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold text-light mb-1">{{ item.nombre_producto }}</div>
+                                                {% if item.marca %}
+                                                    <span class="text-muted small d-block">{{ item.marca }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-presentacion">{{ item.presentacion }}</span>
+                                    </td>
+                                    <td class="text-center fw-semibold text-light">
+                                        {{ item.cantidad }}
+                                    </td>
+                                    <td class="text-end text-muted font-monospace">
+                                        ${{ "{:,.0f}".format(item.precio_unitario) }}
+                                    </td>
+                                    <td class="text-end fw-semibold text-gold font-monospace">
+                                        ${{ "{:,.0f}".format(item.subtotal) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Lista adaptada para pantallas móviles (< 768px) -->
+                    <div class="d-md-none p-3">
+                        {% for item in detalles %}
+                        <div class="{% if not loop.last %}mb-3 pb-3 border-bottom border-secondary border-opacity-25{% endif %}">
+                            <div class="d-flex gap-3 align-items-center mb-2">
+                                <div class="product-mini-thumb">
+                                    {% if item.imagen_url %}
+                                        <img src="{{ item.imagen_url }}" alt="{{ item.nombre_producto }}">
+                                    {% else %}
+                                        <span class="thumb-placeholder">BH</span>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold text-light">{{ item.nombre_producto }}</div>
+                                    <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                        <span class="badge-presentacion" style="font-size: 0.75rem;">{{ item.presentacion }}</span>
+                                        {% if item.marca %}
+                                            <span class="text-muted small">&bull; {{ item.marca }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small mt-2 pt-2 border-top border-secondary border-opacity-10">
+                                <span class="text-muted">{{ item.cantidad }} &times; ${{ "{:,.0f}".format(item.precio_unitario) }}</span>
+                                <span class="fw-bold text-gold font-monospace fs-6">${{ "{:,.0f}".format(item.subtotal) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: 5. RESUMEN DE COMPRA -->
+            <div class="col-lg-4">
+                <div class="order-summary-card">
+                    <h3 class="order-summary-title">Resumen de Compra</h3>
+
+                    <div class="order-summary-row">
+                        <span>Subtotal productos</span>
+                        <span class="text-light font-monospace">${{ "{:,.0f}".format(pedido.total) }}</span>
+                    </div>
+
+                    <div class="order-summary-row">
+                        <span>Costo de envío</span>
+                        <span class="text-success fw-semibold">Gratis</span>
+                    </div>
+
+                    <div class="order-summary-row total-row">
+                        <span class="h6 text-light mb-0 fw-semibold">Total del Pedido</span>
+                        <span class="order-total-highlight">${{ "{:,.0f}".format(pedido.total) }}</span>
+                    </div>
+
+                    <!-- Sello de garantía de compra -->
+                    <div class="order-guarantee-box mb-4">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4a853" stroke-width="2" class="flex-shrink-0">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <polyline points="9 12 11 14 15 10"></polyline>
+                        </svg>
+                        <span>Garantía oficial Beer House: productos 100% originales y entrega protegida.</span>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('cuenta.pedidos') }}" class="btn btn-outline btn-sm w-100 py-2">
+                            &larr; Volver a Todos mis Pedidos
+                        </a>
+                        <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary btn-sm w-100 py-2">
+                            Explorar Catálogo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
 {% endblock %}

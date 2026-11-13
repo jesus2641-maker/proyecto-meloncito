@@ -60,6 +60,7 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
     WTF_CSRF_SSL_STRICT = False
+    TEMPLATES_AUTO_RELOAD = True
 
     # Session Configuration
     SESSION_COOKIE_HTTPONLY = True

@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Finalizar Compra — PayPal Sandbox | Beer House{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-10">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-3 border-bottom border-dark">
+                <div>
+                    <h1 class="h2 text-gold mb-1" style="font-family: 'Playfair Display', serif;">Checkout Seguro</h1>
+                    <p class="text-muted mb-0">Revisa los detalles de tu compra y paga en línea con PayPal Sandbox.</p>
+                </div>
+                <div>
+                    <span class="badge bg-dark border border-warning text-gold px-3 py-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        Modo Sandbox Activo
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center g-4">
+        <!-- Columna Izquierda: Dirección y Botón de Pago PayPal -->
+        <div class="col-lg-6">
+            <!-- Tarjeta de Dirección de Entrega -->
+            <div class="card bg-dark text-light border-secondary mb-4 shadow-sm" style="border-radius: 12px;">
+                <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center py-3">
+                    <span class="text-gold fw-semibold d-flex align-items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        Dirección de Envío
+                    </span>
+                    <a href="{{ url_for('cuenta.direcciones') }}" class="btn btn-sm btn-outline-warning text-gold py-0 px-2" style="font-size: 0.8rem;">
+                        Cambiar
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if direccion %}
+                        <p class="fw-bold mb-1 text-light">{{ direccion.alias or 'Dirección Principal' }}</p>
+                        <p class="text-muted mb-1">{{ direccion.linea_direccion }}</p>
+                        <p class="text-muted mb-0">
+                            {{ direccion.ciudad }}{% if direccion.departamento %}, {{ direccion.departamento }}{% endif %}
+                            {% if direccion.codigo_postal %} — CP {{ direccion.codigo_postal }}{% endif %}
+                        </p>
+                    {% else %}
+                        <p class="text-warning mb-0">No tienes una dirección registrada.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tarjeta de Método de Pago y Botón PayPal -->
+            <div class="card bg-dark text-light border-secondary shadow-sm" style="border-radius: 12px;">
+                <div class="card-header border-secondary bg-transparent py-3">
+                    <span class="text-gold fw-semibold d-flex align-items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                        Método de Pago: PayPal
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        Haz clic en el botón amarillo para abrir la pasarela segura de PayPal. Puedes pagar con saldo de cuenta Sandbox o tarjeta vinculada.
+                    </p>
+
+                    <!-- Mensaje de error dinámico -->
+                    <div id="paypal-error" class="alert alert-danger d-none py-2 px-3 small mb-3" role="alert"></div>
+
+                    <!-- Spinner de carga durante captura -->
+                    <div id="paypal-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-warning" role="status" style="width: 2.5rem; height: 2.5rem;">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-gold fw-semibold mb-0">Procesando y confirmando tu pedido...</p>
+                        <small class="text-muted">Por favor no cierres ni recargues esta página.</small>
+                    </div>
+
+                    <!-- Contenedor del SDK de PayPal -->
+                    <div id="paypal-button-container" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Resumen de Pedido -->
+        <div class="col-lg-4">
+            <div class="card bg-dark text-light border-secondary shadow-sm sticky-top" style="border-radius: 12px; top: 100px;">
+                <div class="card-header border-secondary bg-transparent py-3">
+                    <span class="text-gold fw-semibold">Resumen de Compra</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush mb-3">
+                        {% for item in items %}
+                            <li class="list-group-item bg-transparent text-light border-secondary px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">{{ item.nombre_producto }}</div>
+                                    <small class="text-muted">{{ item.presentacion }} &times; {{ item.cantidad }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="text-light fw-medium">
+                                        ${{ "%.2f"|format((item.precio_oferta if item.precio_oferta else item.precio) * item.cantidad) }}
+                                    </span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Subtotal:</span>
+                        <span class="text-light">${{ "%.2f"|format(total) }} {{ currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 pb-2 border-bottom border-secondary">
+                        <span class="text-muted">Envío estimado:</span>
+                        <span class="text-success fw-medium">Gratis</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="h5 mb-0 text-light">Total:</span>
+                        <span class="h4 mb-0 text-gold fw-bold">${{ "%.2f"|format(total) }} {{ currency }}</span>
+                    </div>
+
+                    <div class="p-2 rounded bg-black border border-secondary text-center small text-muted">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2" class="me-1">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        Transacción protegida con cifrado SSL
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if paypal_client_id %}
+    <!-- SDK Oficial de PayPal Orders v2 -->
+    <script src="https://www.sandbox.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency={{ currency|default('USD') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            const errorBox = document.getElementById('paypal-error');
+            const loadingBox = document.getElementById('paypal-loading');
+            const buttonContainer = document.getElementById('paypal-button-container');
+
+            function mostrarError(mensaje) {
+                if (errorBox) {
+                    errorBox.textContent = mensaje || 'Ha ocurrido un error al procesar el pago.';
+                    errorBox.classList.remove('d-none');
+                }
+            }
+
+            function limpiarError() {
+                if (errorBox) {
+                    errorBox.textContent = '';
+                    errorBox.classList.add('d-none');
+                }
+            }
+
+            if (typeof paypal === 'undefined') {
+                mostrarError('No fue posible cargar el SDK de PayPal. Verifica tu conexión o credenciales.');
+                return;
+            }
+
+            paypal.Buttons({
+                style: {
+                    layout: 'vertical',
+                    color:  'gold',
+                    shape:  'rect',
+                    label:  'paypal'
+                },
+
+                createOrder: function(data, actions) {
+                    limpiarError();
+                    return fetch("{{ url_for('paypal_v2.create_order') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken
+                        }
+                    })
+                    .then(function(res) {
+                        return res.json().then(function(json) {
+                            if (!res.ok) {
+                                throw new Error(json.error || 'Error del servidor al crear la orden');
+                            }
+                            return json.orderID;
+                        });
+                    })
+                    .catch(function(err) {
+                        mostrarError(err.message);
+                        throw err;
+                    });
+                },
+
+                onApprove: function(data, actions) {
+                    limpiarError();
+                    if (loadingBox) loadingBox.classList.remove('d-none');
+                    if (buttonContainer) buttonContainer.classList.add('d-none');
+
+                    return fetch("{{ url_for('paypal_v2.capture_order') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken
+                        },
+                        body: JSON.stringify({
+                            orderID: data.orderID
+                        })
+                    })
+                    .then(function(res) {
+                        return res.json().then(function(json) {
+                            if (!res.ok) {
+                                throw new Error(json.error || 'Error al capturar el pago en PayPal');
+                            }
+                            if (json.redirect_url) {
+                                window.location.href = json.redirect_url;
+                            } else {
+                                window.location.href = "{{ url_for('carrito.ver_carrito') }}";
+                            }
+                        });
+                    })
+                    .catch(function(err) {
+                        if (loadingBox) loadingBox.classList.add('d-none');
+                        if (buttonContainer) buttonContainer.classList.remove('d-none');
+                        mostrarError(err.message);
+                    });
+                },
+
+                onError: function(err) {
+                    console.error('PayPal Button Error:', err);
+                    mostrarError('Se produjo un problema con la pasarela de PayPal. Por favor, intenta de nuevo.');
+                },
+
+                onCancel: function(data) {
+                    console.info('Pago cancelado por el usuario:', data);
+                }
+            }).render('#paypal-button-container');
+        });
+    </script>
+{% else %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const errorBox = document.getElementById('paypal-error');
+            if (errorBox) {
+                errorBox.textContent = 'PAYPAL_CLIENT_ID no está configurado en el archivo .env.';
+                errorBox.classList.remove('d-none');
+            }
+        });
+    </script>
+{% endif %}
+{% endblock %}

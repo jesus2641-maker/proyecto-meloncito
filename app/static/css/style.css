@@ -4126,7 +4126,6 @@ section {
     max-width: 700px;
     margin: 0 auto;
 }
-}
 
 .section-description {
     max-width: 600px;
@@ -8259,5 +8258,506 @@ video {
 
     .home-promo-banner {
         padding: 28px 18px;
+    }
+}
+
+
+/* =====================================================
+   DETALLE DE PEDIDO CLIENTE — Vista Premium y Seguimiento
+   ===================================================== */
+.order-detail-page {
+    padding-top: 100px;
+    padding-bottom: 70px;
+    background-color: var(--bg-primary);
+    min-height: calc(100vh - 80px);
+}
+
+.order-detail-container {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+/* Alerta de Pago Pendiente */
+.order-pending-alert {
+    background: linear-gradient(135deg, rgba(217, 164, 65, 0.12) 0%, rgba(20, 20, 20, 0.95) 100%);
+    border: 1px solid rgba(217, 164, 65, 0.35);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.order-pending-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(217, 164, 65, 0.15);
+    border: 1px solid rgba(217, 164, 65, 0.3);
+    color: var(--gold-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Encabezado del Pedido */
+.order-header-card {
+    background: linear-gradient(145deg, #18181c 0%, #121214 100%);
+    border: 1px solid rgba(212, 168, 83, 0.22);
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.order-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.order-number-highlight {
+    color: var(--gold-primary);
+}
+
+/* Badges de Estado del Pedido */
+.order-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    display: inline-block;
+    box-shadow: 0 0 8px currentColor;
+}
+
+.badge-estado-pendiente {
+    background: rgba(217, 164, 65, 0.15);
+    color: #eab308;
+    border: 1px solid rgba(217, 164, 65, 0.4);
+}
+
+.badge-estado-confirmado {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge-estado-en-camino,
+.badge-estado-en_camino {
+    background: rgba(14, 165, 233, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.4);
+}
+
+.badge-estado-entregado {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.badge-estado-cancelado {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Indicador de Progreso del Pedido (Stepper) */
+.order-tracker-card {
+    position: relative;
+}
+
+.order-tracker-steps {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    padding: 10px 10px 0;
+}
+
+.tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+    position: relative;
+    min-width: 80px;
+}
+
+.tracker-step-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #19191d;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.tracker-step-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: capitalize;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.tracker-step.is-completed .tracker-step-icon {
+    background: rgba(212, 168, 83, 0.15);
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+    box-shadow: 0 0 15px rgba(212, 168, 83, 0.25);
+}
+
+.tracker-step.is-completed .tracker-step-label {
+    color: var(--text-primary);
+}
+
+.tracker-step.is-active .tracker-step-icon {
+    background: var(--gold-primary);
+    border-color: var(--gold-light);
+    color: #0c0c0e;
+    box-shadow: 0 0 20px rgba(212, 168, 83, 0.5);
+    transform: scale(1.08);
+}
+
+.tracker-step.is-active .tracker-step-label {
+    color: var(--gold-primary);
+    font-weight: 700;
+}
+
+.tracker-line {
+    flex-grow: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 8px;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 1;
+    border-radius: 2px;
+}
+
+.tracker-line.is-completed {
+    background: linear-gradient(90deg, var(--gold-primary), var(--gold-light));
+    box-shadow: 0 0 8px rgba(212, 168, 83, 0.3);
+}
+
+/* Tarjetas de Información del Cliente, Entrega y Pago */
+.order-info-card {
+    background: #151518;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px 22px;
+    transition: var(--transition-smooth);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.order-info-card:hover {
+    border-color: rgba(212, 168, 83, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.order-info-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.order-info-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(212, 168, 83, 0.1);
+    border: 1px solid rgba(212, 168, 83, 0.22);
+    color: var(--gold-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.order-info-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.order-info-card-body {
+    flex-grow: 1;
+}
+
+.order-info-primary {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.order-info-secondary {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+/* Estado del Pago Badge */
+.payment-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.payment-completado,
+.payment-pagado {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.payment-pendiente {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.payment-reembolsado {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.payment-fallido,
+.payment-cancelado {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Tarjeta Principal de Productos */
+.order-section-card {
+    background: #151518;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.order-section-header {
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.order-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+/* Tabla de Productos */
+.order-products-table {
+    margin-bottom: 0;
+    color: var(--text-primary);
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.order-products-table th {
+    background: #111113;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.order-products-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.order-products-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.order-products-table tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.product-mini-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: #1e1e22;
+    border: 1px solid rgba(212, 168, 83, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.product-mini-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumb-placeholder {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--gold-primary);
+}
+
+.badge-presentacion {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+/* Resumen de Compra */
+.order-summary-card {
+    background: linear-gradient(145deg, #18181c 0%, #121214 100%);
+    border: 1px solid rgba(212, 168, 83, 0.25);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    position: sticky;
+    top: 100px;
+}
+
+.order-summary-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.order-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+}
+
+.order-summary-row.total-row {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.order-total-highlight {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--gold-primary);
+    text-shadow: 0 0 20px rgba(212, 168, 83, 0.2);
+    font-family: 'Inter', monospace, sans-serif;
+}
+
+.order-guarantee-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Adaptación Responsive */
+@media (max-width: 767px) {
+    .order-detail-page {
+        padding-top: 90px;
+        padding-bottom: 50px;
+    }
+
+    .order-header-card {
+        padding: 18px 20px;
+    }
+
+    .order-tracker-steps {
+        padding: 5px 0;
+    }
+
+    .tracker-step {
+        min-width: 55px;
+    }
+
+    .tracker-step-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .tracker-step-label {
+        font-size: 0.7rem;
+    }
+
+    .tracker-line {
+        margin: 0 4px 18px;
+    }
+
+    .order-summary-card {
+        position: static;
+        margin-top: 8px;
     }
 }
