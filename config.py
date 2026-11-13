@@ -37,6 +37,43 @@ def resolver_paypal_api_base(modo=None, api_base=None):
     return "https://api-m.sandbox.paypal.com"
 
 
+def resolver_db_config():
+    """
+    Resuelve la conexión a MySQL con este orden de prioridad:
+      1. DATABASE_URL o MYSQL_URL  (mysql://usuario:clave@host:puerto/base)
+      2. Variables DATABASE_*      (las de siempre en el .env local)
+      3. Variables MYSQL*          (las que inyecta el servicio MySQL de Railway)
+    Así el mismo código funciona en local, en docker compose y en Railway.
+    """
+    from urllib.parse import urlparse, unquote
+
+    url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL")
+    if url and url.startswith(("mysql://", "mysql+mysqlconnector://", "mysql+pymysql://")):
+        p = urlparse(url)
+        return {
+            "host": p.hostname or "localhost",
+            "port": p.port or 3306,
+            "user": unquote(p.username or "root"),
+            "password": unquote(p.password or ""),
+            "database": (p.path or "/").lstrip("/") or "beerhouse_db",
+        }
+
+    def env(*nombres, default=None):
+        for n in nombres:
+            v = os.getenv(n)
+            if v not in (None, ""):
+                return v
+        return default
+
+    return {
+        "host": env("DATABASE_HOST", "MYSQLHOST", default="localhost"),
+        "port": int(env("DATABASE_PORT", "MYSQLPORT", default="3306")),
+        "user": env("DATABASE_USER", "MYSQLUSER", default="root"),
+        "password": env("DATABASE_PASSWORD", "MYSQLPASSWORD", default=""),
+        "database": env("DATABASE_NAME", "MYSQLDATABASE", default="beerhouse_db"),
+    }
+
+
 def _resolver_entero(nombre_env, default):
     valor = os.getenv(nombre_env, str(default))
     try:
@@ -68,11 +105,13 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() in ("1", "true")
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
 
-    # Database Configuration - Credenciales MySQL
-    DATABASE_HOST = os.getenv("DATABASE_HOST", "localhost")
-    DATABASE_USER = os.getenv("DATABASE_USER", "root")
-    DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD", "")
-    DATABASE_NAME = os.getenv("DATABASE_NAME", "beerhouse_db")
+    # Database Configuration - Credenciales MySQL (ver resolver_db_config)
+    _DB = resolver_db_config()
+    DATABASE_HOST = _DB["host"]
+    DATABASE_PORT = _DB["port"]
+    DATABASE_USER = _DB["user"]
+    DATABASE_PASSWORD = _DB["password"]
+    DATABASE_NAME = _DB["database"]
 
     # Cloudinary Configuration - Servicio de almacenamiento de imágenes
     CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -100,6 +139,7 @@ class Config:
     def get_db_config():
         return {
             "host": Config.DATABASE_HOST,
+            "port": Config.DATABASE_PORT,
             "user": Config.DATABASE_USER,
             "password": Config.DATABASE_PASSWORD,
             "database": Config.DATABASE_NAME
