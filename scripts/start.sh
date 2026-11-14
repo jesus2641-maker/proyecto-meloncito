@@ -8,7 +8,7 @@ if [ "${RUN_DB_INIT:-1}" = "1" ]; then
   python -m scripts.init_db
 fi
 
-exec gunicorn run:app \
+exec gunicorn "app:create_app()" \
   --bind "0.0.0.0:${PORT:-5000}" \
   --workers "${WEB_CONCURRENCY:-2}" \
   --threads "${GUNICORN_THREADS:-4}" \

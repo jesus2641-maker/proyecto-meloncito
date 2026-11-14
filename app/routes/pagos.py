@@ -3,6 +3,7 @@ Rutas de Pagos con PayPal - Integración Sandbox / Live
 Maneja la vista de pago, creación de orden en PayPal y captura de la transacción.
 """
 
+import os
 import logging
 from flask import (
     Blueprint,
@@ -41,6 +42,12 @@ from app.utils.paypal_client import PayPalError, paypal_configurado
 logger = logging.getLogger(__name__)
 
 pagos_bp = Blueprint("pagos", __name__, url_prefix="/pagos")
+
+
+def _obtener_base_url():
+    """Devuelve BASE_URL (por defecto http://localhost:5000 en local) sin barra final."""
+    base = os.getenv("BASE_URL") or getattr(Config, "BASE_URL", None) or "http://localhost:5000"
+    return str(base).strip().rstrip("/")
 
 
 @pagos_bp.route("/paypal/<int:id_pedido>", methods=["GET"])
@@ -160,7 +167,7 @@ def capturar_orden(id_pedido):
 
         # Captura exitosa
         enviar_confirmacion_pedido_por_id(id_pedido, id_usuario)
-        redirect_url = url_for("carrito.confirmacion", id_pedido=id_pedido)
+        redirect_url = f"{_obtener_base_url()}{url_for('carrito.confirmacion', id_pedido=id_pedido)}"
         return jsonify({
             "ok": True,
             "reintentar": False,
@@ -176,3 +183,33 @@ def capturar_orden(id_pedido):
     except Exception:
         logger.exception("Error no controlado al capturar pago para pedido %s", id_pedido)
         return jsonify({"ok": False, "error": "No se pudo completar el pago con PayPal"}), 500
+
+
+@pagos_bp.route("/paypal/<int:id_pedido>/retorno", methods=["GET"])
+@requiere_login()
+def paypal_retorno(id_pedido):
+    """Ruta de retorno desde PayPal construida con BASE_URL."""
+    base_url = _obtener_base_url()
+    token_orden = (request.args.get("token") or "").strip()
+    id_usuario = session.get("id_usuario")
+
+    if token_orden and id_usuario:
+        try:
+            resultado = capturar_pago(id_usuario, id_pedido, token_orden)
+            if not resultado.get("reintentar"):
+                enviar_confirmacion_pedido_por_id(id_pedido, id_usuario)
+                return redirect(f"{base_url}{url_for('carrito.confirmacion', id_pedido=id_pedido)}")
+        except Exception as e:
+            logger.warning("Error al procesar retorno de PayPal para pedido %s: %s", id_pedido, e)
+            flash("No se pudo confirmar automáticamente el pago. Intenta nuevamente.", "warning")
+
+    return redirect(f"{base_url}{url_for('pagos.paypal_checkout', id_pedido=id_pedido)}")
+
+
+@pagos_bp.route("/paypal/<int:id_pedido>/cancelado", methods=["GET"])
+@requiere_login()
+def paypal_cancelado(id_pedido):
+    """Ruta de cancelación desde PayPal construida con BASE_URL."""
+    base_url = _obtener_base_url()
+    flash("Cancelaste el proceso de pago en PayPal. Tu pedido sigue reservado.", "warning")
+    return redirect(f"{base_url}{url_for('pagos.paypal_checkout', id_pedido=id_pedido)}")

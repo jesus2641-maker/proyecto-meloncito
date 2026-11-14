@@ -25,8 +25,9 @@ def _obtener_config_paypal():
     No expone credenciales en código.
     """
     client_id = os.getenv("PAYPAL_CLIENT_ID", "").strip()
-    client_secret = os.getenv("PAYPAL_CLIENT_SECRET", "").strip()
+    client_secret = (os.getenv("PAYPAL_SECRET") or os.getenv("PAYPAL_CLIENT_SECRET") or "").strip()
     modo = os.getenv("PAYPAL_MODE", "sandbox").strip().lower()
+    app_base_url = (os.getenv("BASE_URL") or "http://localhost:5000").strip().rstrip("/")
 
     if modo == "live":
         base_url = "https://api-m.paypal.com"
@@ -43,6 +44,7 @@ def _obtener_config_paypal():
         "client_secret": client_secret,
         "mode": modo,
         "base_url": base_url,
+        "app_base_url": app_base_url,
     }
 
 
@@ -98,14 +100,16 @@ def get_access_token():
     return access_token
 
 
-def create_order(total, currency="USD", reference_id=None):
+def create_order(total, currency="USD", reference_id=None, return_url=None, cancel_url=None):
     """
-    Crea una orden en PayPal v2 con intent CAPTURE.
+    Crea una orden en PayPal v2 con intent CAPTURE y URLs de retorno/cancelación construidas con BASE_URL.
 
     Args:
         total: Monto total (int, float, Decimal o str). Formateado a 2 decimales.
         currency: Código de moneda (ej: 'USD').
         reference_id: Referencia interna opcional (ej: id_carrito).
+        return_url: URL de retorno opcional (por defecto usa BASE_URL + /paypal/return).
+        cancel_url: URL de cancelación opcional (por defecto usa BASE_URL + /paypal/cancel).
 
     Returns:
         dict: Respuesta JSON de PayPal conteniendo el 'id' de la orden.
@@ -132,9 +136,16 @@ def create_order(total, currency="USD", reference_id=None):
         purchase_unit["reference_id"] = str(reference_id)
         purchase_unit["custom_id"] = str(reference_id)
 
+    url_retorno = return_url or f"{cfg['app_base_url']}/paypal/return"
+    url_cancelacion = cancel_url or f"{cfg['app_base_url']}/paypal/cancel"
+
     body = {
         "intent": "CAPTURE",
         "purchase_units": [purchase_unit],
+        "application_context": {
+            "return_url": url_retorno,
+            "cancel_url": url_cancelacion,
+        },
     }
 
     logger.info("Creando orden de PayPal v2 por monto %s %s...", monto_formateado, currency)

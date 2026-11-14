@@ -6,6 +6,8 @@ Este archivo configura la aplicación Flask, registra los blueprints y define la
 from flask import Flask, redirect, url_for, render_template, session, g, request
 from flask_wtf.csrf import CSRFProtect
 from config import Config
+from app.utils.db import init_db_app
+
 
 def create_app():
     """
@@ -15,44 +17,17 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Detrás del proxy de Railway (o cualquier PaaS) la petición llega por HTTP
+    # Detrás del proxy de Render (o cualquier PaaS) la petición llega por HTTP
     # interno; ProxyFix lee X-Forwarded-* para que Flask sepa que el cliente
     # usó HTTPS y el host real (necesario para url_for externos y cookies Secure).
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # CSRF Protection - Protege contra ataques Cross-Site Request Forgery
-    csrf = CSRFProtect(app)
+    CSRFProtect(app)
 
-    # Log temporal al iniciar la app: Conectado a BD: <nombre> usando SELECT DATABASE()
-    from app.utils.db import get_connection
-    import logging
-    import os
-    from datetime import datetime
-    _init_logger = logging.getLogger(__name__)
-    try:
-        _conn = get_connection()
-        _cur = _conn.cursor()
-        _cur.execute("SELECT DATABASE()")
-        _row = _cur.fetchone()
-        _db_nombre = _row[0] if _row else None
-        _init_logger.info("Conectado a BD: %s", _db_nombre)
-        print(f"[STARTUP] Conectado a BD: {_db_nombre}")
-        _cur.close()
-        _conn.close()
-    except Exception as _e:
-        _init_logger.warning("No se pudo obtener el nombre de la BD: %s", _e)
-        print(f"[STARTUP] No se pudo obtener el nombre de la BD: {_e}")
-
-    # Diagnóstico: Confirmar ruta absoluta y fecha de modificación de app/routes/productos.py
-    _ruta_productos = os.path.abspath(os.path.join(app.root_path, "routes", "productos.py"))
-    if os.path.exists(_ruta_productos):
-        _mtime = datetime.fromtimestamp(os.path.getmtime(_ruta_productos)).strftime('%Y-%m-%d %H:%M:%S')
-        _init_logger.info("Ruta app/routes/productos.py: %s | Modificado: %s", _ruta_productos, _mtime)
-        print(f"[STARTUP] Archivo: {_ruta_productos} | Modificado: {_mtime}")
-    else:
-        _init_logger.warning("No se encontró el archivo: %s", _ruta_productos)
-        print(f"[STARTUP] No se encontró el archivo: {_ruta_productos}")
+    # Registrar cierre automático de la conexión de BD al finalizar cada petición (teardown_appcontext)
+    init_db_app(app)
 
     # Importar y registrar blueprints (módulos de rutas organizados por funcionalidad)
     from app.routes.auth import auth_bp          # Autenticación y registro
@@ -65,7 +40,7 @@ def create_app():
     from app.routes.api import api_bp              # API endpoints
     from app.routes.edad import edad_bp, COOKIE_MAYOR_EDAD  # Verificación de mayoría de edad
     from app.routes.pagos import pagos_bp          # Pagos con PayPal
-    from app.routes.paypal import paypal_bp        # PayPal Orders v2 Sandbox
+    from app.routes.paypal import paypal_bp        # PayPal Orders v2 Sandbox / Live
 
     # Registrar blueprints con sus prefijos de URL
     app.register_blueprint(auth_bp)
@@ -120,7 +95,7 @@ def create_app():
             cart_count = 0
         return {'cart_count': cart_count}
 
-    # Healthcheck para Railway/Vercel: responde 200 si la app y la BD están vivas.
+    # Healthcheck para Render: responde 200 si la app y la BD están vivas.
     @app.route("/health")
     def health():
         from app.utils.db import get_connection
@@ -207,6 +182,6 @@ def create_app():
         try:
             return render_template("errors/500.html"), 500
         except Exception:
-            return "<h1>500 Internal Server Error</h1><p>Error interno del servidor. Revisa los logs en el dashboard de Vercel.</p>", 500
+            return "<h1>500 Internal Server Error</h1><p>Error interno del servidor. Revisa los logs del servidor.</p>", 500
 
     return app

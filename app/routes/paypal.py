@@ -11,6 +11,7 @@ import logging
 from decimal import Decimal
 from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for, flash
 
+from config import Config
 from app.services import paypal_service
 from app.models.carrito import Carrito
 from app.utils.decoradores import requiere_login
@@ -19,6 +20,12 @@ from app.utils.db import get_connection
 logger = logging.getLogger(__name__)
 
 paypal_bp = Blueprint("paypal_v2", __name__, url_prefix="/paypal")
+
+
+def _obtener_base_url():
+    """Devuelve BASE_URL (por defecto http://localhost:5000 en local) sin barra final."""
+    base = os.getenv("BASE_URL") or getattr(Config, "BASE_URL", None) or "http://localhost:5000"
+    return str(base).strip().rstrip("/")
 
 
 def _obtener_carrito_y_total_bd(id_usuario):
@@ -323,8 +330,26 @@ def capture_order():
         cursor.close()
         conn.close()
 
+    base_url = _obtener_base_url()
     return jsonify({
         "status": "COMPLETED",
         "id_pedido": id_pedido,
-        "redirect_url": url_for("carrito.confirmacion", id_pedido=id_pedido),
+        "redirect_url": f"{base_url}{url_for('carrito.confirmacion', id_pedido=id_pedido)}",
     })
+
+
+@paypal_bp.route("/return", methods=["GET"])
+@requiere_login()
+def paypal_return():
+    """Ruta de retorno desde PayPal construida con BASE_URL."""
+    base_url = _obtener_base_url()
+    return redirect(f"{base_url}{url_for('paypal_v2.checkout')}")
+
+
+@paypal_bp.route("/cancel", methods=["GET"])
+@requiere_login()
+def paypal_cancel():
+    """Ruta de cancelación desde PayPal construida con BASE_URL."""
+    base_url = _obtener_base_url()
+    flash("El proceso de pago con PayPal fue cancelado.", "warning")
+    return redirect(f"{base_url}{url_for('paypal_v2.checkout')}")

@@ -70,8 +70,20 @@ def obtener_url_base(modo=None, api_base=None):
 
 def _obtener_credenciales():
     client_id = (getattr(Config, "PAYPAL_CLIENT_ID", None) or os.getenv("PAYPAL_CLIENT_ID", "") or "").strip()
-    client_secret = (getattr(Config, "PAYPAL_CLIENT_SECRET", None) or os.getenv("PAYPAL_CLIENT_SECRET", "") or "").strip()
+    client_secret = (
+        getattr(Config, "PAYPAL_SECRET", None)
+        or getattr(Config, "PAYPAL_CLIENT_SECRET", None)
+        or os.getenv("PAYPAL_SECRET", "")
+        or os.getenv("PAYPAL_CLIENT_SECRET", "")
+        or ""
+    ).strip()
     return client_id, client_secret
+
+
+def obtener_base_url_app():
+    """Devuelve BASE_URL (por defecto http://localhost:5000 en local) sin barra final."""
+    base = os.getenv("BASE_URL") or getattr(Config, "BASE_URL", None) or "http://localhost:5000"
+    return str(base).strip().rstrip("/")
 
 
 def paypal_configurado():
@@ -229,12 +241,13 @@ def obtener_token(request_id=None):
     return token
 
 
-def crear_orden(id_pedido, monto, moneda, request_id):
+def crear_orden(id_pedido, monto, moneda, request_id, return_url=None, cancel_url=None):
     """
     Crea una orden en PayPal Orders v2:
     POST {base}/v2/checkout/orders con intent CAPTURE, reference_id 'pedido-<id>',
     custom_id '<id>', description 'Pedido #<id> Beer House', amount con value en
-    string de 2 decimales y shipping_preference NO_SHIPPING.
+    string de 2 decimales, shipping_preference NO_SHIPPING y URLs de retorno/cancelación
+    construidas con BASE_URL.
     Devuelve el id de la orden.
     """
     if not request_id or not str(request_id).strip():
@@ -246,6 +259,10 @@ def crear_orden(id_pedido, monto, moneda, request_id):
 
     token = obtener_token()
     base_url = obtener_url_base()
+    base_app_url = obtener_base_url_app()
+
+    url_retorno = return_url or f"{base_app_url}/pagos/paypal/{id_pedido_str}/retorno"
+    url_cancelacion = cancel_url or f"{base_app_url}/pagos/paypal/{id_pedido_str}/cancelado"
 
     purchase_units = [
         {
@@ -266,6 +283,8 @@ def crear_orden(id_pedido, monto, moneda, request_id):
             "paypal": {
                 "experience_context": {
                     "shipping_preference": "NO_SHIPPING",
+                    "return_url": url_retorno,
+                    "cancel_url": url_cancelacion,
                 }
             }
         },
