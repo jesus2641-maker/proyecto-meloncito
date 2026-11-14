@@ -11,24 +11,209 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}?v=2.5" rel="stylesheet">
+    <style>
+        /* Responsive Navbar & Zoom 175% (breakpoint < 1200px / navbar-expand-xl) */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+            padding: 0;
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            min-height: 70px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            gap: 16px;
+            position: relative;
+        }
+
+        .header .navbar-toggler.mobile-toggle {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+            border-radius: 4px;
+            color: var(--text-primary, #f5f5f5);
+            padding: 8px 10px;
+            line-height: 1;
+            cursor: pointer;
+            transition: var(--transition-smooth, all 0.3s ease);
+        }
+
+        .header .navbar-toggler.mobile-toggle:hover,
+        .header .navbar-toggler.mobile-toggle:focus {
+            color: var(--gold-primary, #d4a853);
+            border-color: var(--gold-primary, #d4a853);
+            background: var(--amber-glow, rgba(212, 168, 83, 0.1));
+            outline: none;
+            box-shadow: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .header-actions .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary, #a0a0a0);
+            text-decoration: none;
+            padding: 8px 10px;
+            border-radius: 4px;
+            transition: var(--transition-smooth, all 0.3s ease);
+        }
+
+        .header-actions .action-btn:hover {
+            color: var(--gold-primary, #d4a853);
+            background: var(--amber-glow, rgba(212, 168, 83, 0.15));
+        }
+
+        .header-actions .cart-count {
+            background: var(--gold-primary, #d4a853);
+            color: var(--bg-primary, #0a0a0a);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+            line-height: 1.2;
+            display: inline-block;
+        }
+
+        /* Menú colapsable en pantallas < 1200px (tablets, 700px aprox. y zoom al 175%) */
+        @media (max-width: 1199.98px) {
+            .header-inner {
+                gap: 12px;
+            }
+
+            .header .navbar-toggler.mobile-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .header-actions .action-btn > span:not(.cart-count) {
+                display: none;
+            }
+
+            .header-actions .action-btn {
+                padding: 8px;
+                min-width: 40px;
+                min-height: 40px;
+                justify-content: center;
+            }
+
+            .header .nav {
+                display: none;
+            }
+
+            .header .nav.collapse.show,
+            .header .nav.is-open {
+                display: flex !important;
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                gap: 0;
+                background: rgba(14, 14, 14, 0.98);
+                border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+                border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+                padding: 12px 16px 16px;
+                margin-top: 8px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+                border-radius: 0 0 6px 6px;
+            }
+
+            .header .nav .nav-link {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                min-height: 44px;
+                padding: 12px 14px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                color: var(--text-primary, #f5f5f5);
+                font-size: 0.92rem;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+
+            .header .nav .nav-link:last-child {
+                border-bottom: none;
+            }
+
+            .header .nav .nav-link:hover,
+            .header .nav .nav-link:focus,
+            .header .nav .nav-link.active {
+                color: var(--gold-primary, #d4a853);
+                background: rgba(212, 168, 83, 0.08);
+                padding-left: 18px;
+            }
+
+            /* Dropdowns dentro del menú colapsado: se abren en línea sin cortarse */
+            .header .nav .dropdown-menu {
+                position: static !important;
+                float: none !important;
+                width: 100% !important;
+                background: rgba(20, 20, 20, 0.98) !important;
+                border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08)) !important;
+                box-shadow: none !important;
+                margin-top: 4px;
+                padding: 6px 0;
+            }
+        }
+
+        /* Pantallas muy pequeñas (320px - 480px) */
+        @media (max-width: 480px) {
+            .header-inner {
+                gap: 8px;
+            }
+
+            .logo {
+                gap: 8px;
+            }
+
+            .logo-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1.15rem;
+            }
+
+            .logo-text {
+                font-size: 1.2rem;
+            }
+
+            .header-actions {
+                gap: 4px;
+            }
+
+            .header-actions .action-btn {
+                padding: 6px;
+                min-width: 36px;
+                min-height: 36px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header class="header">
+    <header class="header navbar navbar-expand-xl">
         <div class="container header-inner">
-            <a href="{{ url_for('inicio') }}" class="logo">
+            <a href="{{ url_for('inicio') }}" class="logo navbar-brand">
                 <div class="logo-icon">BH</div>
                 <span class="logo-text">Beer House</span>
             </a>
             
-            <nav class="nav" id="main-nav">
-                <a href="{{ url_for('inicio') }}" class="nav-link">Inicio</a>
-                <a href="{{ url_for('productos.catalogo') }}" class="nav-link">Catálogo</a>
-                <a href="{{ url_for('categorias.index') }}" class="nav-link">Categorías</a>
-                <a href="{{ url_for('ofertas') }}" class="nav-link">Ofertas</a>
-                <a href="{{ url_for('nosotros') }}" class="nav-link">Nosotros</a>
-            </nav>
-            
-            <div class="header-actions">
+            <div class="header-actions order-xl-3">
                 <a href="{{ url_for('carrito.ver_carrito') }}" class="action-btn" aria-label="Carrito de compras">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -39,7 +224,7 @@
                 </a>
                 
                 {% if session.get('id_usuario') %}
-                    <a href="{{ url_for('cuenta.index') }}" class="action-btn">
+                    <a href="{{ url_for('cuenta.index') }}" class="action-btn" aria-label="Mi Cuenta">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
@@ -47,7 +232,7 @@
                         <span>{{ session.get('nombre', 'Cuenta') }}</span>
                     </a>
                     {% if session.get('id_rol') == 2 %}
-                        <a href="{{ url_for('admin.dashboard') }}" class="action-btn">
+                        <a href="{{ url_for('admin.dashboard') }}" class="action-btn" aria-label="Panel de Administración">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                                 <polyline points="2 17 12 22 22 17"></polyline>
@@ -56,7 +241,7 @@
                             <span>Admin</span>
                         </a>
                     {% elif session.get('id_rol') == 4 %}
-                        <a href="{{ url_for('trabajador.dashboard') }}" class="action-btn">
+                        <a href="{{ url_for('trabajador.dashboard') }}" class="action-btn" aria-label="Panel de Trabajador">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                                 <polyline points="2 17 12 22 22 17"></polyline>
@@ -73,7 +258,7 @@
                         </svg>
                     </a>
                 {% else %}
-                    <a href="{{ url_for('auth.login') }}" class="action-btn">
+                    <a href="{{ url_for('auth.login') }}" class="action-btn" aria-label="Iniciar sesión">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
@@ -82,7 +267,13 @@
                     </a>
                 {% endif %}
                 
-                <button type="button" class="mobile-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">
+                <button type="button" 
+                        class="mobile-toggle navbar-toggler" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#main-nav" 
+                        aria-controls="main-nav" 
+                        aria-expanded="false" 
+                        aria-label="Alternar navegación">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -90,6 +281,14 @@
                     </svg>
                 </button>
             </div>
+
+            <nav class="nav collapse navbar-collapse order-xl-2" id="main-nav">
+                <a href="{{ url_for('inicio') }}" class="nav-link">Inicio</a>
+                <a href="{{ url_for('productos.catalogo') }}" class="nav-link">Catálogo</a>
+                <a href="{{ url_for('categorias.index') }}" class="nav-link">Categorías</a>
+                <a href="{{ url_for('ofertas') }}" class="nav-link">Ofertas</a>
+                <a href="{{ url_for('nosotros') }}" class="nav-link">Nosotros</a>
+            </nav>
         </div>
     </header>
 

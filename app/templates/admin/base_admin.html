@@ -4,11 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin — Beer House Premium{% endblock %}</title>
+    <!-- Bootstrap 5 CSS (solo utilidades de grid y responsive) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <style>
+        /* Ajuste de layout de escritorio (1366px - 1920px) y zoom 175% */
+        @media (min-width: 992px) {
+            .admin-sidebar {
+                width: min(260px, 20vw) !important;
+                max-width: 20% !important;
+                flex: 0 0 min(260px, 20vw) !important;
+                position: sticky !important;
+                top: 0 !important;
+                height: 100vh !important;
+                overflow-y: auto !important;
+            }
+            .admin-content-wrapper {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                max-width: calc(100% - min(260px, 20vw)) !important;
+                width: calc(100% - min(260px, 20vw)) !important;
+                overflow-x: clip !important;
+            }
+        }
+        .admin-content-wrapper .container {
+            width: 100% !important;
+            max-width: 1600px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-left: clamp(20px, 2.5vw, 48px) !important;
+            padding-right: clamp(20px, 2.5vw, 48px) !important;
+        }
+        .admin-table-container.table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .admin-table th,
+        .admin-table td {
+            vertical-align: middle;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
+        .action-buttons .btn {
+            white-space: nowrap;
+        }
+        .kpi-card {
+            min-width: 0;
+        }
+    </style>
 </head>
 <body class="admin-page">
 <nav class="admin-sidebar" id="panel-sidebar">

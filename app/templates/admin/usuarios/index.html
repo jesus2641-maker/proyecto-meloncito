@@ -20,32 +20,32 @@
             <span class="section-badge">{{ usuarios|length }} usuarios</span>
         </div>
 
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">ID</th>
                         <th>Nombre y Apellido</th>
                         <th>Correo Electrónico</th>
-                        <th>Teléfono</th>
-                        <th>Rol</th>
-                        <th>Pedidos</th>
-                        <th>Fecha Registro</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Teléfono</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Rol</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Pedidos</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Fecha Registro</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in usuarios %}
                     <tr class="{% if not u.activo %}row-inactive{% endif %}">
-                        <td><strong>#{{ u.id_usuario }}</strong></td>
-                        <td><strong>{{ u.nombre }} {{ u.apellido }}</strong></td>
-                        <td>{{ u.email }}</td>
-                        <td>{{ u.telefono or '—' }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('admin.cambiar_rol_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>#{{ u.id_usuario }}</strong></td>
+                        <td><strong class="d-inline-block text-truncate" style="max-width: 220px;">{{ u.nombre }} {{ u.apellido }}</strong></td>
+                        <td><span class="d-inline-block text-truncate" style="max-width: 240px;">{{ u.email }}</span></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ u.telefono or '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <form method="POST" action="{{ url_for('admin.cambiar_rol_usuario', id_usuario=u.id_usuario) }}" class="inline-form d-inline-flex align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <select name="id_rol" onchange="this.form.submit()" class="status-select" {% if u.id_usuario == session.get('id_usuario') %}disabled title="No puedes cambiar tu propio rol"{% endif %}>
+                                <select name="id_rol" onchange="this.form.submit()" class="status-select form-select form-select-sm" style="width: auto; min-width: 120px; white-space: nowrap;" {% if u.id_usuario == session.get('id_usuario') %}disabled title="No puedes cambiar tu propio rol"{% endif %}>
                                     {% for r in roles %}
                                     <option value="{{ r.id_rol }}" {% if r.id_rol == u.id_rol %}selected{% endif %}>
                                         {{ r.nombre_rol|capitalize }}
@@ -54,27 +54,27 @@
                                 </select>
                             </form>
                         </td>
-                        <td>
-                            <span class="badge badge-info">{{ u.total_pedidos }} pedido(s)</span>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <span class="badge badge-info text-nowrap">{{ u.total_pedidos }} pedido(s)</span>
                         </td>
-                        <td>{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ u.fecha_registro.strftime('%d/%m/%Y') if u.fecha_registro else '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if u.activo %}
-                            <span class="badge badge-success">Activo</span>
+                            <span class="badge badge-success text-nowrap">Activo</span>
                             {% else %}
-                            <span class="badge badge-danger">Inactivo</span>
+                            <span class="badge badge-danger text-nowrap">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if u.id_usuario != session.get('id_usuario') %}
-                            <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form">
+                            <form method="POST" action="{{ url_for('admin.toggle_usuario', id_usuario=u.id_usuario) }}" class="inline-form d-inline-flex align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm {% if u.activo %}btn-danger{% else %}btn-primary{% endif %}">
+                                <button type="submit" class="btn btn-sm {% if u.activo %}btn-danger{% else %}btn-primary{% endif %} text-nowrap">
                                     {{ 'Desactivar' if u.activo else 'Activar' }}
                                 </button>
                             </form>
                             {% else %}
-                            <span class="text-muted">Tu cuenta</span>
+                            <span class="text-muted text-nowrap">Tu cuenta</span>
                             {% endif %}
                         </td>
                     </tr>

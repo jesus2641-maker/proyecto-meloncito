@@ -1,9 +1,9 @@
 /**
  * Menú móvil del sitio público (Beer House)
- * Abre y cierra el panel desplegable .nav en pantallas <= 768px.
+ * Abre y cierra el panel desplegable .nav en pantallas < 1200px (incluyendo 175% de zoom).
  */
 (function () {
-    const BREAKPOINT_MOVIL = 768;
+    const BREAKPOINT_MOVIL = 1200;
 
     function inicializarMenuMovil() {
         const toggleBtn = document.querySelector('.mobile-toggle');
@@ -14,11 +14,12 @@
         }
 
         function estaAbierto() {
-            return nav.classList.contains('is-open');
+            return nav.classList.contains('is-open') || nav.classList.contains('show');
         }
 
         function abrirMenu() {
             nav.classList.add('is-open');
+            nav.classList.add('show');
             toggleBtn.classList.add('is-active');
             toggleBtn.setAttribute('aria-expanded', 'true');
         }
@@ -28,6 +29,7 @@
                 return;
             }
             nav.classList.remove('is-open');
+            nav.classList.remove('show');
             toggleBtn.classList.remove('is-active');
             toggleBtn.setAttribute('aria-expanded', 'false');
             if (devolverFoco) {
@@ -35,7 +37,7 @@
             }
         }
 
-        toggleBtn.addEventListener('click', function () {
+        toggleBtn.addEventListener('click', function (e) {
             if (estaAbierto()) {
                 cerrarMenu(false);
             } else {
@@ -58,9 +60,9 @@
             }
         });
 
-        // Restablecer al pasar de 768px de ancho
+        // Restablecer al pasar del breakpoint de colapso (>= 1200px)
         window.addEventListener('resize', function () {
-            if (window.innerWidth > BREAKPOINT_MOVIL && estaAbierto()) {
+            if (window.innerWidth >= BREAKPOINT_MOVIL && estaAbierto()) {
                 cerrarMenu(false);
             }
         });

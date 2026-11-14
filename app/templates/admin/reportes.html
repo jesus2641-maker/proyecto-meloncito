@@ -136,23 +136,23 @@
 
         {% if top_productos %}
         <div class="report-top-grid">
-            <div class="admin-table-container">
-                <table class="admin-table">
+            <div class="admin-table-container table-responsive">
+                <table class="admin-table align-middle w-100">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th class="text-nowrap" style="white-space: nowrap;">#</th>
                             <th>Producto</th>
-                            <th>Unidades Vendidas</th>
-                            <th>Ingresos</th>
+                            <th class="text-nowrap" style="white-space: nowrap;">Unidades Vendidas</th>
+                            <th class="text-nowrap" style="white-space: nowrap;">Ingresos</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for prod in top_productos %}
                         <tr>
-                            <td><strong>{{ loop.index }}</strong></td>
-                            <td><strong>{{ prod.producto }}</strong></td>
-                            <td>{{ prod.unidades }}</td>
-                            <td class="table-amount">${{ "{:,.0f}".format(prod.ingresos) }}</td>
+                            <td class="text-nowrap" style="white-space: nowrap;"><strong>{{ loop.index }}</strong></td>
+                            <td><strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ prod.producto }}</strong></td>
+                            <td class="text-nowrap" style="white-space: nowrap;">{{ prod.unidades }}</td>
+                            <td class="table-amount text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(prod.ingresos) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -215,31 +215,31 @@
         </div>
 
         {% if inventario_critico %}
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Presentación</th>
-                        <th>SKU</th>
-                        <th>Stock Actual</th>
-                        <th>Stock Mínimo</th>
-                        <th>Faltante</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Presentación</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">SKU</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Actual</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Mínimo</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Faltante</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in inventario_critico %}
                     <tr class="{% if item.stock == 0 %}row-critical{% else %}row-warning{% endif %}">
-                        <td><strong>{{ item.producto }}</strong></td>
-                        <td>{{ item.presentacion }}</td>
-                        <td>{{ item.sku or '—' }}</td>
-                        <td>
-                            <span class="stock-value {% if item.stock == 0 %}stock-critical{% else %}stock-warning{% endif %}">
+                        <td><strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ item.producto }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.presentacion }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.sku or '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <span class="stock-value {% if item.stock == 0 %}stock-critical{% else %}stock-warning{% endif %} text-nowrap">
                                 {{ item.stock }}
                             </span>
                         </td>
-                        <td>{{ item.stock_minimo }}</td>
-                        <td><strong>{{ item.faltante }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock_minimo }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>{{ item.faltante }}</strong></td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -2,6 +2,40 @@
 {% block title %}Mi Cuenta — Trabajador — Beer House Premium{% endblock %}
 
 {% block trabajador_content %}
+<style>
+    /* Input-group con prefijo telefónico fijo (+57) */
+    .input-group {
+        display: flex;
+        width: 100%;
+        position: relative;
+    }
+
+    .input-group-text.prefix-addon {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-subtle);
+        border-right: none;
+        color: var(--gold-primary);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 0 16px;
+        display: inline-flex;
+        align-items: center;
+        border-top-left-radius: 4px !important;
+        border-bottom-left-radius: 4px !important;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        user-select: none;
+    }
+
+    .input-group > .input-group-text.prefix-addon + .form-input {
+        flex: 1 1 auto;
+        width: 1%;
+        min-width: 0;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+</style>
 <section class="admin-hero">
     <div class="container">
         <div class="admin-hero-content">
@@ -38,8 +72,20 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" class="form-input" value="{{ usuario.telefono or '' }}" placeholder="Ej. +57 300 123 4567">
+                <label class="form-label" for="telefono">Teléfono</label>
+                <div class="input-group">
+                    <span class="input-group-text prefix-addon">+57</span>
+                    <input type="tel" id="telefono" name="telefono" 
+                           class="form-control form-input" 
+                           value="{{ usuario.telefono.replace('+57', '').replace(' ', '').replace('-', '').strip() if usuario.telefono else '' }}" 
+                           placeholder="3001234567" 
+                           maxlength="10" 
+                           inputmode="numeric" 
+                           pattern="3[0-9]{9}" 
+                           onkeypress="return soloNumerosTelefono(event)" 
+                           oninput="limpiarTelefonoColombiano(this)">
+                </div>
+                <p class="form-helper" style="font-size: 0.82rem; color: var(--text-muted); margin-top: 6px;">10 dígitos de celular iniciando con 3</p>
             </div>
 
             <div class="form-divider">
@@ -95,4 +141,35 @@
         </div>
     </div>
 </section>
+
+<script>
+// Validación estricta para teléfono celular colombiano
+function soloNumerosTelefono(event) {
+    const key = event.key;
+    if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+        return true;
+    }
+    if (!/^[0-9]$/.test(key)) {
+        event.preventDefault();
+        return false;
+    }
+    const input = event.target;
+    if (input.selectionStart === 0 && key !== '3') {
+        event.preventDefault();
+        return false;
+    }
+    return true;
+}
+
+function limpiarTelefonoColombiano(input) {
+    let valor = input.value.replace(/\D/g, '');
+    if (valor.length > 0 && valor[0] !== '3') {
+        valor = valor.replace(/^[^3]+/, '');
+    }
+    if (valor.length > 10) {
+        valor = valor.slice(0, 10);
+    }
+    input.value = valor;
+}
+</script>
 {% endblock %}

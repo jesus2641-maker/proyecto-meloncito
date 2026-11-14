@@ -60,12 +60,12 @@
 
                 <div class="form-group">
                     <label class="form-label">Descuento (%) *</label>
-                    <input type="number" name="descuento_porcentaje" class="form-input" placeholder="Ej. 25" value="{{ oferta.descuento_porcentaje if oferta else '' }}" step="0.01" min="0" max="100" required>
+                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="6" name="descuento_porcentaje" class="form-input" placeholder="Ej. 25" value="{{ ('%.2f'|format(oferta.descuento_porcentaje|float)).rstrip('0').rstrip('.') if oferta and oferta.descuento_porcentaje is not none else '' }}" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Precio de Oferta *</label>
-                    <input type="number" name="precio_oferta" class="form-input" placeholder="Ej. 85" value="{{ oferta.precio_oferta if oferta else '' }}" step="1" min="0" required>
+                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" name="precio_oferta" class="form-input" placeholder="Ej. 8500" value="{{ ('%.2f'|format(oferta.precio_oferta|float)).rstrip('0').rstrip('.') if oferta and oferta.precio_oferta is not none else '' }}" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
@@ -126,5 +126,35 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 {% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+    function limpiarDecimal(val, maxLen) {
+        let limpio = String(val || '').replace(/[^0-9.]/g, '');
+        const partes = limpio.split('.');
+        if (partes.length > 1) {
+            limpio = partes[0] + '.' + partes.slice(1).join('').slice(0, 2);
+        }
+        return limpio.slice(0, maxLen || 9);
+    }
+
+    document.querySelectorAll('input[name="precio_oferta"], input[name="descuento_porcentaje"]').forEach(function(input) {
+        const maxLen = parseInt(input.getAttribute('maxlength') || '9', 10);
+        input.addEventListener('keydown', function(e) {
+            if (['e', 'E', '+', '-'].includes(e.key) || (e.key === '.' && this.value.includes('.'))) {
+                e.preventDefault();
+            }
+        });
+        input.addEventListener('input', function() {
+            const limpio = limpiarDecimal(this.value, maxLen);
+            if (this.value !== limpio) {
+                this.value = limpio;
+            }
+        });
+        input.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            this.blur();
+        }, { passive: false });
+    });
+});
 </script>
 {% endblock %}

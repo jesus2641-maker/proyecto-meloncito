@@ -24,6 +24,36 @@ def create_app():
     # CSRF Protection - Protege contra ataques Cross-Site Request Forgery
     csrf = CSRFProtect(app)
 
+    # Log temporal al iniciar la app: Conectado a BD: <nombre> usando SELECT DATABASE()
+    from app.utils.db import get_connection
+    import logging
+    import os
+    from datetime import datetime
+    _init_logger = logging.getLogger(__name__)
+    try:
+        _conn = get_connection()
+        _cur = _conn.cursor()
+        _cur.execute("SELECT DATABASE()")
+        _row = _cur.fetchone()
+        _db_nombre = _row[0] if _row else None
+        _init_logger.info("Conectado a BD: %s", _db_nombre)
+        print(f"[STARTUP] Conectado a BD: {_db_nombre}")
+        _cur.close()
+        _conn.close()
+    except Exception as _e:
+        _init_logger.warning("No se pudo obtener el nombre de la BD: %s", _e)
+        print(f"[STARTUP] No se pudo obtener el nombre de la BD: {_e}")
+
+    # Diagnóstico: Confirmar ruta absoluta y fecha de modificación de app/routes/productos.py
+    _ruta_productos = os.path.abspath(os.path.join(app.root_path, "routes", "productos.py"))
+    if os.path.exists(_ruta_productos):
+        _mtime = datetime.fromtimestamp(os.path.getmtime(_ruta_productos)).strftime('%Y-%m-%d %H:%M:%S')
+        _init_logger.info("Ruta app/routes/productos.py: %s | Modificado: %s", _ruta_productos, _mtime)
+        print(f"[STARTUP] Archivo: {_ruta_productos} | Modificado: {_mtime}")
+    else:
+        _init_logger.warning("No se encontró el archivo: %s", _ruta_productos)
+        print(f"[STARTUP] No se encontró el archivo: {_ruta_productos}")
+
     # Importar y registrar blueprints (módulos de rutas organizados por funcionalidad)
     from app.routes.auth import auth_bp          # Autenticación y registro
     from app.routes.productos import productos_bp  # Catálogo de productos
@@ -83,11 +113,14 @@ def create_app():
         """
         from app.models.carrito import CarritoItem
         cart_count = 0
-        if session.get('id_usuario'):
-            cart_count = CarritoItem.contar_items(session['id_usuario'])
+        try:
+            if session.get('id_usuario'):
+                cart_count = CarritoItem.contar_items(session['id_usuario'])
+        except Exception:
+            cart_count = 0
         return {'cart_count': cart_count}
 
-    # Healthcheck para Railway: responde 200 si la app y la BD están vivas.
+    # Healthcheck para Railway/Vercel: responde 200 si la app y la BD están vivas.
     @app.route("/health")
     def health():
         from app.utils.db import get_connection
@@ -95,8 +128,8 @@ def create_app():
             conn = get_connection()
             conn.close()
             return {"status": "ok", "db": "ok"}, 200
-        except Exception:
-            return {"status": "error", "db": "unreachable"}, 503
+        except Exception as e:
+            return {"status": "degraded", "db": "unreachable", "error": str(e)}, 200
 
     # Ruta principal - Página de inicio
     @app.route("/")
@@ -107,10 +140,16 @@ def create_app():
         """
         from app.models.categoria import Categoria
         from app.models.producto import Producto
-        categorias = Categoria.listar()
+        import logging
+        _log = logging.getLogger(__name__)
 
-        # Obtener productos con todas sus variantes
-        filas = Producto.listar_con_variantes()
+        try:
+            categorias = Categoria.listar()
+            filas = Producto.listar_con_variantes()
+        except Exception as e:
+            _log.error("Error al consultar la BD en la página de inicio: %s", e)
+            categorias = []
+            filas = []
 
         # Agrupar variantes por producto y calcular el precio mínimo
         productos_destacados = {}
@@ -163,6 +202,11 @@ def create_app():
     @app.errorhandler(500)
     def error_interno(error):
         """Muestra página personalizada para errores del servidor."""
-        return render_template("errors/500.html"), 500
+        import logging
+        logging.getLogger(__name__).exception("Error 500 en Flask: %s", error)
+        try:
+            return render_template("errors/500.html"), 500
+        except Exception:
+            return "<h1>500 Internal Server Error</h1><p>Error interno del servidor. Revisa los logs en el dashboard de Vercel.</p>", 500
 
     return app

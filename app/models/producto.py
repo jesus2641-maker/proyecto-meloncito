@@ -4,7 +4,13 @@ Este módulo maneja la lógica de negocio para productos, incluyendo
 variantes de producto con diferentes precios y presentaciones.
 """
 
+import math
+import re
+from decimal import Decimal
 from app.utils.db import get_connection
+
+REGEX_PRECIO = re.compile(r"^\d+(\.\d{1,2})?$")
+REGEX_ENTERO = re.compile(r"^\d+$")
 
 
 class Producto:
@@ -370,16 +376,43 @@ class VarianteProducto:
         return variante
 
     @staticmethod
+    def _validar_precio(precio):
+        if precio is None or isinstance(precio, bool):
+            raise ValueError("El precio debe ser mayor a cero")
+        if isinstance(precio, float):
+            if math.isnan(precio) or math.isinf(precio) or precio <= 0:
+                raise ValueError("El precio debe ser mayor a cero")
+            texto = str(int(precio)) if precio.is_integer() else str(precio)
+        elif isinstance(precio, Decimal):
+            if precio.is_nan() or precio.is_infinite() or precio <= 0:
+                raise ValueError("El precio debe ser mayor a cero")
+            texto = format(precio, "f")
+        else:
+            texto = str(precio).strip()
+
+        if not REGEX_PRECIO.match(texto):
+            raise ValueError("El precio debe ser mayor a cero")
+
+        valor = float(texto)
+        if valor <= 0:
+            raise ValueError("El precio debe ser mayor a cero")
+        return valor
+
+    @staticmethod
+    def _validar_entero_no_negativo(valor, mensaje_error):
+        if valor is None or isinstance(valor, bool):
+            raise ValueError(mensaje_error)
+        texto = valor.strip() if isinstance(valor, str) else str(valor)
+        if not REGEX_ENTERO.match(texto):
+            raise ValueError(mensaje_error)
+        return int(texto)
+
+    @staticmethod
     def crear(id_producto, presentacion, precio, stock, sku=None, stock_minimo=5):
-        """Crea una nueva variante de producto con validaciones de valores negativos"""
-        
-        # Validar que no haya valores negativos
-        if stock < 0:
-            raise ValueError("El stock no puede ser negativo")
-        if stock_minimo < 0:
-            raise ValueError("El stock minimo no puede ser negativo")
-        if precio < 0:
-            raise ValueError("El precio no puede ser negativo")
+        """Crea una nueva variante de producto con validaciones de formato numérico y valores positivos"""
+        stock = VarianteProducto._validar_entero_no_negativo(stock, "El stock no puede ser negativo")
+        stock_minimo = VarianteProducto._validar_entero_no_negativo(stock_minimo, "El stock minimo no puede ser negativo")
+        precio = VarianteProducto._validar_precio(precio)
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -396,6 +429,11 @@ class VarianteProducto:
 
     @staticmethod
     def actualizar(id_variante, presentacion, precio, stock, sku=None, stock_minimo=5):
+        """Actualiza una variante con las mismas validaciones que crear()"""
+        stock = VarianteProducto._validar_entero_no_negativo(stock, "El stock no puede ser negativo")
+        stock_minimo = VarianteProducto._validar_entero_no_negativo(stock_minimo, "El stock minimo no puede ser negativo")
+        precio = VarianteProducto._validar_precio(precio)
+
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -409,6 +447,9 @@ class VarianteProducto:
 
     @staticmethod
     def actualizar_stock(id_variante, nueva_cantidad):
+        nueva_cantidad = VarianteProducto._validar_entero_no_negativo(
+            nueva_cantidad, "El stock no puede ser negativo"
+        )
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(

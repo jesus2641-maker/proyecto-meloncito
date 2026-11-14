@@ -218,9 +218,27 @@ def agregar_al_carrito():
     if not isinstance(cantidad, int) or cantidad < 1:
         return _error("La cantidad debe ser un entero mayor a 0")
 
+    from app.models.producto import VarianteProducto, Producto
     from app.models.carrito import Carrito, CarritoItem
 
+    variante = VarianteProducto.obtener_por_id(id_variante)
+    if not variante:
+        return _error("La variante del producto no existe", 404)
+
+    producto = Producto.obtener_por_id(variante["id_producto"])
+    if not producto or not producto.get("activo"):
+        return _error("Este producto no está disponible", 400)
+
+    stock_actual = int(variante.get("stock") or 0)
+    if stock_actual <= 0:
+        return _error(f"El producto '{producto['nombre_producto']}' ({variante['presentacion']}) no está disponible por falta de stock", 400)
+
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
+    cantidad_en_carrito = CarritoItem.obtener_cantidad(carrito["id_carrito"], id_variante)
+    if cantidad_en_carrito + cantidad > stock_actual:
+        disponibles = max(stock_actual - cantidad_en_carrito, 0)
+        return _error(f"Stock insuficiente. Solo quedan {disponibles} unidad(es) disponible(s)", 400)
+
     CarritoItem.agregar(carrito["id_carrito"], id_variante, cantidad)
 
     return _ok({"mensaje": "Producto agregado al carrito"}, 201)

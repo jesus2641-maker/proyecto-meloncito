@@ -24,6 +24,7 @@
                    name="busqueda" 
                    placeholder="Buscar licores, marcas, categorías..." 
                    value="{{ busqueda }}"
+                   maxlength="50"
                    class="filter-input">
         </div>
         
@@ -44,6 +45,12 @@
             <a href="{{ url_for('productos.catalogo') }}" class="btn btn-ghost">Limpiar</a>
         </div>
     </form>
+
+    {% if mensaje_busqueda %}
+    <div class="alert alert-warning mt-3 mb-0" role="alert">
+        {{ mensaje_busqueda }}
+    </div>
+    {% endif %}
 </section>
 
 <!-- Products Grid -->
@@ -68,6 +75,9 @@
                 <div class="product-badges">
                     {% if producto.categorias %}
                     <span class="badge badge-category">{{ producto.categorias }}</span>
+                    {% endif %}
+                    {% if not producto.disponible %}
+                    <span class="badge bg-danger">No disponible</span>
                     {% endif %}
                 </div>
             </div>

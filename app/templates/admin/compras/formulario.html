@@ -121,8 +121,12 @@
 
                                 <!-- Cantidad a Comprar -->
                                 <td>
-                                    <input type="number" name="cantidad[]" class="form-input" min="1" step="1"
-                                           x-model.number="item.cantidad" @input="calculateSubtotal(index)" required
+                                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" name="cantidad[]" class="form-input"
+                                           x-model="item.cantidad"
+                                           @keydown="if (['e', 'E', '+', '-', '.', ','].includes($event.key)) $event.preventDefault()"
+                                           @input="item.cantidad = String($event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6); $event.target.value = item.cantidad; calculateSubtotal(index)"
+                                           @wheel.prevent="$event.target.blur()"
+                                           autocomplete="off" required
                                            placeholder="1" style="text-align: right;">
                                 </td>
 
@@ -130,8 +134,12 @@
                                 <td>
                                     <div style="position: relative;">
                                         <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">$</span>
-                                        <input type="number" name="precio_unitario[]" class="form-input" min="1" step="1"
-                                               x-model.number="item.precio_unitario" @input="calculateSubtotal(index)" required
+                                        <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" name="precio_unitario[]" class="form-input"
+                                               x-model="item.precio_unitario"
+                                               @keydown="if (['e', 'E', '+', '-'].includes($event.key) || ($event.key === '.' && String($event.target.value || '').includes('.'))) $event.preventDefault()"
+                                               @input="item.precio_unitario = limpiarPrecioCompra($event.target.value); $event.target.value = item.precio_unitario; calculateSubtotal(index)"
+                                               @wheel.prevent="$event.target.blur()"
+                                               autocomplete="off" required
                                                placeholder="0" style="padding-left: 24px; text-align: right;">
                                     </div>
                                 </td>
@@ -241,6 +249,51 @@
 </section>
 
 <script>
+function limpiarPrecioCompra(val) {
+    let limpio = String(val || '').replace(/[^0-9.]/g, '');
+    const partes = limpio.split('.');
+    if (partes.length > 1) {
+        limpio = partes[0] + '.' + partes.slice(1).join('').slice(0, 2);
+    }
+    return limpio.slice(0, 9);
+}
+
+// Delegación global de eventos para inputs dinámicos de cantidad[] y precio_unitario[]
+document.addEventListener('wheel', function(e) {
+    if (e.target && e.target.matches && e.target.matches('input[name="precio_unitario[]"], input[name="cantidad[]"]')) {
+        e.preventDefault();
+        e.target.blur();
+    }
+}, { passive: false });
+
+document.addEventListener('keydown', function(e) {
+    if (!e.target || !e.target.matches) return;
+    if (e.target.matches('input[name="precio_unitario[]"]')) {
+        if (['e', 'E', '+', '-'].includes(e.key) || (e.key === '.' && e.target.value.includes('.'))) {
+            e.preventDefault();
+        }
+    } else if (e.target.matches('input[name="cantidad[]"]')) {
+        if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+            e.preventDefault();
+        }
+    }
+});
+
+document.addEventListener('input', function(e) {
+    if (!e.target || !e.target.matches) return;
+    if (e.target.matches('input[name="precio_unitario[]"]')) {
+        const limpio = limpiarPrecioCompra(e.target.value);
+        if (e.target.value !== limpio) {
+            e.target.value = limpio;
+        }
+    } else if (e.target.matches('input[name="cantidad[]"]')) {
+        const limpio = String(e.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+        if (e.target.value !== limpio) {
+            e.target.value = limpio;
+        }
+    }
+});
+
 function compraForm() {
     return {
         id_proveedor: '',

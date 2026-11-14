@@ -12,40 +12,40 @@
     </div>
 </section>
 
-<section class="container">
-    <div class="admin-section">
+<section class="container my-4">
+    <div class="admin-section mt-0 mb-5" style="width: 100%; max-width: 100%;">
         <div class="admin-section-header">
             <h2>Todos los Pedidos</h2>
         </div>
 
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive" style="width: 100%; max-height: 75vh; overflow-y: auto;">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
-                        <th>N°</th>
-                        <th>Fecha</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">N°</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Fecha</th>
                         <th>Cliente</th>
-                        <th>Total</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Total</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ped in pedidos %}
                     <tr>
-                        <td><strong>#{{ ped.id_pedido }}</strong></td>
-                        <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
-                        <td><strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong></td>
-                        <td>${{ "{:,.0f}".format(ped.total) }}</td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>#{{ ped.id_pedido }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                        <td><strong class="d-inline-block text-truncate" style="max-width: 240px;">{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong></td>
+                        <td class="table-amount text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(ped.total) }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if ped.id_estado in (4, 5) %}
-                            <span class="status-text status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">{{ ped.nombre_estado|capitalize }}</span>
+                            <span class="status-text status-{{ ped.nombre_estado|replace(' ', '-')|lower }} text-nowrap">{{ ped.nombre_estado|capitalize }}</span>
                             {% else %}
                             {% set permitidos = {1: (1, 2), 2: (2, 3), 3: (3, 4)}.get(ped.id_estado, (ped.id_estado,)) %}
-                            <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
+                            <form method="POST" action="{{ url_for('trabajador.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form d-inline-flex align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="next" value="{{ request.path }}">
-                                <select name="id_estado" onchange="this.form.submit()" class="status-select">
+                                <select name="id_estado" onchange="this.form.submit()" class="status-select form-select form-select-sm" style="width: auto; min-width: 130px; white-space: nowrap;">
                                     {% for est in estados if est.id_estado in permitidos %}
                                     <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
                                         {{ est.nombre_estado|capitalize }}
@@ -55,8 +55,8 @@
                             </form>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('trabajador.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Detalle</a>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <a href="{{ url_for('trabajador.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline text-nowrap">Detalle</a>
                         </td>
                     </tr>
                     {% else %}

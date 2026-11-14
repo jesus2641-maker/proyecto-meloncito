@@ -4,10 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Trabajador — Beer House Premium{% endblock %}</title>
+    <!-- Bootstrap 5 CSS (solo utilidades de grid y responsive) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        /* Adaptación escritorio (1366px - 1920px) y zoom 175% */
+        @media (min-width: 992px) {
+            .admin-sidebar {
+                width: min(260px, 20vw) !important;
+                max-width: 20% !important;
+                flex: 0 0 min(260px, 20vw) !important;
+            }
+            .admin-content-wrapper {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                max-width: calc(100% - min(260px, 20vw)) !important;
+                width: calc(100% - min(260px, 20vw)) !important;
+            }
+        }
+        .admin-content-wrapper .container {
+            width: 100% !important;
+            max-width: 1440px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-left: clamp(16px, 2.5vw, 36px) !important;
+            padding-right: clamp(16px, 2.5vw, 36px) !important;
+        }
+        .admin-table-container.table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .admin-table th,
+        .admin-table td {
+            vertical-align: middle;
+        }
+        .kpi-card {
+            min-width: 0;
+        }
+    </style>
 </head>
 <body class="trabajador-page">
 <nav class="admin-sidebar" id="panel-sidebar">

@@ -26,43 +26,43 @@
     </div>
 
     <div class="admin-section">
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
-                        <th>N° Pedido</th>
-                        <th>Fecha y Hora</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">N° Pedido</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Fecha y Hora</th>
                         <th>Cliente</th>
                         <th>Destino</th>
-                        <th>Método Pago</th>
-                        <th>Total</th>
-                        <th>Estado del Pedido</th>
-                        <th>Acciones</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Método Pago</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Total</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado del Pedido</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ped in pedidos %}
                     <tr>
-                        <td><strong>#{{ ped.id_pedido }}</strong></td>
-                        <td>{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>#{{ ped.id_pedido }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ ped.fecha_pedido.strftime('%d/%m/%Y %H:%M') if ped.fecha_pedido else '—' }}</td>
                         <td>
                             <div class="customer-info">
-                                <strong>{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong>
-                                <small>{{ ped.usuario_email }}</small>
+                                <strong class="d-inline-block text-truncate" style="max-width: 220px;">{{ ped.usuario_nombre }} {{ ped.usuario_apellido }}</strong>
+                                <small class="d-inline-block text-truncate" style="max-width: 220px;">{{ ped.usuario_email }}</small>
                             </div>
                         </td>
-                        <td>{{ ped.linea_direccion or '—' }} ({{ ped.ciudad or '' }})</td>
-                        <td>{{ ped.tipo_pago or '—' }}</td>
-                        <td class="table-amount">${{ "{:,.0f}".format(ped.total) }}</td>
-                        <td>
+                        <td><span class="d-inline-block text-truncate" style="max-width: 200px;">{{ ped.linea_direccion or '—' }} ({{ ped.ciudad or '' }})</span></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ ped.tipo_pago or '—' }}</td>
+                        <td class="table-amount text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(ped.total) }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if ped.id_estado in (4, 5) %}
-                            <span class="status-text status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">{{ ped.nombre_estado|capitalize }}</span>
+                            <span class="status-text status-{{ ped.nombre_estado|replace(' ', '-')|lower }} text-nowrap">{{ ped.nombre_estado|capitalize }}</span>
                             {% else %}
                             {% set permitidos = {1: (1, 2, 5), 2: (2, 3, 5), 3: (3, 4, 5)}.get(ped.id_estado, (ped.id_estado,)) %}
-                            <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form">
+                            <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=ped.id_pedido) }}" class="inline-form d-inline-flex align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                                <select name="id_estado" onchange="this.form.submit()" class="status-select status-{{ ped.nombre_estado|replace(' ', '-')|lower }}">
+                                <select name="id_estado" onchange="this.form.submit()" class="status-select form-select form-select-sm status-{{ ped.nombre_estado|replace(' ', '-')|lower }}" style="width: auto; min-width: 130px; white-space: nowrap;">
                                     {% for est in estados if est.id_estado in permitidos %}
                                     <option value="{{ est.id_estado }}" {% if est.id_estado == ped.id_estado %}selected{% endif %}>
                                         {{ est.nombre_estado|capitalize }}
@@ -72,8 +72,8 @@
                             </form>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline">Ver Detalle</a>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <a href="{{ url_for('admin.detalle_pedido', id_pedido=ped.id_pedido) }}" class="btn btn-sm btn-outline text-nowrap">Ver Detalle</a>
                         </td>
                     </tr>
                     {% else %}

@@ -38,25 +38,50 @@
                 {% if producto.categorias %}
                 <span class="product-category">{{ producto.categorias }}</span>
                 {% endif %}
+                <span id="badge-disponibilidad" class="badge bg-danger ms-2 {% if disponible %}d-none{% endif %}">No disponible</span>
             </div>
             
             <h1 class="detail-title">{{ producto.nombre_producto }}</h1>
             
             <p class="detail-description">{{ producto.descripcion }}</p>
+
+            <!-- Alerta Bootstrap cuando la presentación no tiene stock -->
+            <div id="alerta-disponibilidad" class="alert alert-danger d-flex align-items-center mb-4 {% if disponible %}d-none{% endif %}" role="alert">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" style="flex-shrink: 0;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div id="alerta-disponibilidad-texto">
+                    <strong>No disponible:</strong> Esta presentación no cuenta con stock en este momento. Por favor selecciona otra variante.
+                </div>
+            </div>
             
             <!-- Variant Selection -->
-            <form method="POST" action="{{ url_for('carrito.agregar') }}" class="variant-form">
+            <form method="POST" action="{{ url_for('carrito.agregar') }}" class="variant-form" id="form-agregar-carrito">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="variant-selector">
                     <label class="variant-label">Seleccionar Presentación</label>
                     <div class="variant-options">
                         {% for v in variantes %}
-                        <label class="variant-option">
-                            <input type="radio" name="id_variante" value="{{ v.id_variante }}" {% if loop.first %}checked{% endif %}>
+                        {% set is_selected = (variante_seleccionada and v.id_variante == variante_seleccionada.id_variante) or (not variante_seleccionada and loop.first) %}
+                        <label class="variant-option {% if not v.disponible %}variant-option-sin-stock{% endif %}" id="label-variante-{{ v.id_variante }}">
+                            <input type="radio" 
+                                   name="id_variante" 
+                                   value="{{ v.id_variante }}" 
+                                   data-stock="{{ v.stock if v.stock is not none else 0 }}"
+                                   data-precio="{{ v.precio }}"
+                                   data-presentacion="{{ v.presentacion }}"
+                                   data-disponible="{{ 'true' if v.disponible else 'false' }}"
+                                   {% if is_selected %}checked{% endif %}>
                             <div class="variant-option-content">
                                 <span class="variant-option-name">{{ v.presentacion }}</span>
-                                <span class="variant-option-price">${{ v.precio }}</span>
+                                <span class="variant-option-price">${{ "{:,.0f}".format(v.precio) if v.precio else '0' }}</span>
+                                {% if v.disponible %}
                                 <span class="variant-option-stock">{{ v.stock }} disponibles</span>
+                                {% else %}
+                                <span class="badge bg-danger mt-1">No disponible</span>
+                                {% endif %}
                             </div>
                         </label>
                         {% endfor %}
@@ -67,21 +92,36 @@
                 <div class="quantity-selector">
                     <label class="quantity-label">Cantidad</label>
                     <div class="quantity-input">
-                        <button type="button" class="quantity-btn quantity-minus">−</button>
-                        <input type="number" name="cantidad" value="1" min="1" class="quantity-field">
-                        <button type="button" class="quantity-btn quantity-plus">+</button>
+                        <button type="button" class="quantity-btn quantity-minus" {% if not disponible %}disabled{% endif %}>−</button>
+                        <input type="text" 
+                               inputmode="numeric" 
+                               pattern="[0-9]*" 
+                               maxlength="4" 
+                               name="cantidad" 
+                               id="input-cantidad" 
+                               value="1" 
+                               min="1" 
+                               {% if disponible and variante_seleccionada and variante_seleccionada.stock %}max="{{ variante_seleccionada.stock }}"{% endif %} 
+                               class="quantity-field" 
+                               autocomplete="off" 
+                               {% if not disponible %}disabled{% endif %}>
+                        <button type="button" class="quantity-btn quantity-plus" {% if not disponible %}disabled{% endif %}>+</button>
                     </div>
                 </div>
                 
                 <!-- Actions -->
                 <div class="detail-actions">
-                    <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;">
+                    <button type="submit" 
+                            id="btn-agregar-carrito" 
+                            class="btn btn-primary btn-lg {% if not disponible %}disabled{% endif %}" 
+                            style="flex: 1;" 
+                            {% if not disponible %}disabled{% endif %}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <path d="M16 10a4 4 0 0 1-8 0"></path>
                         </svg>
-                        Agregar al Carrito
+                        <span id="btn-texto-carrito">{% if disponible %}Agregar al Carrito{% else %}No disponible{% endif %}</span>
                     </button>
                     <a href="{{ url_for('productos.catalogo') }}" class="btn btn-outline">
                         ← Volver al Catálogo
@@ -148,22 +188,155 @@
     {% endif %}
 </section>
 
+<style>
+    .variant-option.variant-option-sin-stock {
+        opacity: 0.8;
+        border-color: rgba(220, 53, 69, 0.35);
+    }
+    .btn-primary:disabled,
+    .btn-primary.disabled {
+        background: #3a3a3a !important;
+        color: #999999 !important;
+        border-color: #3a3a3a !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        box-shadow: none !important;
+        pointer-events: none;
+    }
+    .quantity-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .quantity-field:disabled {
+        opacity: 0.5;
+        background-color: rgba(255, 255, 255, 0.05);
+        cursor: not-allowed;
+    }
+</style>
+
 <script>
-    // Quantity selector functionality
-    document.querySelectorAll('.quantity-minus').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const input = this.nextElementSibling;
-            if (input.value > 1) {
-                input.value = parseInt(input.value) - 1;
+    // Manejo de selector de cantidad
+    const inputCantidad = document.getElementById('input-cantidad');
+    const minusBtn = document.querySelector('.quantity-minus');
+    const plusBtn = document.querySelector('.quantity-plus');
+
+    if (minusBtn && inputCantidad) {
+        minusBtn.addEventListener('click', function() {
+            if (inputCantidad.disabled) return;
+            const currentVal = parseInt(inputCantidad.value, 10) || 1;
+            if (currentVal > 1) {
+                inputCantidad.value = currentVal - 1;
+            }
+        });
+    }
+
+    if (plusBtn && inputCantidad) {
+        plusBtn.addEventListener('click', function() {
+            if (inputCantidad.disabled) return;
+            const currentVal = parseInt(inputCantidad.value, 10) || 1;
+            const maxVal = parseInt(inputCantidad.getAttribute('max'), 10) || Infinity;
+            if (currentVal < maxVal) {
+                inputCantidad.value = currentVal + 1;
+            }
+        });
+    }
+
+    if (inputCantidad) {
+        inputCantidad.addEventListener('keydown', function(e) {
+            if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        inputCantidad.addEventListener('input', function() {
+            const limpio = String(this.value || '').replace(/[^0-9]/g, '').slice(0, 4);
+            if (this.value !== limpio) {
+                this.value = limpio;
+            }
+        });
+        inputCantidad.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            this.blur();
+        }, { passive: false });
+    }
+
+    // Actualización dinámica al cambiar de presentación/variante
+    const variantRadios = document.querySelectorAll('input[name="id_variante"]');
+    const btnAgregar = document.getElementById('btn-agregar-carrito');
+    const btnTexto = document.getElementById('btn-texto-carrito');
+    const badgeDisponibilidad = document.getElementById('badge-disponibilidad');
+    const alertaDisponibilidad = document.getElementById('alerta-disponibilidad');
+
+    function actualizarEstadoVariante(radio) {
+        if (!radio) return;
+        const stock = parseInt(radio.getAttribute('data-stock') || '0', 10);
+        const disponible = (stock > 0);
+
+        if (disponible) {
+            // Habilitar botón de agregar al carrito
+            if (btnAgregar) {
+                btnAgregar.disabled = false;
+                btnAgregar.classList.remove('disabled');
+            }
+            if (btnTexto) {
+                btnTexto.textContent = 'Agregar al Carrito';
+            }
+            // Ocultar badge y alerta de no disponible
+            if (badgeDisponibilidad) {
+                badgeDisponibilidad.classList.add('d-none');
+            }
+            if (alertaDisponibilidad) {
+                alertaDisponibilidad.classList.add('d-none');
+            }
+            // Habilitar selector de cantidad y fijar max
+            if (inputCantidad) {
+                inputCantidad.disabled = false;
+                inputCantidad.max = stock;
+                const val = parseInt(inputCantidad.value, 10) || 1;
+                if (val > stock) {
+                    inputCantidad.value = stock;
+                } else if (val < 1) {
+                    inputCantidad.value = 1;
+                }
+            }
+            if (minusBtn) minusBtn.disabled = false;
+            if (plusBtn) plusBtn.disabled = false;
+        } else {
+            // Deshabilitar botón de agregar al carrito
+            if (btnAgregar) {
+                btnAgregar.disabled = true;
+                btnAgregar.classList.add('disabled');
+            }
+            if (btnTexto) {
+                btnTexto.textContent = 'No disponible';
+            }
+            // Mostrar badge y alerta de no disponible
+            if (badgeDisponibilidad) {
+                badgeDisponibilidad.classList.remove('d-none');
+            }
+            if (alertaDisponibilidad) {
+                alertaDisponibilidad.classList.remove('d-none');
+            }
+            // Deshabilitar selector de cantidad
+            if (inputCantidad) {
+                inputCantidad.disabled = true;
+            }
+            if (minusBtn) minusBtn.disabled = true;
+            if (plusBtn) plusBtn.disabled = true;
+        }
+    }
+
+    variantRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                actualizarEstadoVariante(this);
             }
         });
     });
-    
-    document.querySelectorAll('.quantity-plus').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const input = this.previousElementSibling;
-            input.value = parseInt(input.value) + 1;
-        });
-    });
+
+    // Inicializar estado según la variante seleccionada al cargar la página
+    const radioSeleccionado = document.querySelector('input[name="id_variante"]:checked') || variantRadios[0];
+    if (radioSeleccionado) {
+        actualizarEstadoVariante(radioSeleccionado);
+    }
 </script>
 {% endblock %}

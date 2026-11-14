@@ -1,4 +1,5 @@
 import logging
+import re
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from app.models.producto import Producto, VarianteProducto
 from app.models.pedido import Pedido, ESTADO_CANCELADO
@@ -102,15 +103,13 @@ def inventario():
 def actualizar_stock():
     """Actualizar stock de una variante."""
     id_variante = request.form.get("id_variante", type=int)
-    nuevo_stock = request.form.get("stock", type=int)
+    stock_raw = request.form.get("stock", "").strip()
 
-    if not id_variante or nuevo_stock is None:
-        flash("Datos inválidos", "danger")
+    if not id_variante or not stock_raw or not re.match(r"^\d+$", stock_raw):
+        flash("El stock no puede ser negativo y debe contener solo números enteros", "danger")
         return redirect(url_for("trabajador.inventario"))
 
-    if nuevo_stock < 0:
-        flash("El stock no puede ser negativo", "danger")
-        return redirect(url_for("trabajador.inventario"))
+    nuevo_stock = int(stock_raw)
 
     VarianteProducto.actualizar_stock(id_variante, nuevo_stock)
     flash("Stock actualizado correctamente", "success")
@@ -242,7 +241,7 @@ def editar_mi_cuenta():
 
     nombre = request.form.get("nombre", "").strip()
     apellido = request.form.get("apellido", "").strip()
-    telefono = request.form.get("telefono", "").strip() or None
+    telefono_raw = request.form.get("telefono", "").strip()
     email = request.form.get("email", "").strip()
     contraseña_actual = request.form.get("contraseña_actual", "").strip()
     contraseña_nueva = request.form.get("contraseña_nueva", "").strip()
@@ -250,6 +249,17 @@ def editar_mi_cuenta():
     if not nombre or not apellido or not email:
         flash("Nombre, apellido y correo son obligatorios", "danger")
         return redirect(url_for("trabajador.mi_cuenta"))
+
+    # Validación de celular colombiano
+    from app.utils.validaciones import validar_telefono_colombiano
+    if telefono_raw:
+        valido_tel, msg_tel, tel_normalizado = validar_telefono_colombiano(telefono_raw)
+        if not valido_tel:
+            flash(msg_tel, "danger")
+            return redirect(url_for("trabajador.mi_cuenta"))
+        telefono = tel_normalizado
+    else:
+        telefono = None
 
     if contraseña_nueva:
         if not contraseña_actual:

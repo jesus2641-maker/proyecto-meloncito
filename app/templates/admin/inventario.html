@@ -125,17 +125,17 @@
             </form>
         </div>
 
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Presentación</th>
-                        <th>Stock Actual</th>
-                        <th>Stock Mínimo</th>
-                        <th>Estado</th>
-                        <th>Precio</th>
-                        <th>Acciones</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Presentación</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Actual</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Mínimo</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Precio</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -143,29 +143,29 @@
                     <tr class="{% if item.estado_stock == 'agotado' %}row-critical{% elif item.estado_stock == 'bajo' %}row-warning{% endif %}">
                         <td>
                             <div class="product-cell">
-                                <strong>{{ item.nombre_producto }}</strong>
-                                <small>{{ item.marca }}</small>
+                                <strong class="d-inline-block text-truncate" style="max-width: 260px;">{{ item.nombre_producto }}</strong>
+                                <small class="d-inline-block text-truncate" style="max-width: 260px;">{{ item.marca }}</small>
                             </div>
                         </td>
-                        <td>{{ item.presentacion }}</td>
-                        <td>
-                            <span class="stock-value {% if item.estado_stock == 'agotado' %}stock-critical{% elif item.estado_stock == 'bajo' %}stock-warning{% endif %}">
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.presentacion }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <span class="stock-value {% if item.estado_stock == 'agotado' %}stock-critical{% elif item.estado_stock == 'bajo' %}stock-warning{% endif %} text-nowrap">
                                 {{ item.stock }}
                             </span>
                         </td>
-                        <td>{{ item.stock_minimo }}</td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock_minimo }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if item.estado_stock == 'agotado' %}
-                            <span class="badge badge-danger">Agotado</span>
+                            <span class="badge badge-danger text-nowrap">Agotado</span>
                             {% elif item.estado_stock == 'bajo' %}
-                            <span class="badge badge-warning">Stock Bajo</span>
+                            <span class="badge badge-warning text-nowrap">Stock Bajo</span>
                             {% else %}
-                            <span class="badge badge-success">Normal</span>
+                            <span class="badge badge-success text-nowrap">Normal</span>
                             {% endif %}
                         </td>
-                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
-                        <td>
-                            <a href="{{ url_for('admin.variantes_producto', id_producto=item.id_producto) }}" class="btn btn-sm btn-outline">Gestionar</a>
+                        <td class="text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(item.precio) }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <a href="{{ url_for('admin.variantes_producto', id_producto=item.id_producto) }}" class="btn btn-sm btn-outline text-nowrap">Gestionar</a>
                         </td>
                     </tr>
                     {% endfor %}

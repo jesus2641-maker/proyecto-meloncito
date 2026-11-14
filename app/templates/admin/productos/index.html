@@ -30,46 +30,46 @@
             <span class="section-badge">{{ productos|length }} productos</span>
         </div>
 
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">ID</th>
                         <th>Producto</th>
-                        <th>Categoría</th>
-                        <th>Marca</th>
-                        <th>Variantes</th>
-                        <th>Rango de Precio</th>
-                        <th>Stock Total</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Categoría</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Marca</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Variantes</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Rango de Precio</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Total</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for prod in productos %}
                     <tr class="{% if not prod.activo %}row-inactive{% endif %}">
-                        <td><strong>#{{ prod.id_producto }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>#{{ prod.id_producto }}</strong></td>
                         <td>
                             <div class="product-cell">
                                 {% if prod.imagen_url %}
                                 <img src="{{ prod.imagen_url }}" alt="{{ prod.nombre_producto }}" class="product-thumb">
                                 {% endif %}
                                 <div class="product-info">
-                                    <strong>{{ prod.nombre_producto }}</strong>
+                                    <strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ prod.nombre_producto }}</strong>
                                     {% if prod.descripcion %}
-                                    <small>{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</small>
+                                    <small class="d-inline-block text-truncate" style="max-width: 250px;">{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</small>
                                     {% endif %}
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge badge-info">{{ prod.categorias or 'Sin categoría' }}</span></td>
-                        <td>{{ prod.marca or '—' }}</td>
-                        <td>
-                            <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline">
+                        <td class="text-nowrap" style="white-space: nowrap;"><span class="badge badge-info text-nowrap">{{ prod.categorias or 'Sin categoría' }}</span></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ prod.marca or '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline text-nowrap">
                                 <strong>{{ prod.total_variantes }} variante(s)</strong>
                             </a>
                         </td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if prod.precio_minimo %}
                                 {% if prod.precio_minimo == prod.precio_maximo %}
                                 <span>${{ "{:,.0f}".format(prod.precio_minimo) }}</span>
@@ -80,28 +80,28 @@
                                 <span class="text-muted">Sin variantes</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if prod.stock_total > 10 %}
-                            <span class="badge badge-success">{{ prod.stock_total }} uds</span>
+                            <span class="badge badge-success text-nowrap">{{ prod.stock_total }} uds</span>
                             {% elif prod.stock_total > 0 %}
-                            <span class="badge badge-warning">{{ prod.stock_total }} uds (Bajo)</span>
+                            <span class="badge badge-warning text-nowrap">{{ prod.stock_total }} uds (Bajo)</span>
                             {% else %}
-                            <span class="badge badge-danger">Agotado (0)</span>
+                            <span class="badge badge-danger text-nowrap">Agotado (0)</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('admin.toggle_producto', id_producto=prod.id_producto) }}" class="inline-form">
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <form method="POST" action="{{ url_for('admin.toggle_producto', id_producto=prod.id_producto) }}" class="inline-form d-inline-flex align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm {% if prod.activo %}btn-danger{% else %}btn-primary{% endif %}">
+                                <button type="submit" class="btn btn-sm {% if prod.activo %}btn-danger{% else %}btn-primary{% endif %} text-nowrap">
                                     {{ 'Desactivar' if prod.activo else 'Activar' }}
                                 </button>
                             </form>
                         </td>
-                        <td>
-                            <div class="action-buttons">
-                                <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Gestionar Variantes / Stock">Variantes</a>
-                                <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline" title="Editar">Editar</a>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminarProducto({{ prod.id_producto }}, '{{ prod.nombre_producto }}')" title="Eliminar">Eliminar</button>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <div class="action-buttons flex-nowrap" style="white-space: nowrap;">
+                                <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline text-nowrap" title="Gestionar Variantes / Stock">Variantes</a>
+                                <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline text-nowrap" title="Editar">Editar</a>
+                                <button type="button" class="btn btn-sm btn-danger text-nowrap" onclick="confirmarEliminarProducto({{ prod.id_producto }}, '{{ prod.nombre_producto }}')" title="Eliminar">Eliminar</button>
                             </div>
                         </td>
                     </tr>

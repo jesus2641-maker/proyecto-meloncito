@@ -12,56 +12,45 @@
     </div>
 </section>
 
-<section class="container">
-    <div class="admin-actions">
-        <a href="{{ url_for('trabajador.inventario') }}" class="btn btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
-            </svg>
-            Ir a Inventario
-        </a>
-    </div>
-
-    <div class="admin-section">
+<section class="container my-4">
+    <div class="admin-section mt-0 mb-5" style="width: 100%; max-width: 100%;">
         <div class="admin-section-header">
             <h2>Inventario Crítico</h2>
-            <span class="section-badge">{{ inventario_critico|length }} variante(s) en alerta</span>
+            <span class="section-badge text-nowrap">{{ inventario_critico|length }} variante(s) en alerta</span>
         </div>
 
         {% if inventario_critico %}
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive" style="width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Presentación</th>
-                        <th>SKU</th>
-                        <th>Stock Actual</th>
-                        <th>Stock Mínimo</th>
-                        <th>Faltante</th>
-                        <th>Estado</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Presentación</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">SKU</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Actual</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Mínimo</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Faltante</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in inventario_critico %}
                     <tr class="{% if item.stock == 0 %}row-critical{% else %}row-warning{% endif %}">
-                        <td><strong>{{ item.producto }}</strong></td>
-                        <td>{{ item.presentacion }}</td>
-                        <td>{{ item.sku or '—' }}</td>
-                        <td>
-                            <span class="stock-value {% if item.stock == 0 %}stock-critical{% else %}stock-warning{% endif %}">
+                        <td><strong class="d-inline-block text-truncate" style="max-width: 260px;">{{ item.producto }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.presentacion }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.sku or '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <span class="stock-value {% if item.stock == 0 %}stock-critical{% else %}stock-warning{% endif %} text-nowrap">
                                 {{ item.stock }}
                             </span>
                         </td>
-                        <td>{{ item.stock_minimo }}</td>
-                        <td><strong>{{ item.faltante }}</strong></td>
-                        <td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock_minimo }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;"><strong>{{ item.faltante }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
                             {% if item.stock == 0 %}
-                            <span class="badge badge-danger">Agotado</span>
+                            <span class="badge badge-danger text-nowrap">Agotado</span>
                             {% else %}
-                            <span class="badge badge-warning">Stock Bajo</span>
+                            <span class="badge badge-warning text-nowrap">Stock Bajo</span>
                             {% endif %}
                         </td>
                     </tr>

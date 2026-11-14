@@ -2,6 +2,114 @@
 {% block title %}{% if producto %}Editar Producto: {{ producto.nombre_producto }}{% else %}Nuevo Producto{% endif %} — Admin — Beer House Premium{% endblock %}
 
 {% block admin_content %}
+<style>
+/* Selector de categorías en lista vertical con límite de 2 */
+.categorias-lista-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    max-height: 290px; /* Limita la altura si hay más de 6 categorías */
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Scrollbar sutil para el contenedor de categorías */
+.categorias-lista-container::-webkit-scrollbar {
+    width: 6px;
+}
+.categorias-lista-container::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+.categorias-lista-container::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 4px;
+}
+.categorias-lista-container::-webkit-scrollbar-thumb:hover {
+    background: var(--gold-primary);
+}
+
+.categoria-fila {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-smooth);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.categoria-fila:hover:not(.disabled) {
+    background: var(--amber-glow);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.categoria-fila:focus-within {
+    outline: 2px solid var(--gold-primary);
+    outline-offset: 1px;
+}
+
+/* Fila seleccionada */
+.categoria-fila.selected,
+.categoria-fila:has(input:checked) {
+    background: rgba(212, 168, 83, 0.12);
+    border-color: var(--gold-primary);
+    color: var(--text-primary);
+}
+
+/* Casilla de verificación */
+.categoria-fila input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold-primary);
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+/* Estado deshabilitado al alcanzar el límite de 2 */
+.categoria-fila.disabled,
+.categoria-fila:has(input:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--bg-secondary);
+    border-color: var(--border-subtle);
+}
+
+.categoria-fila input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+}
+
+.categoria-texto {
+    flex-grow: 1;
+}
+
+/* Mensaje de error de validación */
+.categoria-error-msg {
+    color: var(--danger);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    font-weight: 500;
+    display: none;
+    align-items: center;
+    gap: 6px;
+}
+
+.categoria-error-msg svg {
+    flex-shrink: 0;
+}
+</style>
 <!-- Admin Product Form Hero Section -->
 <section class="admin-hero">
     <div class="container">
@@ -48,15 +156,25 @@
                             <input type="text" id="nombre_producto" name="nombre_producto" class="form-input" value="{{ producto.nombre_producto if producto else '' }}" placeholder="Ej. Corona Extra 355ml" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Categorías * (puedes seleccionar varias)</label>
-                            <select id="categorias" name="categorias" class="filter-select" multiple required>
+                            <label class="form-label">Categorías * (máximo 2)</label>
+                            <div class="categorias-lista-container" id="categoriasListaContainer" role="group" aria-label="Categorías del producto">
                                 {% for cat in categorias %}
-                                <option value="{{ cat.id_categoria }}" {% if producto and producto.categoria_ids and cat.id_categoria|string in producto.categoria_ids %}selected{% endif %}>
-                                    {{ cat.nombre_categoria }}
-                                </option>
+                                {% set esta_seleccionada = producto and producto.categoria_ids and cat.id_categoria|string in producto.categoria_ids %}
+                                <label class="categoria-fila{% if esta_seleccionada %} selected{% endif %}">
+                                    <input type="checkbox" name="categorias" value="{{ cat.id_categoria }}" class="categoria-checkbox" {% if esta_seleccionada %}checked{% endif %}>
+                                    <span class="categoria-texto">{{ cat.nombre_categoria }}</span>
+                                </label>
                                 {% endfor %}
-                            </select>
-                            <small class="form-helper">Mantén presionada Ctrl (o Cmd en Mac) para seleccionar múltiples categorías</small>
+                            </div>
+                            <small class="form-helper" id="categorias-helper">Puedes seleccionar máximo 2 categorías.</small>
+                            <div class="categoria-error-msg" id="categoriasErrorMsg" style="display: none;" role="alert">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                <span id="categoriasErrorText">Selecciona al menos una categoría</span>
+                            </div>
                         </div>
                     </div>
 
@@ -96,24 +214,25 @@
 
                 {% if not producto %}
                 <div class="form-section">
-                    <h3 class="form-section-title">2. Primera Variante / Presentación (Opcional)</h3>
-                    <p class="form-helper">Puedes ingresar la primera presentación de este producto ahora (o agregar más después):</p>
+                    <h3 class="form-section-title">2. Primera Variante / Presentación</h3>
+                    <p class="form-helper">Ingresa la primera presentación y su precio para registrar el producto (puedes agregar más presentaciones después):</p>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Presentación</label>
-                            <input type="text" id="presentacion" name="presentacion" class="form-input" placeholder="Ej. 330ml, Pack x6, 750ml">
+                            <label class="form-label">Presentación *</label>
+                            <input type="text" id="presentacion" name="presentacion" class="form-input" placeholder="Ej. 330ml, Pack x6, 750ml" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Precio Unitario ($)</label>
-                            <input type="number" step="1" id="precio" name="precio" class="form-input" placeholder="Ej. 8500">
+                            <label class="form-label">Precio Unitario ($) *</label>
+                            <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" id="precio" name="precio" class="form-input" placeholder="Ej. 8500" autocomplete="off" required>
+                            <small class="form-helper">El precio es obligatorio y debe ser mayor a cero.</small>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Stock Inicial</label>
-                            <input type="number" id="stock" name="stock" class="form-input" value="0" min="0">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="stock" name="stock" class="form-input" value="0" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label class="form-label">SKU / Código Referencia (opcional)</label>
@@ -159,6 +278,154 @@ document.addEventListener('DOMContentLoaded', function() {
                 contador.style.color = 'var(--text-muted)';
             }
         });
+    }
+
+    // Gestión y límite de 2 categorías en el navegador
+    const listaContainer = document.getElementById('categoriasListaContainer');
+    const helperCategorias = document.getElementById('categorias-helper');
+    const categoriasErrorMsg = document.getElementById('categoriasErrorMsg');
+    const categoriasErrorText = document.getElementById('categoriasErrorText');
+    const formProducto = document.querySelector('.premium-form');
+    const categoriaCheckboxes = document.querySelectorAll('input[name="categorias"]');
+
+    function actualizarLimiteCategorias() {
+        const marcadas = Array.from(categoriaCheckboxes).filter(function(cb) { return cb.checked; });
+        const total = marcadas.length;
+
+        categoriaCheckboxes.forEach(function(cb) {
+            const fila = cb.closest('.categoria-fila');
+            if (cb.checked) {
+                cb.disabled = false;
+                if (fila) {
+                    fila.classList.add('selected');
+                    fila.classList.remove('disabled');
+                }
+            } else {
+                if (total >= 2) {
+                    cb.disabled = true;
+                    if (fila) {
+                        fila.classList.remove('selected');
+                        fila.classList.add('disabled');
+                    }
+                } else {
+                    cb.disabled = false;
+                    if (fila) {
+                        fila.classList.remove('selected');
+                        fila.classList.remove('disabled');
+                    }
+                }
+            }
+        });
+
+        if (helperCategorias) {
+            helperCategorias.textContent = "Puedes seleccionar máximo 2 categorías";
+            if (total >= 2) {
+                helperCategorias.style.color = "var(--gold-primary)";
+            } else {
+                helperCategorias.style.color = "var(--text-muted)";
+            }
+        }
+
+        if (total > 0 && total <= 2 && categoriasErrorMsg) {
+            categoriasErrorMsg.style.display = 'none';
+        }
+    }
+
+    // Inicializar al cargar la página (aplica también en modo edición)
+    actualizarLimiteCategorias();
+
+    // Evento de cambio en cada checkbox
+    categoriaCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            actualizarLimiteCategorias();
+        });
+    });
+
+    // Validación al enviar el formulario
+    if (formProducto) {
+        formProducto.addEventListener('submit', function(e) {
+            const seleccionadas = Array.from(categoriaCheckboxes).filter(function(cb) { return cb.checked; });
+            if (seleccionadas.length === 0) {
+                e.preventDefault();
+                if (categoriasErrorMsg) {
+                    if (categoriasErrorText) {
+                        categoriasErrorText.textContent = "Selecciona al menos una categoría";
+                    }
+                    categoriasErrorMsg.style.display = 'flex';
+                }
+                if (listaContainer) {
+                    listaContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const primerInput = categoriaCheckboxes[0];
+                    if (primerInput) {
+                        primerInput.focus();
+                    }
+                }
+            } else if (seleccionadas.length > 2) {
+                e.preventDefault();
+                if (categoriasErrorMsg) {
+                    if (categoriasErrorText) {
+                        categoriasErrorText.textContent = "Puedes seleccionar máximo 2 categorías";
+                    }
+                    categoriasErrorMsg.style.display = 'flex';
+                }
+                if (listaContainer) {
+                    listaContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    }
+
+    // Restricciones numéricas para precio y stock
+    function limpiarPrecio(val) {
+        let limpio = String(val || '').replace(/[^0-9.]/g, '');
+        const partes = limpio.split('.');
+        if (partes.length > 1) {
+            limpio = partes[0] + '.' + partes.slice(1).join('').slice(0, 2);
+        }
+        return limpio.slice(0, 9);
+    }
+
+    function limpiarEntero(val) {
+        return String(val || '').replace(/[^0-9]/g, '').slice(0, 6);
+    }
+
+    const inputPrecio = document.getElementById('precio');
+    const inputStock = document.getElementById('stock');
+
+    if (inputPrecio) {
+        inputPrecio.addEventListener('keydown', function(e) {
+            if (['e', 'E', '+', '-'].includes(e.key) || (e.key === '.' && this.value.includes('.'))) {
+                e.preventDefault();
+            }
+        });
+        inputPrecio.addEventListener('input', function() {
+            const limpio = limpiarPrecio(this.value);
+            if (this.value !== limpio) {
+                this.value = limpio;
+            }
+        });
+        inputPrecio.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            this.blur();
+        }, { passive: false });
+    }
+
+    if (inputStock) {
+        inputStock.addEventListener('keydown', function(e) {
+            if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        inputStock.addEventListener('input', function() {
+            const limpio = limpiarEntero(this.value);
+            if (this.value !== limpio) {
+                this.value = limpio;
+            }
+        });
+        inputStock.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            this.blur();
+        }, { passive: false });
     }
 });
 </script>

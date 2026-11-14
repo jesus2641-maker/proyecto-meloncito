@@ -16,18 +16,32 @@ class Usuario:
 
     @staticmethod
     def crear(nombre, apellido, email, password_hash, telefono, id_rol=1, fecha_nacimiento=None):
+        import mysql.connector
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            """INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, id_rol, fecha_nacimiento)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (nombre, apellido, email, password_hash, telefono, id_rol, fecha_nacimiento)
-        )
-        conn.commit()
-        nuevo_id = cursor.lastrowid
-        cursor.close()
-        conn.close()
-        return nuevo_id
+        try:
+            try:
+                cursor.execute(
+                    """INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, id_rol, fecha_nacimiento)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (nombre, apellido, email, password_hash, telefono, id_rol, fecha_nacimiento)
+                )
+            except mysql.connector.Error as err:
+                # Si la columna fecha_nacimiento no existe en una base de datos antigua
+                if err.errno == 1054:
+                    cursor.execute(
+                        """INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, id_rol)
+                           VALUES (%s, %s, %s, %s, %s, %s)""",
+                        (nombre, apellido, email, password_hash, telefono, id_rol)
+                    )
+                else:
+                    raise
+            conn.commit()
+            nuevo_id = cursor.lastrowid
+            return nuevo_id
+        finally:
+            cursor.close()
+            conn.close()
 
     @staticmethod
     def obtener_por_email(email):

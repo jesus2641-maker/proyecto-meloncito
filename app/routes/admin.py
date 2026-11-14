@@ -1,4 +1,5 @@
 import logging
+import re
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify, Response
 from datetime import datetime
 from decimal import Decimal
@@ -22,6 +23,28 @@ logger = logging.getLogger(__name__)
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 ID_ROL_ADMIN = 2  # rol 'admin'
+
+REGEX_PRECIO = re.compile(r"^\d+(\.\d{1,2})?$")
+REGEX_ENTERO = re.compile(r"^\d+$")
+
+
+def _parsear_precio(valor_raw):
+    """Valida con regex ^\\d+(\\.\\d{1,2})?$ y retorna float > 0 o None."""
+    texto = (valor_raw if isinstance(valor_raw, str) else str(valor_raw or "")).strip()
+    if not texto or not REGEX_PRECIO.match(texto):
+        return None
+    valor = float(texto)
+    if valor <= 0:
+        return None
+    return valor
+
+
+def _parsear_entero_no_negativo(valor_raw):
+    """Valida con regex ^\\d+$ y retorna int >= 0 o None."""
+    texto = (valor_raw if isinstance(valor_raw, str) else str(valor_raw or "")).strip()
+    if not texto or not REGEX_ENTERO.match(texto):
+        return None
+    return int(texto)
 
 
 @admin_bp.before_request
@@ -70,8 +93,39 @@ def nuevo_producto():
         marca = request.form.get("marca", "").strip() or None
         imagen_url = request.form.get("imagen_url", "").strip() or None
 
-        if not categorias_seleccionadas or not nombre_producto:
-            flash("El nombre y al menos una categoría del producto son obligatorios", "danger")
+        if not categorias_seleccionadas:
+            flash("Selecciona al menos una categoría", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
+        if len(categorias_seleccionadas) > 2:
+            flash("Puedes seleccionar máximo 2 categorías", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
+        if not nombre_producto:
+            flash("El nombre del producto es obligatorio", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
+        # Leer y validar la variante inicial ANTES de crear el producto,
+        # para no dejar productos sin variante si el precio o el stock son inválidos.
+        presentacion = request.form.get("presentacion", "").strip()
+        precio_raw = request.form.get("precio", "").strip()
+        stock_raw = request.form.get("stock", "0").strip()
+        if stock_raw == "":
+            stock_raw = "0"
+        sku = request.form.get("sku", "").strip() or None
+
+        precio = _parsear_precio(precio_raw)
+        if precio is None:
+            flash("El precio debe ser mayor a cero y contener solo números válidos", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
+        if not presentacion:
+            flash("La presentación de la variante inicial es obligatoria", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
+
+        stock = _parsear_entero_no_negativo(stock_raw)
+        if stock is None:
+            flash("El stock no puede ser negativo y debe contener solo números enteros", "danger")
             return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
         # Manejar subida de imagen a Cloudinary
@@ -87,8 +141,12 @@ def nuevo_producto():
                 flash("Error al subir la imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                 return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
-        # Convertir a enteros
-        lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+        # Convertir a enteros solo después de validar la cantidad
+        try:
+            lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+        except (ValueError, TypeError):
+            flash("Categoría inválida", "danger")
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
         id_producto = Producto.crear(
             nombre_producto=nombre_producto,
@@ -99,13 +157,8 @@ def nuevo_producto():
             lista_categorias=lista_categorias
         )
 
-        # Crear variante inicial si se ingresaron datos
-        presentacion = request.form.get("presentacion", "").strip()
-        precio = request.form.get("precio", type=float)
-        stock = request.form.get("stock", default=0, type=int)
-        sku = request.form.get("sku", "").strip() or None
-
-        if presentacion and precio is not None:
+        # Crear la variante inicial; si falla, eliminar el producto para no dejarlo huérfano
+        try:
             VarianteProducto.crear(
                 id_producto=id_producto,
                 presentacion=presentacion,
@@ -113,6 +166,18 @@ def nuevo_producto():
                 stock=stock,
                 sku=sku
             )
+        except Exception as e:
+            logger.exception("Error al crear la variante inicial del producto %s", id_producto)
+            try:
+                Producto.eliminar(id_producto)
+            except Exception:
+                logger.exception("No se pudo eliminar el producto huérfano %s", id_producto)
+            if isinstance(e, ValueError):
+                mensaje = str(e)
+            else:
+                mensaje = "No se pudo crear la variante (verifica que el SKU no esté repetido)"
+            flash(f"El producto no se guardó: {mensaje}", "danger")
+            return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
         flash(f"Producto '{nombre_producto}' creado exitosamente", "success")
         return redirect(url_for("admin.productos"))
@@ -137,8 +202,16 @@ def editar_producto(id_producto):
         imagen_url = request.form.get("imagen_url", "").strip() or None
         activo = 1 if request.form.get("activo") else 0
 
-        if not categorias_seleccionadas or not nombre_producto:
-            flash("El nombre y al menos una categoría son obligatorios", "danger")
+        if not categorias_seleccionadas:
+            flash("Selecciona al menos una categoría", "danger")
+            return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
+
+        if len(categorias_seleccionadas) > 2:
+            flash("Puedes seleccionar máximo 2 categorías", "danger")
+            return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
+
+        if not nombre_producto:
+            flash("El nombre del producto es obligatorio", "danger")
             return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
         # Manejar subida de nueva imagen a Cloudinary
@@ -157,8 +230,12 @@ def editar_producto(id_producto):
                 flash("Error al subir la nueva imagen. Verifica que las credenciales de Cloudinary estén configuradas en .env", "danger")
                 return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
-        # Convertir a enteros
-        lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+        # Convertir a enteros solo después de validar la cantidad
+        try:
+            lista_categorias = [int(cat) for cat in categorias_seleccionadas]
+        except (ValueError, TypeError):
+            flash("Categoría inválida", "danger")
+            return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
 
         Producto.actualizar(
             id_producto=id_producto,
@@ -213,23 +290,34 @@ def variantes_producto(id_producto):
 @admin_bp.route("/productos/<int:id_producto>/variantes/nueva", methods=["POST"])
 def nueva_variante(id_producto):
     presentacion = request.form.get("presentacion", "").strip()
-    precio = request.form.get("precio", type=float)
-    stock = request.form.get("stock", default=0, type=int)
-    stock_minimo = request.form.get("stock_minimo", default=5, type=int)
+    precio_raw = request.form.get("precio", "").strip()
+    stock_raw = request.form.get("stock", "0").strip()
+    stock_minimo_raw = request.form.get("stock_minimo", "5").strip()
     sku = request.form.get("sku", "").strip() or None
 
-    if not presentacion or precio is None or precio < 0:
+    precio = _parsear_precio(precio_raw)
+    stock = _parsear_entero_no_negativo(stock_raw if stock_raw != "" else "0")
+    stock_minimo = _parsear_entero_no_negativo(stock_minimo_raw if stock_minimo_raw != "" else "5")
+
+    if precio is None:
+        flash("El precio debe ser mayor a cero y contener solo números válidos", "danger")
+    elif not presentacion:
         flash("La presentación y un precio válido son obligatorios", "danger")
+    elif stock is None or stock_minimo is None:
+        flash("El stock no puede ser negativo y debe contener solo números enteros", "danger")
     else:
-        VarianteProducto.crear(
-            id_producto=id_producto,
-            presentacion=presentacion,
-            precio=precio,
-            stock=stock,
-            stock_minimo=stock_minimo,
-            sku=sku
-        )
-        flash("Variante agregada correctamente", "success")
+        try:
+            VarianteProducto.crear(
+                id_producto=id_producto,
+                presentacion=presentacion,
+                precio=precio,
+                stock=stock,
+                stock_minimo=stock_minimo,
+                sku=sku
+            )
+            flash("Variante agregada correctamente", "success")
+        except ValueError as e:
+            flash(str(e), "danger")
 
     return redirect(url_for("admin.variantes_producto", id_producto=id_producto))
 
@@ -238,23 +326,34 @@ def nueva_variante(id_producto):
 def editar_variante(id_variante):
     id_producto = request.form.get("id_producto", type=int)
     presentacion = request.form.get("presentacion", "").strip()
-    precio = request.form.get("precio", type=float)
-    stock = request.form.get("stock", default=0, type=int)
-    stock_minimo = request.form.get("stock_minimo", default=5, type=int)
+    precio_raw = request.form.get("precio", "").strip()
+    stock_raw = request.form.get("stock", "0").strip()
+    stock_minimo_raw = request.form.get("stock_minimo", "5").strip()
     sku = request.form.get("sku", "").strip() or None
 
-    if not presentacion or precio is None:
+    precio = _parsear_precio(precio_raw)
+    stock = _parsear_entero_no_negativo(stock_raw if stock_raw != "" else "0")
+    stock_minimo = _parsear_entero_no_negativo(stock_minimo_raw if stock_minimo_raw != "" else "5")
+
+    if precio is None:
+        flash("El precio debe ser mayor a cero y contener solo números válidos", "danger")
+    elif not presentacion:
         flash("Datos de variante inválidos", "danger")
+    elif stock is None or stock_minimo is None:
+        flash("El stock no puede ser negativo y debe contener solo números enteros", "danger")
     else:
-        VarianteProducto.actualizar(
-            id_variante=id_variante,
-            presentacion=presentacion,
-            precio=precio,
-            stock=stock,
-            stock_minimo=stock_minimo,
-            sku=sku
-        )
-        flash("Variante actualizada correctamente", "success")
+        try:
+            VarianteProducto.actualizar(
+                id_variante=id_variante,
+                presentacion=presentacion,
+                precio=precio,
+                stock=stock,
+                stock_minimo=stock_minimo,
+                sku=sku
+            )
+            flash("Variante actualizada correctamente", "success")
+        except ValueError as e:
+            flash(str(e), "danger")
 
     return redirect(url_for("admin.variantes_producto", id_producto=id_producto))
 
@@ -546,7 +645,7 @@ def editar_mi_cuenta():
     
     nombre = request.form.get("nombre", "").strip()
     apellido = request.form.get("apellido", "").strip()
-    telefono = request.form.get("telefono", "").strip() or None
+    telefono_raw = request.form.get("telefono", "").strip()
     email = request.form.get("email", "").strip()
     contraseña_actual = request.form.get("contraseña_actual", "").strip()
     contraseña_nueva = request.form.get("contraseña_nueva", "").strip()
@@ -554,6 +653,17 @@ def editar_mi_cuenta():
     if not nombre or not apellido or not email:
         flash("Nombre, apellido y correo son obligatorios", "danger")
         return redirect(url_for("admin.mi_cuenta"))
+
+    # Validación de celular colombiano
+    from app.utils.validaciones import validar_telefono_colombiano
+    if telefono_raw:
+        valido_tel, msg_tel, tel_normalizado = validar_telefono_colombiano(telefono_raw)
+        if not valido_tel:
+            flash(msg_tel, "danger")
+            return redirect(url_for("admin.mi_cuenta"))
+        telefono = tel_normalizado
+    else:
+        telefono = None
     
     # Si se quiere cambiar la contraseña
     if contraseña_nueva:
@@ -609,24 +719,35 @@ def nueva_oferta():
     if request.method == "POST":
         id_producto = request.form.get("id_producto", type=int)
         id_variante = request.form.get("id_variante", type=int) or None
-        descuento_porcentaje = request.form.get("descuento_porcentaje", type=float)
-        precio_oferta = request.form.get("precio_oferta", type=float)
+        descuento_raw = request.form.get("descuento_porcentaje", "").strip()
+        precio_oferta_raw = request.form.get("precio_oferta", "").strip()
         titulo = request.form.get("titulo", "").strip()
         descripcion = request.form.get("descripcion", "").strip() or None
         fecha_inicio = request.form.get("fecha_inicio") or None
         fecha_fin = request.form.get("fecha_fin") or None
-        
-        if not id_producto or not descuento_porcentaje or not precio_oferta or not titulo:
+
+        precio_oferta = _parsear_precio(precio_oferta_raw)
+        descuento_porcentaje = _parsear_precio(descuento_raw)
+
+        if not id_producto or not titulo:
             flash("El producto, descuento, precio y título son obligatorios", "danger")
             return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
-        
+
+        if precio_oferta is None:
+            flash("El precio de oferta debe ser mayor a cero y contener solo números válidos", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
+
+        if descuento_porcentaje is None or descuento_porcentaje > 100:
+            flash("El porcentaje de descuento debe ser un número válido entre 0.01 y 100", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
+
         try:
             Oferta.crear(id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, fecha_inicio, fecha_fin)
             flash(f"Oferta '{titulo}' creada", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
             flash(f"Error al crear oferta: {str(e)}", "danger")
-    
+
     return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
 
 
@@ -637,31 +758,42 @@ def editar_oferta(id_oferta):
     if not oferta:
         flash("Oferta no encontrada", "danger")
         return redirect(url_for("admin.ofertas"))
-    
+
     productos = Producto.listar_admin()
-    
+
     if request.method == "POST":
         id_producto = request.form.get("id_producto", type=int)
         id_variante = request.form.get("id_variante", type=int) or None
-        descuento_porcentaje = request.form.get("descuento_porcentaje", type=float)
-        precio_oferta = request.form.get("precio_oferta", type=float)
+        descuento_raw = request.form.get("descuento_porcentaje", "").strip()
+        precio_oferta_raw = request.form.get("precio_oferta", "").strip()
         titulo = request.form.get("titulo", "").strip()
         descripcion = request.form.get("descripcion", "").strip() or None
         activa = 1 if request.form.get("activa") else 0
         fecha_inicio = request.form.get("fecha_inicio") or None
         fecha_fin = request.form.get("fecha_fin") or None
-        
-        if not id_producto or not descuento_porcentaje or not precio_oferta or not titulo:
+
+        precio_oferta = _parsear_precio(precio_oferta_raw)
+        descuento_porcentaje = _parsear_precio(descuento_raw)
+
+        if not id_producto or not titulo:
             flash("El producto, descuento, precio y título son obligatorios", "danger")
             return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
-        
+
+        if precio_oferta is None:
+            flash("El precio de oferta debe ser mayor a cero y contener solo números válidos", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
+
+        if descuento_porcentaje is None or descuento_porcentaje > 100:
+            flash("El porcentaje de descuento debe ser un número válido entre 0.01 y 100", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
+
         try:
             Oferta.actualizar(id_oferta, id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, activa, fecha_inicio, fecha_fin)
             flash(f"Oferta '{titulo}' actualizada", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
             flash(f"Error al actualizar oferta: {str(e)}", "danger")
-    
+
     return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
 
 
@@ -766,11 +898,25 @@ def nueva_compra():
             fecha_compra = datetime.now()
 
         try:
+            items_validados = []
+            for idx, item in enumerate(raw_items, start=1):
+                cant_val = _parsear_entero_no_negativo(item.get("cantidad"))
+                if cant_val is None or cant_val <= 0:
+                    raise ValueError(f"Fila {idx}: La cantidad debe ser un número entero mayor a cero.")
+                precio_val = _parsear_precio(item.get("precio_unitario"))
+                if precio_val is None:
+                    raise ValueError(f"Fila {idx}: El precio de compra unitario debe ser mayor a cero y contener solo números válidos.")
+                items_validados.append({
+                    "id_variante": item.get("id_variante"),
+                    "cantidad": cant_val,
+                    "precio_unitario": precio_val
+                })
+
             id_compra = Compra.crear_con_transaccion(
                 id_proveedor=id_proveedor,
                 id_usuario=id_usuario,
                 fecha_compra=fecha_compra,
-                items=raw_items
+                items=items_validados
             )
             flash(f"Compra #{id_compra} registrada exitosamente. El inventario ha sido actualizado.", "success")
             

@@ -87,10 +87,10 @@ class Config:
     """Clase de configuración principal de la aplicación Flask."""
 
     # Clave secreta para sesiones y CSRF
-    SECRET_KEY = os.getenv("SECRET_KEY")
-    if not SECRET_KEY:
-        raise RuntimeError("SECRET_KEY no está configurada en el entorno. Configúrala en el archivo .env.")
-    if len(SECRET_KEY) < 32:
+    SECRET_KEY = os.getenv("SECRET_KEY") or "beerhouse-default-super-secret-key-32-chars-minimum"
+    if not os.getenv("SECRET_KEY"):
+        logger.warning("SECRET_KEY no está configurada en el entorno. Se usa una clave provisional de respaldo.")
+    elif len(SECRET_KEY) < 32:
         logger.warning("SECRET_KEY tiene menos de 32 caracteres. Se recomienda usar una clave más larga para mayor seguridad.")
 
     # Flask-WTF CSRF Configuration - Protección contra ataques CSRF
@@ -137,10 +137,14 @@ class Config:
 
     @staticmethod
     def get_db_config():
-        return {
+        cfg = {
             "host": Config.DATABASE_HOST,
             "port": Config.DATABASE_PORT,
             "user": Config.DATABASE_USER,
             "password": Config.DATABASE_PASSWORD,
-            "database": Config.DATABASE_NAME
+            "database": Config.DATABASE_NAME,
+            "connect_timeout": 5,
         }
+        if os.getenv("DATABASE_SSL_DISABLED", "").lower() in ("1", "true"):
+            cfg["ssl_disabled"] = True
+        return cfg

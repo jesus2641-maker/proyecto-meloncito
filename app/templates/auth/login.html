@@ -14,6 +14,51 @@
         width: 100%;
         margin: 0 auto;
     }
+
+    /* Input-group con botón de alternar contraseña alineado */
+    .input-group {
+        display: flex;
+        width: 100%;
+        position: relative;
+    }
+    
+    .input-group > .form-input {
+        flex: 1 1 auto;
+        width: 1%;
+        min-width: 0;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+    
+    .input-group > .btn-toggle-password {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        min-width: 48px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-subtle);
+        border-left: none;
+        border-top-right-radius: 4px !important;
+        border-bottom-right-radius: 4px !important;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: var(--transition-smooth);
+        touch-action: manipulation;
+    }
+    
+    .input-group > .btn-toggle-password:hover,
+    .input-group > .btn-toggle-password:focus {
+        color: var(--gold-primary);
+        background: var(--bg-card);
+        outline: none;
+    }
+
+    .input-group > .form-input:focus + .btn-toggle-password {
+        border-color: var(--gold-primary);
+    }
 </style>
 <!-- Login Hero Section -->
 <section class="auth-hero">
@@ -43,8 +88,20 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Contraseña</label>
-                        <input type="password" name="password" required class="form-input" placeholder="••••••••">
+                        <label class="form-label" for="password">Contraseña</label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="password" required class="form-control form-input" placeholder="••••••••">
+                            <button class="btn btn-outline-secondary btn-toggle-password" type="button" aria-label="Mostrar u ocultar contraseña" title="Mostrar contraseña">
+                                <svg class="icon-eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="icon-eye-closed d-none" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="23" x2="23" y2="1"></line>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="form-group form-group-checkbox" style="justify-content: flex-start; margin-bottom: 1.25rem;">
@@ -83,4 +140,43 @@
         </div>
     </div>
 </section>
+
+<script>
+// Alternar visibilidad de contraseña (Vanilla JS, compatible con móvil y escritorio)
+function inicializarTogglePasswords() {
+    const toggleButtons = document.querySelectorAll('.btn-toggle-password');
+    toggleButtons.forEach(function (button) {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            const group = button.closest('.input-group');
+            if (!group) return;
+            const input = group.querySelector('input');
+            if (!input) return;
+
+            const eyeOpen = button.querySelector('.icon-eye-open');
+            const eyeClosed = button.querySelector('.icon-eye-closed');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (eyeOpen) eyeOpen.classList.add('d-none');
+                if (eyeClosed) eyeClosed.classList.remove('d-none');
+                button.setAttribute('aria-label', 'Ocultar contraseña');
+                button.setAttribute('title', 'Ocultar contraseña');
+            } else {
+                input.type = 'password';
+                if (eyeOpen) eyeOpen.classList.remove('d-none');
+                if (eyeClosed) eyeClosed.classList.add('d-none');
+                button.setAttribute('aria-label', 'Mostrar contraseña');
+                button.setAttribute('title', 'Mostrar contraseña');
+            }
+        });
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarTogglePasswords);
+} else {
+    inicializarTogglePasswords();
+}
+</script>
 {% endblock %}

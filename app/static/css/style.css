@@ -2571,8 +2571,11 @@ a:hover {
 }
 
 /* Admin Table */
-.admin-table-container {
+.admin-table-container,
+.admin-table-container.table-responsive {
+    width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .admin-table {
@@ -3500,7 +3503,9 @@ body.admin-page .footer, body.trabajador-page .footer {
 }
 
 .admin-sidebar {
-    width: 260px;
+    width: min(260px, 20vw);
+    max-width: 20%;
+    flex: 0 0 min(260px, 20vw);
     background: var(--bg-card);
     border-right: 1px solid var(--border-subtle);
     position: sticky;
@@ -3633,18 +3638,20 @@ body.admin-page .footer, body.trabajador-page .footer {
 }
 
 .admin-content-wrapper {
-    flex: 1;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     width: 100%;
-    overflow-x: auto;
+    min-width: 0;
+    overflow-x: clip;
     position: relative;
     margin-left: 0;
 }
 
 .admin-content-wrapper .container {
-    padding: 0 40px;
-    max-width: 1400px;
+    padding: 0 clamp(20px, 2.5vw, 48px);
+    max-width: 1600px;
+    width: 100%;
     margin: 0 auto;
 }
 
@@ -3653,7 +3660,8 @@ body.admin-page .footer, body.trabajador-page .footer {
 .action-buttons {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .admin-content-wrapper a,

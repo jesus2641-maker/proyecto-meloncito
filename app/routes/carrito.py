@@ -63,15 +63,37 @@ def ver_carrito():
 @carrito_bp.route("/agregar", methods=["POST"])
 @requiere_login(mensaje="Inicia sesión para agregar productos al carrito")
 def agregar():
-    id_variante = request.form.get("id_variante", type=int)
-    cantidad = request.form.get("cantidad", default=1, type=int)
+    is_ajax = (
+        request.is_json
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+        or "application/json" in request.headers.get("Accept", "")
+    )
+
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        id_variante = data.get("id_variante")
+        cantidad = data.get("cantidad", 1)
+        try:
+            id_variante = int(id_variante) if id_variante is not None else None
+            cantidad = int(cantidad) if cantidad is not None else 1
+        except (ValueError, TypeError):
+            id_variante = None
+            cantidad = 0
+    else:
+        id_variante = request.form.get("id_variante", type=int)
+        cantidad = request.form.get("cantidad", default=1, type=int)
 
     if not id_variante or cantidad <= 0:
+        if is_ajax:
+            return jsonify({"error": "Datos de producto inválidos", "success": False}), 400
         flash("Datos de producto inválidos", "danger")
         return redirect(url_for("productos.catalogo"))
 
     variante = VarianteProducto.obtener_por_id(id_variante)
     if not variante:
+        if is_ajax:
+            return jsonify({"error": "La variante del producto no existe", "success": False}), 404
         flash("La variante del producto no existe", "danger")
         return redirect(url_for("productos.catalogo"))
 
@@ -79,33 +101,58 @@ def agregar():
     url_producto = url_for("productos.detalle", producto_id=variante["id_producto"])
 
     if not producto or not producto.get("activo"):
+        if is_ajax:
+            return jsonify({"error": "Este producto no está disponible", "success": False}), 400
         flash("Este producto no está disponible", "warning")
         return redirect(url_for("productos.catalogo"))
 
-    if variante["stock"] <= 0:
-        flash(f"'{producto['nombre_producto']}' ({variante['presentacion']}) está agotado", "warning")
+    stock_actual = int(variante.get("stock") or 0)
+    if stock_actual <= 0:
+        mensaje_error = f"El producto '{producto['nombre_producto']}' ({variante['presentacion']}) no está disponible por falta de stock."
+        if is_ajax:
+            return jsonify({
+                "error": mensaje_error,
+                "disponible": False,
+                "stock": 0,
+                "success": False
+            }), 400
+        flash(mensaje_error, "warning")
         return redirect(url_producto)
 
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
     cantidad_en_carrito = CarritoItem.obtener_cantidad(carrito["id_carrito"], id_variante)
     cantidad_total = cantidad_en_carrito + cantidad
 
-    if cantidad_total > variante["stock"]:
-        disponibles = max(variante["stock"] - cantidad_en_carrito, 0)
+    if cantidad_total > stock_actual:
+        disponibles = max(stock_actual - cantidad_en_carrito, 0)
         if disponibles == 0:
-            flash(
-                f"Ya tienes el máximo disponible de '{producto['nombre_producto']}' en tu carrito",
-                "warning"
+            mensaje = (
+                f"Ya tienes el máximo disponible de '{producto['nombre_producto']}' "
+                f"({variante['presentacion']}) en tu carrito."
             )
         else:
-            flash(
+            mensaje = (
                 f"Solo hay {disponibles} unidad(es) disponible(s) de "
-                f"'{producto['nombre_producto']}' ({variante['presentacion']})",
-                "warning"
+                f"'{producto['nombre_producto']}' ({variante['presentacion']})."
             )
+
+        if is_ajax:
+            return jsonify({
+                "error": mensaje,
+                "disponible": disponibles > 0,
+                "stock_disponible": disponibles,
+                "success": False
+            }), 400
+        flash(mensaje, "warning")
         return redirect(url_producto)
 
     CarritoItem.agregar(carrito["id_carrito"], id_variante, cantidad)
+
+    if is_ajax:
+        return jsonify({
+            "mensaje": f"'{producto['nombre_producto']}' ({variante['presentacion']}) agregado al carrito exitosamente.",
+            "success": True
+        }), 200
 
     flash("Producto agregado al carrito", "success")
     return redirect(url_producto)

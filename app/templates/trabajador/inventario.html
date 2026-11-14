@@ -12,17 +12,17 @@
     </div>
 </section>
 
-<section class="container">
+<section class="container my-4">
     {% if alertas %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning mb-4">
         <strong>⚠️ Alertas de Stock Bajo:</strong> {{ alertas|length }} productos necesitan reabastecimiento
     </div>
     {% endif %}
 
-    <div class="admin-section">
+    <div class="admin-section mt-0 mb-5" style="width: 100%; max-width: 100%;">
         <div class="admin-section-header">
             <h2>Inventario Completo</h2>
-            <span class="section-badge">{{ inventario|length }} variantes</span>
+            <span class="section-badge text-nowrap">{{ inventario|length }} variantes</span>
         </div>
 
         <!-- FILTROS DE INVENTARIO -->
@@ -87,34 +87,34 @@
             </form>
         </div>
 
-        <div class="admin-table-container">
-            <table class="admin-table">
+        <div class="admin-table-container table-responsive" style="width: 100%; max-height: 75vh; overflow-y: auto;">
+            <table class="admin-table align-middle w-100">
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Presentación</th>
-                        <th>Precio</th>
-                        <th>Stock Actual</th>
-                        <th>Stock Mínimo</th>
-                        <th>SKU</th>
-                        <th>Actualizar Stock</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Presentación</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Precio</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Actual</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Stock Mínimo</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">SKU</th>
+                        <th class="text-nowrap" style="white-space: nowrap;">Actualizar Stock</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in inventario %}
                     <tr>
-                        <td><strong>{{ item.nombre_producto }}</strong></td>
-                        <td>{{ item.presentacion }}</td>
-                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
-                        <td>{{ item.stock }}</td>
-                        <td>{{ item.stock_minimo }}</td>
-                        <td>{{ item.sku or '—' }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form">
+                        <td><strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ item.nombre_producto }}</strong></td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.presentacion }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(item.precio) }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock_minimo }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.sku or '—' }}</td>
+                        <td class="text-nowrap" style="white-space: nowrap;">
+                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form d-inline-flex align-items-center gap-2" style="white-space: nowrap;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="id_variante" value="{{ item.id_variante }}">
-                                <input type="number" name="stock" value="{{ item.stock }}" min="0" class="inline-input" style="width: 80px;">
-                                <button type="submit" class="btn btn-sm btn-primary">Actualizar</button>
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" name="stock" value="{{ item.stock }}" autocomplete="off" required class="inline-input form-control form-control-sm" style="width: 85px;">
+                                <button type="submit" class="btn btn-sm btn-primary text-nowrap">Actualizar</button>
                             </form>
                         </td>
                     </tr>
@@ -124,4 +124,26 @@
         </div>
     </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('input[name="stock"]').forEach(function(input) {
+        input.addEventListener('keydown', function(e) {
+            if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        input.addEventListener('input', function() {
+            const limpio = String(this.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+            if (this.value !== limpio) {
+                this.value = limpio;
+            }
+        });
+        input.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            this.blur();
+        }, { passive: false });
+    });
+});
+</script>
 {% endblock %}

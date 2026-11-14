@@ -38,6 +38,45 @@ MAX_CIUDAD_DIRECCION = 100
 MAX_DEPARTAMENTO_DIRECCION = 100
 MAX_CODIGO_POSTAL_DIRECCION = 20
 
+# Regex para celular colombiano: exactamente 10 dígitos iniciando con 3
+TELEFONO_COLOMBIANO_REGEX = re.compile(r"^3[0-9]{9}$")
+
+
+def normalizar_telefono_colombiano(telefono):
+    """
+    Normaliza el número de teléfono eliminando espacios, guiones y prefijos (+57 o 57),
+    para conservar únicamente los 10 dígitos del celular.
+    """
+    if not telefono:
+        return None
+    tel = str(telefono).strip().replace(" ", "").replace("-", "")
+    if tel.startswith("+57"):
+        tel = tel[3:]
+    elif tel.startswith("57") and len(tel) == 12:
+        tel = tel[2:]
+    return tel if tel else None
+
+
+def validar_telefono_colombiano(telefono, obligatorio=False):
+    """
+    Valida que el teléfono cumpla con el formato de celular colombiano:
+    - 10 dígitos numéricos
+    - Debe iniciar con 3
+    
+    Returns:
+        Tuple (bool, str|None, str|None): (es_valido, mensaje_error, telefono_limpio)
+    """
+    if not telefono or not str(telefono).strip():
+        if obligatorio:
+            return False, "El número de teléfono es obligatorio", None
+        return True, None, None
+
+    tel_limpio = normalizar_telefono_colombiano(telefono)
+    if not tel_limpio or not TELEFONO_COLOMBIANO_REGEX.match(tel_limpio):
+        return False, "El teléfono debe tener 10 dígitos y comenzar con 3 (ej. 3001234567)", None
+
+    return True, None, tel_limpio
+
 
 def validar_email(email):
     if not email or not email.strip():
