@@ -9,7 +9,8 @@ Maneja las rutas:
 import os
 import logging
 from decimal import Decimal
-from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for, flash
+import requests
+from flask import Blueprint, current_app, render_template, session, jsonify, request, redirect, url_for, flash
 
 from config import Config
 from app.services import paypal_service
@@ -156,6 +157,14 @@ def create_order():
         session["paypal_order_id"] = order_id
         return jsonify({"orderID": order_id})
 
+    except requests.exceptions.Timeout:
+        current_app.logger.error("Timeout al crear orden en PayPal para usuario %s", id_usuario)
+        flash("No fue posible conectar con PayPal. Intenta de nuevo en unos minutos.", "danger")
+        return redirect(url_for("carrito.checkout"))
+    except requests.exceptions.RequestException as exc:
+        current_app.logger.error("Error de red/HTTP al crear orden en PayPal para usuario %s: %s", id_usuario, type(exc).__name__)
+        flash("No fue posible conectar con PayPal. Intenta de nuevo en unos minutos.", "danger")
+        return redirect(url_for("carrito.checkout"))
     except Exception as exc:
         logger.exception("Error al crear la orden en PayPal: %s", exc)
         return jsonify({"error": "No fue posible comunicarse con la pasarela de PayPal. Intenta más tarde."}), 502
@@ -201,6 +210,14 @@ def capture_order():
     # 1. Capturar orden contra la API de PayPal
     try:
         datos_captura = paypal_service.capture_order(order_id)
+    except requests.exceptions.Timeout:
+        current_app.logger.error("Timeout al capturar orden %s en PayPal para usuario %s", order_id, id_usuario)
+        flash("No fue posible conectar con PayPal. Intenta de nuevo en unos minutos.", "danger")
+        return redirect(url_for("carrito.checkout"))
+    except requests.exceptions.RequestException as exc:
+        current_app.logger.error("Error de red/HTTP al capturar orden %s en PayPal para usuario %s: %s", order_id, id_usuario, type(exc).__name__)
+        flash("No fue posible conectar con PayPal. Intenta de nuevo en unos minutos.", "danger")
+        return redirect(url_for("carrito.checkout"))
     except Exception as exc:
         logger.exception("Error al capturar orden %s en PayPal: %s", order_id, exc)
         return jsonify({"error": "Error al capturar el pago en PayPal. Revisa el estado de tu cuenta."}), 502

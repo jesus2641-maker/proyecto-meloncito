@@ -80,14 +80,21 @@ def get_access_token():
     data = {"grant_type": "client_credentials"}
 
     logger.info("Solicitando nuevo access token a PayPal (%s)...", cfg["mode"])
-    response = requests.post(
-        url,
-        auth=(client_id, client_secret),
-        headers=headers,
-        data=data,
-        timeout=10,
-    )
-    response.raise_for_status()
+    try:
+        response = requests.post(
+            url,
+            auth=(client_id, client_secret),
+            headers=headers,
+            data=data,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        logger.error("Timeout al solicitar access token a PayPal (%s)", cfg["mode"])
+        raise
+    except requests.exceptions.RequestException as exc:
+        logger.error("Error de red/HTTP al solicitar access token a PayPal (%s): %s", cfg["mode"], type(exc).__name__)
+        raise
     payload = response.json()
 
     access_token = payload.get("access_token")
@@ -149,8 +156,15 @@ def create_order(total, currency="USD", reference_id=None, return_url=None, canc
     }
 
     logger.info("Creando orden de PayPal v2 por monto %s %s...", monto_formateado, currency)
-    response = requests.post(url, json=body, headers=headers, timeout=15)
-    response.raise_for_status()
+    try:
+        response = requests.post(url, json=body, headers=headers, timeout=15)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        logger.error("Timeout al crear orden en PayPal (%s %s)", monto_formateado, currency)
+        raise
+    except requests.exceptions.RequestException as exc:
+        logger.error("Error de red/HTTP al crear orden en PayPal: %s", type(exc).__name__)
+        raise
     orden = response.json()
     logger.info("Orden de PayPal creada con ID: %s", orden.get("id"))
     return orden
@@ -178,8 +192,15 @@ def capture_order(order_id):
     }
 
     logger.info("Capturando orden de PayPal con ID: %s...", order_id)
-    response = requests.post(url, headers=headers, timeout=15)
-    response.raise_for_status()
+    try:
+        response = requests.post(url, headers=headers, timeout=15)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        logger.error("Timeout al capturar orden de PayPal %s", order_id)
+        raise
+    except requests.exceptions.RequestException as exc:
+        logger.error("Error de red/HTTP al capturar orden de PayPal %s: %s", order_id, type(exc).__name__)
+        raise
     datos_captura = response.json()
     logger.info("Orden %s capturada con estado: %s", order_id, datos_captura.get("status"))
     return datos_captura
@@ -208,8 +229,15 @@ def refund_capture(capture_id, note="Reembolso por fallo en creación de pedido"
     body = {"note_to_payer": note}
 
     logger.warning("Iniciando reembolso para capture_id %s. Motivo: %s", capture_id, note)
-    response = requests.post(url, json=body, headers=headers, timeout=15)
-    response.raise_for_status()
+    try:
+        response = requests.post(url, json=body, headers=headers, timeout=15)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        logger.error("Timeout al reembolsar captura de PayPal %s", capture_id)
+        raise
+    except requests.exceptions.RequestException as exc:
+        logger.error("Error de red/HTTP al reembolsar captura de PayPal %s: %s", capture_id, type(exc).__name__)
+        raise
     resultado = response.json()
     logger.info("Reembolso para capture_id %s completado con estado: %s", capture_id, resultado.get("status"))
     return resultado
