@@ -9019,16 +9019,82 @@ video {
     table-layout: auto;
 }
 
-.container:has(+ #formEliminarProducto) .admin-table th,
-.container:has(+ #formEliminarProducto) .admin-table td {
-    padding: 12px 8px;
+.container:has(+ #formEliminarProducto) .admin-table th {
+    padding: 10px 8px;
+    white-space: normal !important;
 }
 
-.container:has(+ #formEliminarProducto) .admin-table th,
-.container:has(+ #formEliminarProducto) .admin-table th:nth-child(5),
-.container:has(+ #formEliminarProducto) .admin-table td:nth-child(5),
-.container:has(+ #formEliminarProducto) .admin-table td:nth-child(5) .btn {
+.container:has(+ #formEliminarProducto) .admin-table td {
+    padding: 8px;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table .product-cell {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table .product-thumb {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table .product-info {
+    min-width: 0;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table .product-info strong {
+    display: block !important;
+    max-width: 165px !important;
+    font-size: 0.9rem;
+    line-height: 1.25;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table .product-info small {
+    display: block !important;
+    max-width: 165px !important;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(3),
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(4),
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(6) {
     white-space: normal !important;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(3) .badge {
+    white-space: normal !important;
+    font-size: 0.72rem;
+    padding: 4px 8px;
+    text-align: center;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(5) .btn {
+    white-space: nowrap !important;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(6) {
+    font-size: 0.82rem;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(7) .badge {
+    font-size: 0.72rem;
+    padding: 4px 8px;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(8) .btn {
+    padding: 6px 10px;
+    font-size: 0.78rem;
 }
 
 .container:has(+ #formEliminarProducto) .admin-table td:last-child {
