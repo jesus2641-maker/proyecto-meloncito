@@ -8910,3 +8910,149 @@ video {
     color: var(--text-primary);
     text-decoration: underline;
 }
+
+/* ============================================
+   ADMIN — Tabla de Nueva Compra (#compraForm)
+   ============================================ */
+#compraForm .admin-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#compraForm .admin-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+#compraForm .admin-table th {
+    white-space: normal;
+}
+
+#compraForm .admin-table th,
+#compraForm .admin-table td {
+    padding: 12px 8px;
+}
+
+#compraForm .admin-table th:first-child,
+#compraForm .admin-table td:first-child {
+    min-width: 160px !important;
+}
+
+#compraForm .admin-table select,
+#compraForm .admin-table input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 767.98px) {
+    #compraForm .admin-table {
+        min-width: 720px;
+    }
+}
+
+/* ============================================
+   ADMIN — Tabla de Pedidos (/admin/pedidos)
+   ============================================ */
+.admin-filter-bar + .admin-section .admin-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-filter-bar + .admin-section .admin-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.admin-filter-bar + .admin-section .admin-table th,
+.admin-filter-bar + .admin-section .admin-table td {
+    white-space: normal !important;
+    padding: 12px 8px;
+}
+
+.admin-filter-bar + .admin-section .admin-table th:nth-child(4),
+.admin-filter-bar + .admin-section .admin-table td:nth-child(4) {
+    max-width: 240px;
+}
+
+.admin-filter-bar + .admin-section .admin-table td:nth-child(4) > span {
+    display: block !important;
+    max-width: 240px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-filter-bar + .admin-section .admin-table th:nth-child(7),
+.admin-filter-bar + .admin-section .admin-table td:nth-child(7) {
+    min-width: 135px;
+}
+
+.admin-filter-bar + .admin-section .admin-table td:nth-child(7) .status-text,
+.admin-filter-bar + .admin-section .admin-table td:nth-child(7) .status-select {
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .admin-filter-bar + .admin-section .admin-table {
+        min-width: 780px;
+    }
+}
+
+/* ============================================
+   ADMIN — Tabla de Productos (/admin/productos)
+   ============================================ */
+.container:has(+ #formEliminarProducto) .admin-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table th,
+.container:has(+ #formEliminarProducto) .admin-table td {
+    padding: 12px 8px;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table th,
+.container:has(+ #formEliminarProducto) .admin-table th:nth-child(5),
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(5),
+.container:has(+ #formEliminarProducto) .admin-table td:nth-child(5) .btn {
+    white-space: normal !important;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    white-space: normal !important;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:last-child .action-buttons {
+    display: flex;
+    flex-wrap: wrap !important;
+    gap: 6px;
+    white-space: normal !important;
+}
+
+.container:has(+ #formEliminarProducto) .admin-table td:last-child .btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+@media (max-width: 767.98px) {
+    .container:has(+ #formEliminarProducto) .admin-table {
+        min-width: 820px;
+    }
+}
