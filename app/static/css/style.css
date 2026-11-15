@@ -9056,3 +9056,98 @@ video {
         min-width: 820px;
     }
 }
+
+/* ============================================
+   ADMIN — Tabla de Proveedores (/admin/proveedores)
+   ============================================ */
+[x-data="proveedoresManager()"] .admin-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+[x-data="proveedoresManager()"] .admin-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+[x-data="proveedoresManager()"] .admin-table th {
+    white-space: normal;
+}
+
+[x-data="proveedoresManager()"] .admin-table th,
+[x-data="proveedoresManager()"] .admin-table td {
+    padding: 12px 8px;
+}
+
+[x-data="proveedoresManager()"] .admin-table td:last-child .action-buttons {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    justify-content: flex-end;
+    align-items: center;
+    white-space: normal;
+}
+
+[x-data="proveedoresManager()"] .admin-table td:last-child .btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+[x-data="proveedoresManager()"] .admin-table td:last-child .btn-outline-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border-subtle);
+}
+
+[x-data="proveedoresManager()"] .admin-table td:last-child .btn-outline-danger:hover {
+    background: transparent;
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+@media (max-width: 767.98px) {
+    [x-data="proveedoresManager()"] .admin-table {
+        min-width: 760px;
+    }
+}
+
+/* ============================================
+   ADMIN — Buscador de Inventario (#inventario-filter-form)
+   ============================================ */
+#inventario-filter-form .input-buscar-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+#inventario-filter-form #inventario-busqueda {
+    width: 100%;
+    padding-right: 32px;
+}
+
+#inventario-filter-form .search-clear-btn {
+    position: absolute !important;
+    top: 50%;
+    right: 10px;
+    bottom: auto;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+    z-index: 20;
+}
+
+#inventario-filter-form .search-clear-btn:hover {
+    color: var(--danger);
+    background: rgba(194, 74, 61, 0.12);
+}

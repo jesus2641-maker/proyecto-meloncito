@@ -9,7 +9,6 @@
         <div class="admin-hero-content">
             <p class="section-subtitle">Gestión de Variantes</p>
             <h1>{{ producto.nombre_producto }}</h1>
-            <a href="{{ url_for('admin.productos') }}" class="admin-back-link">&larr; Volver a Productos</a>
             <p>Marca: {{ producto.marca or '—' }} | Categoría: {{ producto.categorias or 'Sin categoría' }}</p>
         </div>
     </div>

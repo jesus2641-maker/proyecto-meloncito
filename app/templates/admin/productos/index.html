@@ -99,7 +99,6 @@
                         </td>
                         <td class="text-nowrap" style="white-space: nowrap;">
                             <div class="action-buttons flex-nowrap" style="white-space: nowrap;">
-                                <a href="{{ url_for('admin.variantes_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline text-nowrap" title="Gestionar Variantes / Stock">Variantes</a>
                                 <a href="{{ url_for('admin.editar_producto', id_producto=prod.id_producto) }}" class="btn btn-sm btn-outline text-nowrap" title="Editar">Editar</a>
                                 <button type="button" class="btn btn-sm btn-danger text-nowrap" onclick="confirmarEliminarProducto({{ prod.id_producto }}, '{{ prod.nombre_producto }}')" title="Eliminar">Eliminar</button>
                             </div>
