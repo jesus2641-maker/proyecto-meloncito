@@ -356,3 +356,21 @@ def validar_stock_carrito(items):
             errores.append(f"'{nombre}' ({presentacion}) tiene un precio inválido.")
 
     return errores
+
+
+def ruta_segura(destino, fallback="/"):
+    """
+    Valida un parámetro de redirección (`next`) para evitar open redirect.
+
+    Solo se acepta una ruta interna: debe empezar con "/" y no con "//",
+    y no puede contener "\\" ni caracteres de control (los navegadores ignoran
+    tabuladores y saltos de línea, así que "/\\t/sitio.com" se convertiría en "//sitio.com").
+    Si no es válida, devuelve `fallback` ("/" por defecto).
+    """
+    if not destino or not destino.startswith("/"):
+        return fallback
+    if destino.startswith("//") or "\\" in destino:
+        return fallback
+    if any(ord(caracter) < 32 or ord(caracter) == 127 for caracter in destino):
+        return fallback
+    return destino

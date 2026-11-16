@@ -149,12 +149,12 @@ def iniciar_pago(id_usuario, id_pedido):
     return order_id
 
 
-def _reembolsar_automaticamente(id_pedido, capture_id, motivo):
+def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cursor=None):
     """
     Reembolsa automáticamente una captura cuando la validación posterior o la
     confirmación del pedido falla, marca el pago como 'reembolsado' y registra con logger.error.
     Si el pedido sigue en estado pendiente, lo cancela con Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO)
-    devolviendo el stock una sola vez. Si ya no está pendiente, no hace nada más.
+    devolviendo el stock una sola vez. Si se provee `cursor`, opera dentro de la misma transacción.
     """
     logger.error(
         "Iniciando reembolso automático para pedido=%s capture_id=%s por motivo: %s",
@@ -164,7 +164,6 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo):
     )
     try:
         paypal_client.reembolsar_captura(capture_id, request_id=f"reembolso-auto-{id_pedido}-{capture_id}")
-        Pago.marcar(id_pedido, ESTADO_PAGO_REEMBOLSADO, capture_id=capture_id)
     except Exception:
         logger.exception(
             "Fallo crítico al intentar reembolsar automáticamente capture_id=%s del pedido=%s",
@@ -172,6 +171,26 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo):
             id_pedido,
         )
         raise
+
+    if cursor is not None:
+        if id_pago is not None:
+            cursor.execute(
+                "UPDATE pagos SET estado = %s, paypal_capture_id = COALESCE(paypal_capture_id, %s) WHERE id_pago = %s",
+                (ESTADO_PAGO_REEMBOLSADO, str(capture_id).strip(), id_pago),
+            )
+        else:
+            cursor.execute(
+                "UPDATE pagos SET estado = %s, paypal_capture_id = COALESCE(paypal_capture_id, %s) WHERE id_pedido = %s ORDER BY id_pago DESC LIMIT 1",
+                (ESTADO_PAGO_REEMBOLSADO, str(capture_id).strip(), id_pedido),
+            )
+        cursor.execute("SELECT id_estado FROM pedidos WHERE id_pedido = %s FOR UPDATE", (id_pedido,))
+        pedido_actual = cursor.fetchone()
+        if pedido_actual and int(pedido_actual["id_estado"]) == ESTADO_PENDIENTE:
+            Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO, cursor=cursor)
+            logger.info("Pedido %s cancelado y stock devuelto tras reembolso automático", id_pedido)
+        return
+
+    Pago.marcar(id_pedido, ESTADO_PAGO_REEMBOLSADO, capture_id=capture_id)
 
     # Si el pedido sigue en estado pendiente, cancelarlo para devolver el stock una sola vez
     try:
@@ -207,125 +226,183 @@ def capturar_pago(id_usuario, id_pedido, order_id):
     if not pedido or int(pedido["id_usuario"]) != int(id_usuario):
         raise ValueError("El pedido no existe o no pertenece al usuario")
 
-    pago = Pago.obtener_por_pedido(id_pedido)
-    if not pago:
-        raise ValueError("No se encontró un registro de pago para este pedido")
-
-    if pago.get("paypal_order_id") != order_id_str:
-        raise ValueError("El identificador de la orden no coincide con el registrado para este pedido")
-
-    # Idempotencia: si el pago ya fue completado previamente, devolver éxito sin llamar a PayPal
-    if pago["estado"] == ESTADO_PAGO_COMPLETADO:
-        return {
-            "exito": True,
-            "reintentar": False,
-            "estado": "COMPLETED",
-            "id_pedido": id_pedido,
-            "capture_id": pago.get("paypal_capture_id"),
-            "ya_completado": True,
-        }
-
-    # Verificar que el pedido siga en estado pendiente ANTES de capturar
-    if int(pedido["id_estado"]) != ESTADO_PENDIENTE:
-        raise ValueError("El pedido ya no está en estado pendiente y no puede ser cobrado")
-
-    if pago["estado"] != ESTADO_PAGO_PENDIENTE:
-        raise ValueError(f"El pago no está en estado pendiente (estado actual: {pago['estado']})")
-
-    request_id = f"capturar-{id_pedido}-{order_id_str}"
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
     try:
-        resultado = paypal_client.capturar_orden(order_id_str, request_id=request_id)
-    except PayPalError as exc:
-        if exc.codigo == "INSTRUMENT_DECLINED":
-            logger.warning("Medio de pago rechazado (INSTRUMENT_DECLINED) en pedido %s; se permite reintentar", id_pedido)
+        conn.start_transaction()
+        cursor.execute(
+            """
+            SELECT id_pago, id_pedido, proveedor, paypal_order_id, paypal_capture_id,
+                   monto, moneda, estado, tasa_cop_usd, monto_usd
+            FROM pagos
+            WHERE id_pedido = %s
+            ORDER BY id_pago DESC
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (id_pedido,),
+        )
+        pago = cursor.fetchone()
+        if not pago:
+            conn.rollback()
+            raise ValueError("No se encontró un registro de pago para este pedido")
+
+        if pago.get("paypal_order_id") != order_id_str:
+            conn.rollback()
+            raise ValueError("El identificador de la orden no coincide con el registrado para este pedido")
+
+        # Idempotencia: si el pago ya fue completado previamente, devolver éxito sin llamar a PayPal
+        if pago["estado"] == ESTADO_PAGO_COMPLETADO:
+            conn.commit()
             return {
-                "exito": False,
-                "reintentar": True,
-                "codigo": "INSTRUMENT_DECLINED",
-                "mensaje": exc.mensaje,
+                "exito": True,
+                "reintentar": False,
+                "estado": "COMPLETED",
                 "id_pedido": id_pedido,
+                "capture_id": pago.get("paypal_capture_id"),
+                "ya_completado": True,
             }
-        raise
 
-    estado_cap = (resultado.get("estado") or "").strip().upper()
-    capture_id = (resultado.get("capture_id") or "").strip()
-    monto_cap_raw = resultado.get("monto")
-    moneda_cap = (resultado.get("moneda") or "").strip().upper()
-    custom_id_cap = str(resultado.get("custom_id") or "").strip()
+        # Verificar que el pedido siga en estado pendiente ANTES de capturar
+        if int(pedido["id_estado"]) != ESTADO_PENDIENTE:
+            conn.rollback()
+            raise ValueError("El pedido ya no está en estado pendiente y no puede ser cobrado")
 
-    # Obtener monto esperado en USD guardado en pagos y moneda configurada
-    monto_usd_guardado = pago.get("monto_usd")
-    if monto_usd_guardado is None:
-        raise ValueError("El registro de pago no tiene monto_usd para validar la captura")
+        if pago["estado"] != ESTADO_PAGO_PENDIENTE:
+            conn.rollback()
+            raise ValueError(f"El pago no está en estado pendiente (estado actual: {pago['estado']})")
 
-    try:
-        monto_esperado = Decimal(str(monto_usd_guardado)).quantize(Decimal("0.01"))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValueError(f"El monto_usd registrado en el pago es inválido: {monto_usd_guardado}") from exc
+        request_id = f"capturar-{id_pedido}-{order_id_str}"
+        try:
+            resultado = paypal_client.capturar_orden(order_id_str, request_id=request_id)
+        except PayPalError as exc:
+            conn.rollback()
+            if exc.codigo == "INSTRUMENT_DECLINED":
+                logger.warning("Medio de pago rechazado (INSTRUMENT_DECLINED) en pedido %s; se permite reintentar", id_pedido)
+                return {
+                    "exito": False,
+                    "reintentar": True,
+                    "codigo": "INSTRUMENT_DECLINED",
+                    "mensaje": exc.mensaje,
+                    "id_pedido": id_pedido,
+                }
+            raise
 
-    moneda_esperada = _moneda_configurada()
+        estado_cap = (resultado.get("estado") or "").strip().upper()
+        capture_id = (resultado.get("capture_id") or "").strip()
+        monto_cap_raw = resultado.get("monto")
+        moneda_cap = (resultado.get("moneda") or "").strip().upper()
+        custom_id_cap = str(resultado.get("custom_id") or "").strip()
 
-    if estado_cap != "COMPLETED" or not capture_id:
-        status_details = resultado.get("status_details")
-        processor_response = resultado.get("processor_response")
-        campos_principales = list(resultado.keys())
+        # Obtener monto esperado en USD guardado en pagos y moneda configurada
+        monto_usd_guardado = pago.get("monto_usd")
+        if monto_usd_guardado is None:
+            conn.rollback()
+            raise ValueError("El registro de pago no tiene monto_usd para validar la captura")
 
-        logger.warning(
-            "La captura de PayPal no se completó para el pedido=%s (orden=%s). "
-            "Estado: %s, capture_id: %s, status_details: %s, processor_response: %s, "
-            "campos_respuesta: %s, monto_esperado: %s %s (PAYPAL_CURRENCY), monto_recibido: %s %s",
-            id_pedido,
-            order_id_str,
-            estado_cap or "desconocido",
-            capture_id or "ninguno",
-            status_details,
-            processor_response,
-            campos_principales,
-            monto_esperado,
-            moneda_esperada,
-            monto_cap_raw,
-            moneda_cap,
-        )
-        raise ValueError(f"La captura de PayPal no se completó (estado: {estado_cap or 'desconocido'})")
+        try:
+            monto_esperado = Decimal(str(monto_usd_guardado)).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            conn.rollback()
+            raise ValueError(f"El monto_usd registrado en el pago es inválido: {monto_usd_guardado}") from exc
 
-    try:
-        monto_capturado = Decimal(str(monto_cap_raw)).quantize(Decimal("0.01"))
-    except (InvalidOperation, TypeError, ValueError):
-        monto_capturado = Decimal("-1.00")
+        moneda_esperada = _moneda_configurada()
 
-    # Validar integridad de monto (en USD), moneda y custom_id tras la captura
-    motivo_invalido = None
-    if monto_capturado != monto_esperado:
-        motivo_invalido = f"El monto capturado ({monto_capturado} USD) no coincide con el total esperado en USD ({monto_esperado} USD)"
-    elif moneda_cap != moneda_esperada:
-        motivo_invalido = f"La moneda capturada ({moneda_cap}) no coincide con la moneda configurada ({moneda_esperada})"
-    elif custom_id_cap != str(id_pedido):
-        motivo_invalido = f"El custom_id capturado ({custom_id_cap}) no coincide con el pedido ({id_pedido})"
+        if estado_cap != "COMPLETED" or not capture_id:
+            status_details = resultado.get("status_details")
+            processor_response = resultado.get("processor_response")
+            campos_principales = list(resultado.keys())
 
-    if motivo_invalido:
-        _reembolsar_automaticamente(id_pedido, capture_id, motivo_invalido)
-        raise ValueError(motivo_invalido)
+            logger.warning(
+                "La captura de PayPal no se completó para el pedido=%s (orden=%s). "
+                "Estado: %s, capture_id: %s, status_details: %s, processor_response: %s, "
+                "campos_respuesta: %s, monto_esperado: %s %s (PAYPAL_CURRENCY), monto_recibido: %s %s",
+                id_pedido,
+                order_id_str,
+                estado_cap or "desconocido",
+                capture_id or "ninguno",
+                status_details,
+                processor_response,
+                campos_principales,
+                monto_esperado,
+                moneda_esperada,
+                monto_cap_raw,
+                moneda_cap,
+            )
+            conn.rollback()
+            raise ValueError(f"La captura de PayPal no se completó (estado: {estado_cap or 'desconocido'})")
 
-    # Confirmar captura en pagos y pasar el pedido a ESTADO_CONFIRMADO;
-    # si falla la confirmación del pedido, reembolsar automáticamente.
-    try:
-        transicion_pago = Pago.confirmar_captura(
-            id_pedido=id_pedido,
-            order_id=order_id_str,
-            capture_id=capture_id,
-            monto=Decimal(str(pago["monto"])),
-            moneda=moneda_cap,
-            monto_usd=monto_capturado,
-        )
-        if transicion_pago:
-            Pedido.actualizar_estado(id_pedido, ESTADO_CONFIRMADO)
-    except Exception as exc:
-        _reembolsar_automaticamente(
-            id_pedido,
-            capture_id,
-            f"No se pudo confirmar el pedido tras capturar el pago: {exc}",
-        )
-        raise ValueError(f"No se pudo confirmar el pedido tras el cobro; se realizó el reembolso automático: {exc}") from exc
+        try:
+            monto_capturado = Decimal(str(monto_cap_raw)).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError):
+            monto_capturado = Decimal("-1.00")
+
+        # Validar integridad de monto (en USD), moneda y custom_id tras la captura
+        motivo_invalido = None
+        if monto_capturado != monto_esperado:
+            motivo_invalido = f"El monto capturado ({monto_capturado} USD) no coincide con el total esperado en USD ({monto_esperado} USD)"
+        elif moneda_cap != moneda_esperada:
+            motivo_invalido = f"La moneda capturada ({moneda_cap}) no coincide con la moneda configurada ({moneda_esperada})"
+        elif custom_id_cap != str(id_pedido):
+            motivo_invalido = f"El custom_id capturado ({custom_id_cap}) no coincide con el pedido ({id_pedido})"
+
+        if motivo_invalido:
+            try:
+                _reembolsar_automaticamente(
+                    id_pedido,
+                    capture_id,
+                    motivo_invalido,
+                    id_pago=pago["id_pago"],
+                    cursor=cursor,
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            raise ValueError(motivo_invalido)
+
+        # Confirmar captura en pagos y confirmar pedido dentro de la misma transacción bloqueada
+        try:
+            cursor.execute(
+                """
+                UPDATE pagos
+                SET estado = %s,
+                    paypal_order_id = COALESCE(paypal_order_id, %s),
+                    paypal_capture_id = %s,
+                    monto = %s,
+                    moneda = %s,
+                    monto_usd = COALESCE(%s, monto_usd)
+                WHERE id_pago = %s
+                """,
+                (
+                    ESTADO_PAGO_COMPLETADO,
+                    order_id_str,
+                    capture_id,
+                    Decimal(str(pago["monto"])),
+                    moneda_cap,
+                    monto_capturado,
+                    pago["id_pago"],
+                ),
+            )
+            Pedido.actualizar_estado(id_pedido, ESTADO_CONFIRMADO, cursor=cursor)
+            conn.commit()
+        except Exception as exc:
+            try:
+                _reembolsar_automaticamente(
+                    id_pedido,
+                    capture_id,
+                    f"No se pudo confirmar el pedido tras capturar el pago: {exc}",
+                    id_pago=pago["id_pago"],
+                    cursor=cursor,
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            raise ValueError(f"No se pudo confirmar el pedido tras el cobro; se realizó el reembolso automático: {exc}") from exc
+    finally:
+        cursor.close()
+        conn.close()
 
     logger.info("Pago confirmado exitosamente para pedido=%s capture_id=%s", id_pedido, capture_id)
     return {

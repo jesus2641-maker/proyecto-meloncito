@@ -55,7 +55,7 @@ def _redirigir_si_stock_invalido(items):
 def ver_carrito():
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
     items = Carrito.obtener_items(carrito["id_carrito"])
-    total = sum((item["precio_oferta"] if item["precio_oferta"] else item["precio"]) * item["cantidad"] for item in items)
+    total = sum((item["precio_oferta"] if item.get("precio_oferta") is not None else item["precio"]) * item["cantidad"] for item in items)
 
     return render_template("carrito/ver.html", items=items, total=total)
 
@@ -163,7 +163,12 @@ def agregar():
 def eliminar():
     id_item = request.form.get("id_item", type=int)
     if id_item:
-        CarritoItem.eliminar(id_item)
+        carrito = Carrito.obtener_o_crear(session["id_usuario"])
+        item = CarritoItem.obtener_por_id(id_item)
+        if not item or item["id_carrito"] != carrito["id_carrito"]:
+            flash("Item no encontrado en tu carrito", "danger")
+            return redirect(url_for("carrito.ver_carrito"))
+        CarritoItem.eliminar(id_item, id_carrito=carrito["id_carrito"])
         flash("Producto eliminado del carrito", "info")
 
     return redirect(url_for("carrito.ver_carrito"))
@@ -188,10 +193,11 @@ def actualizar():
         flash("La cantidad debe ser mayor a 0", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
-    # Obtener el item actual
+    # Obtener el item actual y verificar que pertenezca al carrito del usuario
+    carrito = Carrito.obtener_o_crear(session["id_usuario"])
     item = CarritoItem.obtener_por_id(id_item)
-    if not item:
-        logger.warning("Item de carrito no encontrado: id_item=%s", id_item)
+    if not item or item["id_carrito"] != carrito["id_carrito"]:
+        logger.warning("Item de carrito no encontrado o no pertenece al usuario: id_item=%s", id_item)
         flash("Item no encontrado", "danger")
         return redirect(url_for("carrito.ver_carrito"))
 
@@ -215,7 +221,7 @@ def actualizar():
 
     # Actualizar cantidad
     logger.debug("Actualizando cantidad de item %s a %s", id_item, nueva_cantidad)
-    CarritoItem.actualizar_cantidad(id_item, nueva_cantidad)
+    CarritoItem.actualizar_cantidad(id_item, nueva_cantidad, id_carrito=carrito["id_carrito"])
     flash("Cantidad actualizada", "success")
     return redirect(url_for("carrito.ver_carrito"))
 
@@ -231,7 +237,7 @@ def checkout():
         flash("Tu carrito está vacío. Agrega productos antes de continuar.", "warning")
         return redirect(url_for("carrito.ver_carrito"))
 
-    total = sum((item["precio_oferta"] if item["precio_oferta"] else item["precio"]) * item["cantidad"] for item in items)
+    total = sum((item["precio_oferta"] if item.get("precio_oferta") is not None else item["precio"]) * item["cantidad"] for item in items)
 
     if request.method == "POST":
         respuesta_stock = _redirigir_si_stock_invalido(items)

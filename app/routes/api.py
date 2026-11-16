@@ -215,7 +215,7 @@ def agregar_al_carrito():
 
     if not id_variante:
         return _error("Se requiere id_variante")
-    if not isinstance(cantidad, int) or cantidad < 1:
+    if isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad < 1:
         return _error("La cantidad debe ser un entero mayor a 0")
 
     from app.models.producto import VarianteProducto, Producto

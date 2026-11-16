@@ -1000,6 +1000,61 @@ class TestIntegracionPagosPayPal(unittest.TestCase):
         )
         self.assertEqual(res_sin_csrf.status_code, 400)
 
+    @patch("app.utils.paypal_client.capturar_orden")
+    @patch("app.utils.paypal_client.crear_orden")
+    def test_16_concurrencia_doble_captura_bloqueo_for_update(self, mock_crear, mock_capturar):
+        """16. Dos hilos intentando capturar la misma orden: solo uno llama a PayPal y el otro recibe respuesta idempotente."""
+        import threading
+        import time
+
+        id_pedido, _ = self._crear_pedido_con_pago_pendiente(cantidad=1, total=Decimal("80000.00"))
+        order_id = f"ORD-CONC-{id_pedido}"
+        mock_crear.return_value = order_id
+
+        with patch.object(Config, "TASA_COP_USD", 4000.0):
+            iniciar_pago(self.id_usuario_1, id_pedido)
+
+        def capturar_lento(*args, **kwargs):
+            time.sleep(0.2)
+            return {
+                "estado": "COMPLETED",
+                "capture_id": f"CAP-CONC-{id_pedido}",
+                "monto": "20.00",
+                "moneda": "USD",
+                "custom_id": str(id_pedido),
+            }
+
+        mock_capturar.side_effect = capturar_lento
+
+        barrera = threading.Barrier(2)
+        resultados = []
+        errores = []
+        lock_res = threading.Lock()
+
+        def worker():
+            try:
+                barrera.wait(timeout=5)
+                res = capturar_pago(self.id_usuario_1, id_pedido, order_id)
+                with lock_res:
+                    resultados.append(res)
+            except Exception as exc:
+                with lock_res:
+                    errores.append(exc)
+
+        t1 = threading.Thread(target=worker)
+        t2 = threading.Thread(target=worker)
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        self.assertEqual(errores, [])
+        self.assertEqual(len(resultados), 2)
+        self.assertEqual(mock_capturar.call_count, 1)
+        self.assertEqual(sorted(r["ya_completado"] for r in resultados), [False, True])
+        self.assertEqual(Pago.obtener_por_pedido(id_pedido)["estado"], ESTADO_PAGO_COMPLETADO)
+        self.assertEqual(Pedido.obtener_por_id(id_pedido)["id_estado"], ESTADO_CONFIRMADO)
+
 
 if __name__ == "__main__":
     unittest.main()

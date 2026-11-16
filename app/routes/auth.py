@@ -52,6 +52,10 @@ def login():
             return render_template("auth/login.html")
 
         if usuario and check_password_hash(usuario["password_hash"], password):
+            if not usuario.get("activo"):
+                flash("Tu cuenta está desactivada. Contacta al administrador.", "danger")
+                return render_template("auth/login.html")
+
             # Login exitoso: limpiar sesión, reiniciar intentos y configurar sesión permanente
             session.clear()
             session.permanent = True

@@ -40,7 +40,6 @@ def create_app():
     from app.routes.api import api_bp              # API endpoints
     from app.routes.edad import edad_bp, COOKIE_MAYOR_EDAD  # Verificación de mayoría de edad
     from app.routes.pagos import pagos_bp          # Pagos con PayPal
-    from app.routes.paypal import paypal_bp        # PayPal Orders v2 Sandbox / Live
 
     # Registrar blueprints con sus prefijos de URL
     app.register_blueprint(auth_bp)
@@ -53,7 +52,6 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(edad_bp)
     app.register_blueprint(pagos_bp)
-    app.register_blueprint(paypal_bp)
 
     # Verificación de mayoría de edad (18+) para visitantes
     @app.before_request

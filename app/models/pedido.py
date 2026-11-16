@@ -122,7 +122,7 @@ class Pedido:
 
             # 3. Crear detalles del pedido
             for item in items:
-                precio_final = item.get("precio_oferta") if item.get("precio_oferta") else item["precio"]
+                precio_final = item["precio_oferta"] if item.get("precio_oferta") is not None else item["precio"]
                 cursor.execute("""
                     INSERT INTO pedido_detalle (id_pedido, id_variante, cantidad, precio_unitario)
                     VALUES (%s, %s, %s, %s)
@@ -219,23 +219,26 @@ class Pedido:
         return pedido
 
     @staticmethod
-    def actualizar_estado(id_pedido, id_estado):
+    def actualizar_estado(id_pedido, id_estado, cursor=None):
         """
         Actualiza el estado de un pedido con bloqueo FOR UPDATE y validación de transición.
         Si pasa a cancelado desde un estado válido, devuelve el stock al inventario una sola vez.
+        Si se provee `cursor`, opera dentro de la transacción existente sin hacer commit/rollback/close.
         """
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        own_conn = cursor is None
+        conn = get_connection() if own_conn else None
+        active_cursor = conn.cursor(dictionary=True) if own_conn else cursor
 
         try:
-            conn.start_transaction()
+            if own_conn:
+                conn.start_transaction()
 
             # Bloquear la fila del pedido para evitar cancelaciones simultáneas
-            cursor.execute(
+            active_cursor.execute(
                 "SELECT id_estado FROM pedidos WHERE id_pedido = %s FOR UPDATE",
                 (id_pedido,)
             )
-            pedido = cursor.fetchone()
+            pedido = active_cursor.fetchone()
 
             if not pedido:
                 raise ValueError("Pedido no encontrado")
@@ -252,31 +255,36 @@ class Pedido:
 
             # Si se está cancelando, devolver stock dentro de la misma transacción
             if id_estado == ESTADO_CANCELADO:
-                cursor.execute(
+                active_cursor.execute(
                     "SELECT id_variante, cantidad FROM pedido_detalle WHERE id_pedido = %s",
                     (id_pedido,)
                 )
-                detalles = cursor.fetchall()
+                detalles = active_cursor.fetchall()
 
                 for detalle in detalles:
-                    cursor.execute(
+                    active_cursor.execute(
                         "UPDATE variantes_producto SET stock = stock + %s WHERE id_variante = %s",
                         (detalle["cantidad"], detalle["id_variante"])
                     )
 
             # Actualizar estado
-            cursor.execute(
+            active_cursor.execute(
                 "UPDATE pedidos SET id_estado = %s WHERE id_pedido = %s",
                 (id_estado, id_pedido)
             )
-            conn.commit()
+            if own_conn:
+                conn.commit()
 
         except Exception as e:
-            conn.rollback()
+            if own_conn and conn is not None:
+                conn.rollback()
             raise e
         finally:
-            cursor.close()
-            conn.close()
+            if own_conn:
+                if active_cursor is not None:
+                    active_cursor.close()
+                if conn is not None:
+                    conn.close()
 
     @staticmethod
     def transicion_estado_valida(id_estado_actual, id_estado_nuevo):

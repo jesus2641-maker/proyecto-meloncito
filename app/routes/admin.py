@@ -177,7 +177,7 @@ def nuevo_producto():
             else:
                 mensaje = "No se pudo crear la variante (verifica que el SKU no esté repetido)"
             flash(f"El producto no se guardó: {mensaje}", "danger")
-            return render_template("admin/productos/formulario.html", producto=producto, categorias=categorias)
+            return render_template("admin/productos/formulario.html", producto=None, categorias=categorias)
 
         flash(f"Producto '{nombre_producto}' creado exitosamente", "success")
         return redirect(url_for("admin.productos"))
@@ -533,8 +533,10 @@ def detalle_pedido(id_pedido):
 
 @admin_bp.route("/pedidos/<int:id_pedido>/estado", methods=["POST"])
 def cambiar_estado_pedido(id_pedido):
+    from app.utils.validaciones import ruta_segura
     id_estado = request.form.get("id_estado", type=int)
-    next_url = request.form.get("next") or url_for("admin.pedidos")
+    default_url = url_for("admin.pedidos")
+    next_url = ruta_segura(request.form.get("next"), fallback=default_url)
 
     if id_estado:
         try:
@@ -639,6 +641,13 @@ def mi_cuenta():
 @admin_bp.route("/mi-cuenta/editar", methods=["POST"])
 def editar_mi_cuenta():
     """Edita el perfil del administrador actual."""
+    from app.utils.validaciones import (
+        validar_telefono_colombiano,
+        validar_email,
+        validar_password,
+        NOMBRE_REGEX,
+    )
+
     id_usuario = session.get("id_usuario")
     if not id_usuario:
         return redirect(url_for("auth.login"))
@@ -654,8 +663,19 @@ def editar_mi_cuenta():
         flash("Nombre, apellido y correo son obligatorios", "danger")
         return redirect(url_for("admin.mi_cuenta"))
 
+    if len(nombre) < 2 or len(nombre) > 50 or not NOMBRE_REGEX.match(nombre):
+        flash("El nombre debe tener entre 2 y 50 caracteres y solo puede contener letras y espacios", "danger")
+        return redirect(url_for("admin.mi_cuenta"))
+
+    if len(apellido) < 2 or len(apellido) > 50 or not NOMBRE_REGEX.match(apellido):
+        flash("El apellido debe tener entre 2 y 50 caracteres y solo puede contener letras y espacios", "danger")
+        return redirect(url_for("admin.mi_cuenta"))
+
+    if not validar_email(email):
+        flash("Ingresa un correo electrónico válido", "danger")
+        return redirect(url_for("admin.mi_cuenta"))
+
     # Validación de celular colombiano
-    from app.utils.validaciones import validar_telefono_colombiano
     if telefono_raw:
         valido_tel, msg_tel, tel_normalizado = validar_telefono_colombiano(telefono_raw)
         if not valido_tel:
@@ -667,6 +687,11 @@ def editar_mi_cuenta():
     
     # Si se quiere cambiar la contraseña
     if contraseña_nueva:
+        valido_pass, msg_pass = validar_password(contraseña_nueva)
+        if not valido_pass:
+            flash(msg_pass, "danger")
+            return redirect(url_for("admin.mi_cuenta"))
+
         if not contraseña_actual:
             flash("Debes ingresar tu contraseña actual para cambiarla", "danger")
             return redirect(url_for("admin.mi_cuenta"))
@@ -676,27 +701,39 @@ def editar_mi_cuenta():
         if not Usuario.verificar_contraseña(contraseña_actual, usuario['password_hash']):
             flash("La contraseña actual es incorrecta", "danger")
             return redirect(url_for("admin.mi_cuenta"))
-        
-        # Actualizar con nueva contraseña
-        Usuario.actualizar(
-            id_usuario=id_usuario,
-            nombre=nombre,
-            apellido=apellido,
-            telefono=telefono,
-            email=email,
-            contraseña=contraseña_nueva
-        )
-        flash("Perfil y contraseña actualizados correctamente", "success")
-    else:
-        # Actualizar sin cambiar contraseña
-        Usuario.actualizar(
-            id_usuario=id_usuario,
-            nombre=nombre,
-            apellido=apellido,
-            telefono=telefono,
-            email=email
-        )
-        flash("Perfil actualizado correctamente", "success")
+
+    try:
+        existente = Usuario.obtener_por_email(email)
+        if existente and int(existente["id_usuario"]) != int(id_usuario):
+            flash("Ese correo electrónico ya está registrado por otro usuario", "danger")
+            return redirect(url_for("admin.mi_cuenta"))
+
+        if contraseña_nueva:
+            Usuario.actualizar(
+                id_usuario=id_usuario,
+                nombre=nombre,
+                apellido=apellido,
+                telefono=telefono,
+                email=email,
+                contraseña=contraseña_nueva
+            )
+            flash("Perfil y contraseña actualizados correctamente", "success")
+        else:
+            Usuario.actualizar(
+                id_usuario=id_usuario,
+                nombre=nombre,
+                apellido=apellido,
+                telefono=telefono,
+                email=email
+            )
+            flash("Perfil actualizado correctamente", "success")
+    except Exception as err:
+        err_str = str(err).lower()
+        if "duplicate" in err_str or "1062" in err_str:
+            flash("Ese correo electrónico ya está registrado por otro usuario", "danger")
+        else:
+            logger.exception("Error al actualizar perfil de admin: %s", err)
+            flash("No se pudo actualizar el perfil. Intenta de nuevo.", "danger")
     
     return redirect(url_for("admin.mi_cuenta"))
 

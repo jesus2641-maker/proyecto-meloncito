@@ -89,12 +89,11 @@ def catalogo():
         prod["tiene_stock"] = disponible
         prod["total_stock"] = sum(int(v.get("stock") or 0) for v in variantes)
 
-        # Log temporal de diagnóstico para el primer producto procesado
+        # Log de diagnóstico para el primer producto procesado
         if idx == 0:
             var_diag = primera_con_stock or (variantes[0] if variantes else {})
             id_var_diag = var_diag.get("id_variante")
             stock_diag = int(var_diag.get("stock") or 0)
-            print(f"[DIAGNÓSTICO CATÁLOGO] id_producto: {prod.get('id_producto')}, id_variante: {id_var_diag}, stock: {stock_diag}, disponible: {disponible}")
             logger.info("[DIAGNÓSTICO CATÁLOGO] id_producto: %s, id_variante: %s, stock: %s, disponible: %s",
                         prod.get('id_producto'), id_var_diag, stock_diag, disponible)
 
@@ -141,9 +140,8 @@ def detalle(producto_id):
         stock_seleccionado = 0
         disponible = False
 
-    # Log temporal de diagnóstico en detalle
+    # Log de diagnóstico en detalle
     id_var_sel = variante_seleccionada.get("id_variante") if variante_seleccionada else None
-    print(f"[DIAGNÓSTICO DETALLE] id_producto: {producto_id}, id_variante: {id_var_sel}, stock: {stock_seleccionado}, disponible: {disponible}")
     logger.info("[DIAGNÓSTICO DETALLE] id_producto: %s, id_variante: %s, stock: %s, disponible: %s",
                 producto_id, id_var_sel, stock_seleccionado, disponible)
 

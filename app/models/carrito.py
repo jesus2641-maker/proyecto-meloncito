@@ -99,10 +99,13 @@ class CarritoItem:
         conn.close()
 
     @staticmethod
-    def eliminar(id_item):
+    def eliminar(id_item, id_carrito=None):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM carrito_items WHERE id_item = %s", (id_item,))
+        if id_carrito is not None:
+            cursor.execute("DELETE FROM carrito_items WHERE id_item = %s AND id_carrito = %s", (id_item, id_carrito))
+        else:
+            cursor.execute("DELETE FROM carrito_items WHERE id_item = %s", (id_item,))
         conn.commit()
         cursor.close()
         conn.close()
@@ -132,14 +135,20 @@ class CarritoItem:
         return item
 
     @staticmethod
-    def actualizar_cantidad(id_item, nueva_cantidad):
+    def actualizar_cantidad(id_item, nueva_cantidad, id_carrito=None):
         """Actualiza la cantidad de un item en el carrito."""
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE carrito_items SET cantidad = %s WHERE id_item = %s",
-            (nueva_cantidad, id_item)
-        )
+        if id_carrito is not None:
+            cursor.execute(
+                "UPDATE carrito_items SET cantidad = %s WHERE id_item = %s AND id_carrito = %s",
+                (nueva_cantidad, id_item, id_carrito)
+            )
+        else:
+            cursor.execute(
+                "UPDATE carrito_items SET cantidad = %s WHERE id_item = %s",
+                (nueva_cantidad, id_item)
+            )
         conn.commit()
         cursor.close()
         conn.close()

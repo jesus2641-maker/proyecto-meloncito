@@ -22,7 +22,9 @@ services:
 
   # ── Aplicación Flask ────────────────────────────────────────────────────────
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: beerhouse_app
     restart: unless-stopped
     ports:

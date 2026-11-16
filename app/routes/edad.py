@@ -10,7 +10,7 @@ obliga a pasar por esta pantalla está en create_app (app/__init__.py).
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, current_app
-from app.utils.validaciones import EDAD_MINIMA
+from app.utils.validaciones import EDAD_MINIMA, ruta_segura
 
 edad_bp = Blueprint("edad", __name__)
 
@@ -18,24 +18,6 @@ edad_bp = Blueprint("edad", __name__)
 COOKIE_MAYOR_EDAD = "mayor_edad"
 # Duración de la cookie: 30 días (en segundos)
 DURACION_COOKIE_MAYOR_EDAD = 30 * 24 * 60 * 60
-
-
-def ruta_segura(destino):
-    """
-    Valida el parámetro `next` para evitar open redirect.
-
-    Solo se acepta una ruta interna: debe empezar con "/" y no con "//",
-    y no puede contener "\\" ni caracteres de control (los navegadores ignoran
-    tabuladores y saltos de línea, así que "/\\t/sitio.com" se convertiría en "//sitio.com").
-    Si no es válida, devuelve "/".
-    """
-    if not destino or not destino.startswith("/"):
-        return "/"
-    if destino.startswith("//") or "\\" in destino:
-        return "/"
-    if any(ord(caracter) < 32 or ord(caracter) == 127 for caracter in destino):
-        return "/"
-    return destino
 
 
 def marcar_mayor_edad(respuesta):
