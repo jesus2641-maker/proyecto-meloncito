@@ -1,10 +1,15 @@
 """
-Rutas de Pagos con PayPal - Integración Sandbox / Live
-Maneja la vista de pago, creación de orden en PayPal y captura de la transacción.
+Rutas de Pagos con PayPal - Integración Sandbox / Live.
+
+Maneja la vista de pago (`/pagos/paypal/<id_pedido>`), la creación de órdenes en
+la API Orders v2 de PayPal, la captura de la transacción autorizada, el retorno
+y la cancelación desde la pasarela externa.
 """
 
+# Módulos estándar para variables de entorno y logging
 import os
 import logging
+# Utilidades de Flask para blueprint, errores, mensajes, JSON, redirecciones, vistas y sesión
 from flask import (
     Blueprint,
     abort,
@@ -17,6 +22,7 @@ from flask import (
     url_for,
 )
 
+# Configuración global y modelos/constantes de pagos y pedidos
 from config import Config
 from app.models.pago import (
     ESTADO_PAGO_CANCELADO,
@@ -30,22 +36,32 @@ from app.models.pedido import (
     Pedido,
     PedidoDetalle,
 )
+# Servicios de negocio para el ciclo de vida de pagos PayPal
 from app.services.pagos_paypal import (
     cancelar_impagos_vencidos,
     capturar_pago,
     iniciar_pago,
 )
+# Decorador de sesión, servicio de correo y cliente PayPal
 from app.utils.decoradores import requiere_login
 from app.utils.email_service import enviar_confirmacion_pedido_por_id
 from app.utils.paypal_client import PayPalError, paypal_configurado
 
+# Logger del módulo de pagos
 logger = logging.getLogger(__name__)
 
+# Blueprint de pagos bajo el prefijo /pagos
 pagos_bp = Blueprint("pagos", __name__, url_prefix="/pagos")
 
 
 def _obtener_base_url():
-    """Devuelve BASE_URL (por defecto http://localhost:5000 en local) sin barra final."""
+    """
+    Devuelve `BASE_URL` (por defecto `http://localhost:5000` en entorno local)
+    sin barra inclinada final para construir URLs absolutas de retorno.
+
+    Returns:
+        str: URL base normalizada de la aplicación.
+    """
     base = os.getenv("BASE_URL") or getattr(Config, "BASE_URL", None) or "http://localhost:5000"
     return str(base).strip().rstrip("/")
 
@@ -54,30 +70,39 @@ def _obtener_base_url():
 @requiere_login(mensaje="Inicia sesión para realizar el pago")
 def paypal_checkout(id_pedido):
     """
-    Vista de pago con PayPal:
+    Vista de pago con PayPal (`/pagos/paypal/<id_pedido>`):
     - Cancela pedidos impagos vencidos.
     - Valida que el pedido exista y pertenezca al usuario en sesión (404 si no).
     - Si ya está pagado/confirmado, redirige a confirmación.
     - Si está cancelado o expiró, muestra flash de aviso y redirige al catálogo.
-    - Renderiza pagos/paypal.html con datos del pedido y el botón de PayPal.
+    - Calcula la conversión COP -> USD y renderiza `pagos/paypal.html` con el
+      botón inteligente del SDK de PayPal.
+
+    Args:
+        id_pedido (int): Identificador del pedido a pagar.
+
+    Returns:
+        flask.Response | str: Redirección o plantilla HTML de pago.
     """
+    # Libera pedidos expirados antes de evaluar el estado del pedido actual
     cancelar_impagos_vencidos()
 
     id_usuario = session.get("id_usuario")
     pedido = Pedido.obtener_por_id(id_pedido)
 
+    # Verifica existencia y propiedad del pedido
     if not pedido or int(pedido["id_usuario"]) != int(id_usuario):
         abort(404)
 
     pago = Pago.obtener_por_pedido(id_pedido)
 
-    # Si ya está confirmado o completado el pago -> confirmación
+    # Si ya está confirmado o completado el pago -> redirige a confirmación
     if int(pedido["id_estado"]) == ESTADO_CONFIRMADO or (
         pago and pago.get("estado") == ESTADO_PAGO_COMPLETADO
     ):
         return redirect(url_for("carrito.confirmacion", id_pedido=id_pedido))
 
-    # Si está cancelado o el pago está cancelado/reembolsado
+    # Si está cancelado o el pago está cancelado/reembolsado -> avisa y redirige al catálogo
     if int(pedido["id_estado"]) == ESTADO_CANCELADO or (
         pago and pago.get("estado") in (ESTADO_PAGO_CANCELADO, ESTADO_PAGO_REEMBOLSADO)
     ):
@@ -90,12 +115,14 @@ def paypal_checkout(id_pedido):
     detalles = PedidoDetalle.listar_por_pedido(id_pedido)
     paypal_activo = paypal_configurado()
 
+    # Obtiene tasa de cambio COP -> USD para mostrar el equivalente en dólares al cliente
     from app.utils.moneda import cop_a_usd, obtener_tasa_cop_usd
     try:
         tasa_actual = obtener_tasa_cop_usd()
     except ValueError:
         tasa_actual = None
 
+    # Usa la tasa almacenada en el registro de pago si ya existe, o la tasa actual
     tasa_usada = (pago.get("tasa_cop_usd") if pago and pago.get("tasa_cop_usd") else tasa_actual)
     monto_usd = None
     if tasa_usada:
@@ -121,7 +148,13 @@ def paypal_checkout(id_pedido):
 @requiere_login()
 def crear_orden(id_pedido):
     """
-    Inicia la orden en PayPal Orders v2 y responde el id de orden a PayPal JS SDK.
+    Inicia la orden en PayPal Orders v2 y responde el `id` de orden al PayPal JS SDK.
+
+    Args:
+        id_pedido (int): Identificador del pedido en Beer House.
+
+    Returns:
+        tuple[flask.Response, int]: JSON con `{"id": order_id}` (200) o error (400/500/502).
     """
     id_usuario = session.get("id_usuario")
     try:
@@ -144,8 +177,14 @@ def crear_orden(id_pedido):
 def capturar_orden(id_pedido):
     """
     Captura la orden autorizada por el usuario en el popup de PayPal:
-    - Si el medio fue declinado (INSTRUMENT_DECLINED), solicita reintentar con otra tarjeta.
+    - Si el medio fue declinado (`INSTRUMENT_DECLINED`), solicita reintentar con otra tarjeta (HTTP 422).
     - Si la captura tuvo éxito, despacha correo de confirmación y devuelve URL de redirección.
+
+    Args:
+        id_pedido (int): Identificador del pedido asociado a la orden PayPal.
+
+    Returns:
+        tuple[flask.Response, int]: Respuesta JSON con estado de captura y URL de redirección.
     """
     id_usuario = session.get("id_usuario")
     data = request.get_json(silent=True) or {}
@@ -157,6 +196,7 @@ def capturar_orden(id_pedido):
     try:
         resultado = capturar_pago(id_usuario, id_pedido, order_id)
 
+        # Caso recuperable: tarjeta/método declinado por el emisor en PayPal
         if resultado.get("reintentar"):
             return jsonify({
                 "ok": False,
@@ -165,7 +205,7 @@ def capturar_orden(id_pedido):
                 "error": resultado.get("mensaje") or "Medio de pago rechazado por PayPal. Puedes reintentar con otra tarjeta.",
             }), 422
 
-        # Captura exitosa
+        # Captura exitosa: envía correo de confirmación y retorna ruta absoluta de confirmación
         enviar_confirmacion_pedido_por_id(id_pedido, id_usuario)
         redirect_url = f"{_obtener_base_url()}{url_for('carrito.confirmacion', id_pedido=id_pedido)}"
         return jsonify({
@@ -188,7 +228,18 @@ def capturar_orden(id_pedido):
 @pagos_bp.route("/paypal/<int:id_pedido>/retorno", methods=["GET"])
 @requiere_login()
 def paypal_retorno(id_pedido):
-    """Ruta de retorno desde PayPal construida con BASE_URL."""
+    """
+    Ruta de retorno desde PayPal construida con `BASE_URL`.
+
+    Intenta capturar automáticamente la orden usando el parámetro `token` enviado
+    por PayPal en la URL; si tiene éxito, envía el correo y redirige a confirmación.
+
+    Args:
+        id_pedido (int): Identificador del pedido.
+
+    Returns:
+        flask.Response: Redirección a confirmación o de vuelta a la vista de pago.
+    """
     base_url = _obtener_base_url()
     token_orden = (request.args.get("token") or "").strip()
     id_usuario = session.get("id_usuario")
@@ -209,7 +260,18 @@ def paypal_retorno(id_pedido):
 @pagos_bp.route("/paypal/<int:id_pedido>/cancelado", methods=["GET"])
 @requiere_login()
 def paypal_cancelado(id_pedido):
-    """Ruta de cancelación desde PayPal construida con BASE_URL."""
+    """
+    Ruta de cancelación desde PayPal construida con `BASE_URL`.
+
+    Muestra un mensaje informativo indicando que el pedido sigue reservado y
+    redirige a la vista de pago PayPal.
+
+    Args:
+        id_pedido (int): Identificador del pedido.
+
+    Returns:
+        flask.Response: Redirección a `pagos.paypal_checkout`.
+    """
     base_url = _obtener_base_url()
     flash("Cancelaste el proceso de pago en PayPal. Tu pedido sigue reservado.", "warning")
     return redirect(f"{base_url}{url_for('pagos.paypal_checkout', id_pedido=id_pedido)}")

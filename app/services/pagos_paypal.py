@@ -1,7 +1,15 @@
 """
 Servicio de lógica de negocio para pagos con PayPal (Sandbox / Live).
-Coordina la validación de propiedad, estado del pedido, llamadas al cliente HTTP
-de PayPal, reembolsos automáticos de seguridad y expiración de pedidos impagos.
+
+Coordina:
+- La validación de propiedad y estado del pedido antes de cobrar.
+- La conversión autoritativa del total en COP (desde BD) a USD.
+- Las llamadas idempotentes al cliente HTTP de PayPal (`paypal_client`).
+- Bloqueo pesimista (`FOR UPDATE`) durante la captura para evitar doble cobro o
+  condiciones de carrera.
+- Reembolsos automáticos de seguridad si la captura no coincide con lo esperado o
+  si falla la confirmación del pedido.
+- Expiración y cancelación automática de pedidos impagos vencidos.
 """
 
 import logging
@@ -26,10 +34,23 @@ from app.utils import paypal_client
 from app.utils.paypal_client import PayPalError
 from app.utils.moneda import cop_a_usd, obtener_tasa_cop_usd
 
+# Logger del módulo para trazabilidad de órdenes, capturas y reembolsos
 logger = logging.getLogger(__name__)
 
 
 def _minutos_expiracion(minutos=None):
+    """
+    Resuelve el tiempo límite (en minutos) para pagar un pedido pendiente.
+
+    Prioriza el argumento `minutos` si es un entero positivo válido; de lo contrario
+    lee `Config.PAGO_EXPIRA_MINUTOS` (con respaldo de 30 minutos).
+
+    Args:
+        minutos (int | str | None): Sobrescritura opcional del tiempo de expiración.
+
+    Returns:
+        int: Cantidad positiva de minutos antes de considerar el pago expirado.
+    """
     if minutos is not None:
         try:
             val = int(minutos)
@@ -45,13 +66,28 @@ def _minutos_expiracion(minutos=None):
 
 
 def _moneda_configurada():
+    """
+    Obtiene el código de moneda configurado para PayPal (por defecto `'USD'`).
+
+    Returns:
+        str: Código ISO de moneda en mayúsculas sin espacios.
+    """
     return (getattr(Config, "PAYPAL_CURRENCY", "USD") or "USD").strip().upper()
 
 
 def _pago_ha_expirado_sql(id_pedido, minutos=None):
     """
-    Calcula en MySQL si el pago pendiente ha superado el tiempo límite de expiración
-    utilizando TIMESTAMPDIFF(MINUTE, fecha_creacion, NOW()).
+    Calcula directamente en MySQL si el pago pendiente superó el tiempo límite de expiración
+    utilizando `TIMESTAMPDIFF(MINUTE, fecha_creacion, NOW())`.
+
+    Evaluarlo en SQL evita discrepancias de zona horaria entre Python y la base de datos.
+
+    Args:
+        id_pedido (int): Identificador del pedido a verificar.
+        minutos (int | None): Tiempo límite opcional en minutos.
+
+    Returns:
+        bool: `True` si los minutos transcurridos son `>= min_exp`, `False` en caso contrario.
     """
     min_exp = _minutos_expiracion(minutos)
     conn = get_connection()
@@ -77,6 +113,18 @@ def _pago_ha_expirado_sql(id_pedido, minutos=None):
 
 
 def _contar_intentos_pago(id_pedido):
+    """
+    Calcula el número del próximo intento de creación de orden PayPal para un pedido.
+
+    Se usa para construir un `PayPal-Request-ID` único por intento
+    (`crear-<id_pedido>-<n_intento>`), permitiendo reintentar si un intento previo falló.
+
+    Args:
+        id_pedido (int): Identificador del pedido.
+
+    Returns:
+        int: Número ordinal del siguiente intento (1 en el primer intento).
+    """
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -99,28 +147,45 @@ def _contar_intentos_pago(id_pedido):
 
 def iniciar_pago(id_usuario, id_pedido):
     """
-    Inicia una orden de pago en PayPal para un pedido:
+    Inicia una orden de pago en PayPal para un pedido existente:
     - Verifica que el pedido exista y pertenezca a `id_usuario`.
     - Verifica que el pedido esté en estado pendiente y no haya expirado.
-    - Verifica que el pedido tenga un pago en estado 'pendiente'.
-    - Toma el monto únicamente de `pedidos.total` en la base de datos.
-    - Llama a `crear_orden` con `request_id` estable ('crear-<id_pedido>-<n_intento>')
-      y registra el `order_id` en la tabla `pagos`.
+    - Verifica que el pedido tenga un pago en estado `'pendiente'`.
+    - Toma el monto únicamente de `pedidos.total` en la base de datos (nunca del cliente).
+    - Convierte el total de COP a USD y lo sincroniza en la tabla `pagos`.
+    - Llama a `crear_orden` con `request_id` estable (`'crear-<id_pedido>-<n_intento>'`)
+      y registra el `order_id` resultante en la tabla `pagos`.
+
+    Args:
+        id_usuario (int): ID del usuario autenticado que solicita iniciar el pago.
+        id_pedido (int): ID del pedido a pagar.
+
+    Returns:
+        str: `order_id` generado por PayPal para aprobar en el frontend.
+
+    Raises:
+        ValueError: Si el pedido no existe, no pertenece al usuario, no está pendiente o expiró.
+        PayPalError: Si falla la comunicación con la API de PayPal.
     """
+    # 1. Validamos existencia y propiedad del pedido
     pedido = Pedido.obtener_por_id(id_pedido)
     if not pedido or int(pedido["id_usuario"]) != int(id_usuario):
         raise ValueError("El pedido no existe o no pertenece al usuario")
 
+    # 2. Solo se pueden pagar pedidos en estado pendiente
     if int(pedido["id_estado"]) != ESTADO_PENDIENTE:
         raise ValueError("El pedido no está pendiente de pago")
 
+    # 3. Verificamos que exista un registro de pago pendiente asociado
     pago = Pago.obtener_por_pedido(id_pedido)
     if not pago or pago["estado"] != ESTADO_PAGO_PENDIENTE:
         raise ValueError("El pedido no tiene un pago pendiente activo")
 
+    # 4. Rechazamos el inicio si la ventana de pago ya expiró
     if _pago_ha_expirado_sql(id_pedido):
         raise ValueError("El tiempo para pagar este pedido ha expirado")
 
+    # 5. Calculamos el monto en USD a partir del total autoritativo guardado en BD
     monto_bd = Decimal(str(pedido["total"]))
     moneda = _moneda_configurada()  # PAYPAL_CURRENCY (USD)
     tasa_cop_usd = obtener_tasa_cop_usd()
@@ -135,6 +200,7 @@ def iniciar_pago(id_usuario, id_pedido):
         monto_usd=monto_usd
     )
 
+    # 6. Generamos `request_id` determinístico por intento y creamos la orden en PayPal
     n_intento = _contar_intentos_pago(id_pedido)
     request_id = f"crear-{id_pedido}-{n_intento}"
 
@@ -144,6 +210,7 @@ def iniciar_pago(id_usuario, id_pedido):
         moneda=moneda,
         request_id=request_id,
     )
+    # 7. Persistimos el `order_id` en la tabla `pagos` para validarlo luego al capturar
     Pago.registrar_orden(id_pedido, order_id)
     logger.info("Orden de PayPal creada para el pedido %s (intento %s)", id_pedido, n_intento)
     return order_id
@@ -152,9 +219,18 @@ def iniciar_pago(id_usuario, id_pedido):
 def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cursor=None):
     """
     Reembolsa automáticamente una captura cuando la validación posterior o la
-    confirmación del pedido falla, marca el pago como 'reembolsado' y registra con logger.error.
-    Si el pedido sigue en estado pendiente, lo cancela con Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO)
-    devolviendo el stock una sola vez. Si se provee `cursor`, opera dentro de la misma transacción.
+    confirmación del pedido falla, marca el pago como `'reembolsado'` y registra con `logger.error`.
+
+    Si el pedido sigue en estado pendiente, lo cancela con `Pedido.actualizar_estado`
+    devolviendo el stock una sola vez. Si se provee `cursor`, opera dentro de la misma
+    transacción bloqueada; de lo contrario actualiza mediante los métodos de los modelos.
+
+    Args:
+        id_pedido (int): ID del pedido afectado.
+        capture_id (str): ID de la captura ya cobrada en PayPal que debe revertirse.
+        motivo (str): Razón técnica del reembolso automático (para auditoría en logs).
+        id_pago (int | None): ID específico del registro en `pagos` (opcional).
+        cursor (MySQLCursor | None): Cursor transaccional activo si se ejecuta en transacción.
     """
     logger.error(
         "Iniciando reembolso automático para pedido=%s capture_id=%s por motivo: %s",
@@ -162,6 +238,7 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cur
         capture_id,
         motivo,
     )
+    # Ejecutamos primero el reembolso en PayPal; si falla, propagamos la excepción para alertar
     try:
         paypal_client.reembolsar_captura(capture_id, request_id=f"reembolso-auto-{id_pedido}-{capture_id}")
     except Exception:
@@ -172,6 +249,7 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cur
         )
         raise
 
+    # Si estamos dentro de una transacción con cursor bloqueado, actualizamos usando el mismo cursor
     if cursor is not None:
         if id_pago is not None:
             cursor.execute(
@@ -183,6 +261,7 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cur
                 "UPDATE pagos SET estado = %s, paypal_capture_id = COALESCE(paypal_capture_id, %s) WHERE id_pedido = %s ORDER BY id_pago DESC LIMIT 1",
                 (ESTADO_PAGO_REEMBOLSADO, str(capture_id).strip(), id_pedido),
             )
+        # Bloqueamos la fila del pedido para verificar si aún está pendiente y cancelarlo devolviendo stock
         cursor.execute("SELECT id_estado FROM pedidos WHERE id_pedido = %s FOR UPDATE", (id_pedido,))
         pedido_actual = cursor.fetchone()
         if pedido_actual and int(pedido_actual["id_estado"]) == ESTADO_PENDIENTE:
@@ -190,6 +269,7 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cur
             logger.info("Pedido %s cancelado y stock devuelto tras reembolso automático", id_pedido)
         return
 
+    # Ruta sin cursor externo: marcamos el pago y cancelamos el pedido usando los modelos
     Pago.marcar(id_pedido, ESTADO_PAGO_REEMBOLSADO, capture_id=capture_id)
 
     # Si el pedido sigue en estado pendiente, cancelarlo para devolver el stock una sola vez
@@ -207,21 +287,37 @@ def _reembolsar_automaticamente(id_pedido, capture_id, motivo, id_pago=None, cur
 
 def capturar_pago(id_usuario, id_pedido, order_id):
     """
-    Captura y confirma el pago de un pedido en PayPal:
+    Captura y confirma el pago de un pedido en PayPal de forma transaccional e idempotente:
     - Verifica propiedad del pedido y coincidencia del `order_id` guardado.
-    - Si el pago ya está 'completado', devuelve éxito de forma idempotente sin volver a llamar a PayPal.
+    - Bloquea la fila del pago (`SELECT ... FOR UPDATE`) para evitar capturas concurrentes.
+    - Si el pago ya está `'completado'`, devuelve éxito de forma idempotente sin volver a llamar a PayPal.
     - Verifica que el pedido siga en estado pendiente ANTES de capturar.
-    - Si PayPal rechaza con INSTRUMENT_DECLINED, no marca nada definitivo y devuelve
-      un estado de reintento para el navegador.
-    - Exige estado COMPLETED, monto == monto_usd del pago, moneda == PAYPAL_CURRENCY y custom_id == str(id_pedido).
+    - Si PayPal rechaza con `INSTRUMENT_DECLINED`, no marca nada definitivo y devuelve
+      un estado de reintento (`reintentar: True`) para el navegador.
+    - Exige estado `COMPLETED`, `monto == monto_usd` del pago, `moneda == PAYPAL_CURRENCY`
+      y `custom_id == str(id_pedido)`.
     - Si alguna verificación posterior a la captura falla o el pedido no puede pasar a confirmado,
-      reembolsa automáticamente la captura, marca el pago 'reembolsado', registra con logger.error
-      incluyendo `capture_id` y lanza ValueError.
+      reembolsa automáticamente la captura, marca el pago `'reembolsado'`, registra con `logger.error`
+      incluyendo `capture_id` y lanza `ValueError`.
+
+    Args:
+        id_usuario (int): ID del usuario autenticado.
+        id_pedido (int): ID del pedido a cobrar.
+        order_id (str): ID de la orden aprobada por el usuario en PayPal.
+
+    Returns:
+        dict: Resultado de la operación (`exito`, `reintentar`, `estado`, `id_pedido`,
+            `capture_id`, `ya_completado` o `codigo`/`mensaje` si fue declinado).
+
+    Raises:
+        ValueError: Si los datos son inválidos, el pedido no corresponde o la captura no pasó validación.
+        PayPalError: Si ocurre un error de comunicación con PayPal distinto a `INSTRUMENT_DECLINED`.
     """
     if not order_id or not str(order_id).strip():
         raise ValueError("El identificador de la orden de PayPal es obligatorio")
     order_id_str = str(order_id).strip()
 
+    # Validamos existencia y propiedad del pedido antes de abrir transacción
     pedido = Pedido.obtener_por_id(id_pedido)
     if not pedido or int(pedido["id_usuario"]) != int(id_usuario):
         raise ValueError("El pedido no existe o no pertenece al usuario")
@@ -229,6 +325,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        # Iniciamos transacción y bloqueamos el registro de pago con `FOR UPDATE`
         conn.start_transaction()
         cursor.execute(
             """
@@ -247,6 +344,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
             conn.rollback()
             raise ValueError("No se encontró un registro de pago para este pedido")
 
+        # Verificamos que el `order_id` recibido coincida con el registrado al iniciar el pago
         if pago.get("paypal_order_id") != order_id_str:
             conn.rollback()
             raise ValueError("El identificador de la orden no coincide con el registrado para este pedido")
@@ -272,11 +370,13 @@ def capturar_pago(id_usuario, id_pedido, order_id):
             conn.rollback()
             raise ValueError(f"El pago no está en estado pendiente (estado actual: {pago['estado']})")
 
+        # Ejecutamos la captura en PayPal con `request_id` determinístico por orden
         request_id = f"capturar-{id_pedido}-{order_id_str}"
         try:
             resultado = paypal_client.capturar_orden(order_id_str, request_id=request_id)
         except PayPalError as exc:
             conn.rollback()
+            # Si la tarjeta/saldo fue rechazado, permitimos al usuario elegir otro medio en el checkout
             if exc.codigo == "INSTRUMENT_DECLINED":
                 logger.warning("Medio de pago rechazado (INSTRUMENT_DECLINED) en pedido %s; se permite reintentar", id_pedido)
                 return {
@@ -288,6 +388,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
                 }
             raise
 
+        # Normalizamos los campos devueltos por la captura de PayPal
         estado_cap = (resultado.get("estado") or "").strip().upper()
         capture_id = (resultado.get("capture_id") or "").strip()
         monto_cap_raw = resultado.get("monto")
@@ -308,6 +409,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
 
         moneda_esperada = _moneda_configurada()
 
+        # Si la captura no quedó en COMPLETED o falta `capture_id`, registramos detalles y abortamos
         if estado_cap != "COMPLETED" or not capture_id:
             status_details = resultado.get("status_details")
             processor_response = resultado.get("processor_response")
@@ -346,6 +448,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
         elif custom_id_cap != str(id_pedido):
             motivo_invalido = f"El custom_id capturado ({custom_id_cap}) no coincide con el pedido ({id_pedido})"
 
+        # Si hubo discrepancia en monto, moneda o pedido, reembolsamos de inmediato
         if motivo_invalido:
             try:
                 _reembolsar_automaticamente(
@@ -361,7 +464,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
                 raise
             raise ValueError(motivo_invalido)
 
-        # Confirmar captura en pagos y confirmar pedido dentro de la misma transacción bloqueada
+        # Confirmar captura en `pagos` y confirmar `pedidos` dentro de la misma transacción bloqueada
         try:
             cursor.execute(
                 """
@@ -387,6 +490,7 @@ def capturar_pago(id_usuario, id_pedido, order_id):
             Pedido.actualizar_estado(id_pedido, ESTADO_CONFIRMADO, cursor=cursor)
             conn.commit()
         except Exception as exc:
+            # Si falla la confirmación en BD después de cobrar en PayPal, reembolsamos automáticamente
             try:
                 _reembolsar_automaticamente(
                     id_pedido,
@@ -417,11 +521,22 @@ def capturar_pago(id_usuario, id_pedido, order_id):
 
 def cancelar_pedido_con_reembolso(id_pedido):
     """
-    Cancela un pedido gestionando el reembolso si corresponde:
-    - Si el pedido tiene un pago 'completado', primero reembolsa en PayPal y marca el pago 'reembolsado'.
+    Cancela un pedido gestionando el reembolso en PayPal si corresponde:
+    - Si el pedido tiene un pago `'completado'`, primero reembolsa en PayPal y marca el pago `'reembolsado'`.
     - Si el reembolso falla, NO cancela el pedido y propaga el error.
-    - Si el pago estaba 'pendiente', lo marca 'cancelado'.
+    - Si el pago estaba `'pendiente'`, lo marca `'cancelado'`.
     - Finalmente llama a `Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO)` que devuelve el stock una sola vez.
+
+    Args:
+        id_pedido (int): Identificador del pedido a cancelar.
+
+    Returns:
+        bool: `True` si la cancelación (y el reembolso, si aplicaba) finalizó correctamente.
+
+    Raises:
+        ValueError: Si el pedido no existe, ya está cancelado, la transición no es válida
+            o un pago completado carece de `paypal_capture_id`.
+        PayPalError: Si falla la llamada de reembolso en PayPal.
     """
     pedido = Pedido.obtener_por_id(id_pedido)
     if not pedido:
@@ -435,6 +550,7 @@ def cancelar_pedido_con_reembolso(id_pedido):
 
     pago = Pago.obtener_por_pedido(id_pedido)
     if pago:
+        # Si ya se había cobrado, debemos reembolsar en PayPal antes de cancelar el pedido
         if pago["estado"] == ESTADO_PAGO_COMPLETADO:
             capture_id = pago.get("paypal_capture_id")
             if not capture_id:
@@ -443,9 +559,11 @@ def cancelar_pedido_con_reembolso(id_pedido):
             paypal_client.reembolsar_captura(capture_id, request_id=request_id)
             Pago.marcar(id_pedido, ESTADO_PAGO_REEMBOLSADO, capture_id=capture_id)
             logger.info("Reembolso completado para pedido=%s capture_id=%s", id_pedido, capture_id)
+        # Si el pago nunca se completó, simplemente lo marcamos como cancelado
         elif pago["estado"] == ESTADO_PAGO_PENDIENTE:
             Pago.marcar(id_pedido, ESTADO_PAGO_CANCELADO)
 
+    # Cancelamos el pedido y devolvemos el stock al inventario
     Pedido.actualizar_estado(id_pedido, ESTADO_CANCELADO)
     return True
 
@@ -453,14 +571,24 @@ def cancelar_pedido_con_reembolso(id_pedido):
 def cancelar_impagos_vencidos(minutos=None):
     """
     Cancela (con `Pedido.actualizar_estado`, que devuelve el stock una sola vez)
-    los pedidos en estado pendiente cuyo pago PayPal siga en 'pendiente' y tenga
-    más de `PAGO_EXPIRA_MINUTOS` minutos, marcando el pago como 'cancelado'.
-    Devuelve cuántos pedidos canceló. Es idempotente ante llamadas repetidas.
+    los pedidos en estado pendiente cuyo pago PayPal siga en `'pendiente'` y tenga
+    más de `PAGO_EXPIRA_MINUTOS` minutos, marcando el pago como `'cancelado'`.
+
+    Es idempotente ante llamadas repetidas y revalida el estado actual de cada
+    pedido antes de cancelarlo.
+
+    Args:
+        minutos (int | None): Tiempo de expiración opcional en minutos; si es `None`,
+            usa `Config.PAGO_EXPIRA_MINUTOS` (30 por defecto).
+
+    Returns:
+        int: Cantidad total de pedidos vencidos que fueron cancelados.
     """
     min_exp = _minutos_expiracion(minutos)
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        # Buscamos pedidos pendientes con pago PayPal pendiente cuya antigüedad supere `min_exp`
         cursor.execute(
             """
             SELECT pg.id_pedido
@@ -479,11 +607,13 @@ def cancelar_impagos_vencidos(minutos=None):
         cursor.close()
         conn.close()
 
+    # Eliminamos posibles IDs duplicados preservando el orden ascendente
     pedidos_vencidos = list(dict.fromkeys(f["id_pedido"] for f in filas))
     cancelados = 0
 
     for id_pedido in pedidos_vencidos:
         try:
+            # Revalidamos estado actual justo antes de cancelar (evita condiciones de carrera)
             pago_actual = Pago.obtener_por_pedido(id_pedido)
             pedido_actual = Pedido.obtener_por_id(id_pedido)
             if (

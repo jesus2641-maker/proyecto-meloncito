@@ -1,8 +1,22 @@
+"""
+Modelo de Compras a Proveedores.
+
+Este módulo gestiona el registro de compras de mercancía a proveedores
+(cabecera en `compras` y líneas en `compra_detalle`), garantizando mediante
+transacciones atómicas con bloqueo `FOR UPDATE` la integridad del inventario
+al incrementar automáticamente el stock de las variantes adquiridas.
+"""
+
+# Módulo estándar para registrar trazas de depuración y auditoría
 import logging
+# Manejo de fechas para asignar fecha por defecto cuando no se especifica
 from datetime import datetime
+# Precisión decimal exacta para cálculos monetarios (evita errores de punto flotante)
 from decimal import Decimal
+# Función para obtener una conexión activa a MySQL
 from app.utils.db import get_connection
 
+# Logger específico del módulo `app.models.compra`
 logger = logging.getLogger(__name__)
 
 
@@ -30,9 +44,10 @@ class Compra:
 
         Raises:
             ValueError: Si alguna validación de datos o de existencia falla.
+            RuntimeError: Si no se logra actualizar el stock de alguna variante.
             Exception: Si ocurre un error de base de datos durante la transacción.
         """
-        # 1. Validaciones básicas de entrada
+        # 1. Validaciones básicas de entrada antes de tocar la base de datos
         if not id_proveedor:
             raise ValueError("Debes seleccionar un proveedor válido.")
 
@@ -46,14 +61,16 @@ class Compra:
         if not items or len(items) == 0:
             raise ValueError("La compra debe incluir al menos un producto.")
 
-        # 2. Validar cada item antes de abrir la transacción
+        # 2. Validar y normalizar cada item antes de abrir la transacción
         items_procesados = []
         for index, item in enumerate(items, start=1):
+            # Validar que el identificador de variante sea un entero válido
             try:
                 id_variante = int(item.get("id_variante"))
             except (TypeError, ValueError):
                 raise ValueError(f"Fila {index}: Debes seleccionar un producto válido.")
 
+            # Validar que la cantidad sea un entero positivo
             try:
                 cantidad = int(item.get("cantidad"))
             except (TypeError, ValueError):
@@ -62,6 +79,7 @@ class Compra:
             if cantidad <= 0:
                 raise ValueError(f"Fila {index}: La cantidad debe ser mayor a 0.")
 
+            # Convertir el precio unitario a Decimal redondeado a 2 decimales
             try:
                 precio_unitario = Decimal(str(item.get("precio_unitario"))).quantize(Decimal("0.01"))
             except Exception:
@@ -70,6 +88,7 @@ class Compra:
             if precio_unitario <= 0:
                 raise ValueError(f"Fila {index}: El precio de compra unitario debe ser mayor a 0.")
 
+            # Calcular el subtotal de la línea con precisión decimal exacta
             subtotal = (Decimal(cantidad) * precio_unitario).quantize(Decimal("0.01"))
             items_procesados.append({
                 "id_variante": id_variante,
@@ -78,6 +97,7 @@ class Compra:
                 "subtotal": subtotal
             })
 
+        # Sumar todos los subtotales para obtener el total general de la compra
         total_compra = sum(it["subtotal"] for it in items_procesados)
 
         # 3. Transacción atómica en la base de datos
@@ -92,6 +112,7 @@ class Compra:
                 raise ValueError("El proveedor seleccionado no existe en el sistema.")
 
             # B. Verificar existencia de cada variante de producto bloqueando filas con FOR UPDATE
+            #    para evitar condiciones de carrera con otras operaciones de inventario
             for it in items_procesados:
                 cursor.execute(
                     """SELECT v.id_variante, v.id_producto, v.stock, p.nombre_producto, v.presentacion
@@ -104,18 +125,18 @@ class Compra:
                 if not variante:
                     raise ValueError(f"El producto con ID de variante {it['id_variante']} no existe.")
 
-            # C. Insertar cabecera de compra
+            # C. Insertar cabecera de compra en la tabla `compras`
             cursor.execute("""
                 INSERT INTO compras (id_proveedor, id_usuario, fecha_compra, total)
                 VALUES (%s, %s, %s, %s)
             """, (id_proveedor, id_usuario, fecha_compra, total_compra))
             id_compra = cursor.lastrowid
 
-            # D. Insertar detalles y actualizar stock sumando las cantidades
+            # D. Insertar detalles y actualizar stock sumando las cantidades adquiridas
             for it in items_procesados:
                 logger.debug("Procesando item de compra: variante=%s, cantidad=%s", it["id_variante"], it["cantidad"])
 
-                # Insertar detalle de compra
+                # Insertar detalle de compra en `compra_detalle`
                 cursor.execute("""
                     INSERT INTO compra_detalle (id_compra, id_variante, cantidad, precio_unitario, subtotal)
                     VALUES (%s, %s, %s, %s, %s)
@@ -133,7 +154,7 @@ class Compra:
                 if cursor.rowcount == 0:
                     raise RuntimeError(f"No fue posible actualizar el stock de la variante {it['id_variante']}.")
 
-            # Confirmar transacción
+            # Confirmar toda la transacción de forma atómica
             conn.commit()
             return id_compra
 
@@ -142,12 +163,19 @@ class Compra:
             conn.rollback()
             raise e
         finally:
+            # Cerrar siempre el cursor y la conexión
             cursor.close()
             conn.close()
 
     @staticmethod
     def listar_todas():
-        """Lista todas las compras registradas con información de proveedor y totales."""
+        """
+        Lista todas las compras registradas con información de proveedor,
+        usuario que registró la compra y totales agregados de ítems y unidades.
+
+        Returns:
+            list[dict]: Lista de compras ordenadas de la más reciente a la más antigua.
+        """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
@@ -172,7 +200,16 @@ class Compra:
 
     @staticmethod
     def obtener_por_id(id_compra):
-        """Obtiene la cabecera de una compra por su ID."""
+        """
+        Obtiene la cabecera de una compra específica por su ID junto con los
+        datos del proveedor y del usuario responsable.
+
+        Args:
+            id_compra (int): Identificador único de la compra.
+
+        Returns:
+            dict | None: Diccionario con la cabecera de la compra o None si no existe.
+        """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
@@ -191,11 +228,18 @@ class Compra:
 
     @staticmethod
     def obtener_metricas():
-        """Obtiene métricas resumidas de compras para widgets del panel."""
+        """
+        Obtiene métricas resumidas de compras para widgets del panel administrativo
+        (gasto histórico total, conteo de compras y totales del mes calendario actual).
+
+        Returns:
+            dict: Diccionario con `gasto_total`, `total_compras`, `gasto_mes_actual`
+                y `compras_mes_actual`.
+        """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Métricas globales
+        # Métricas globales y del mes actual en una sola consulta agregada
         cursor.execute("""
             SELECT 
                 COALESCE(SUM(total), 0) AS gasto_total,
@@ -223,11 +267,21 @@ class Compra:
 
 
 class CompraDetalle:
-    """Modelo para los detalles de una compra (líneas de productos adquiridos)."""
+    """
+    Modelo para los detalles de una compra (líneas de productos adquiridos).
+    """
 
     @staticmethod
     def listar_por_compra(id_compra):
-        """Lista todos los productos adquiridos en una compra."""
+        """
+        Lista todos los productos y variantes adquiridos en una compra determinada.
+
+        Args:
+            id_compra (int): ID de la compra a consultar.
+
+        Returns:
+            list[dict]: Lista de líneas de detalle con datos de variante, producto y categoría.
+        """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""

@@ -18,18 +18,33 @@ Endpoints exclusivos admin/trabajador:
   GET  /api/v1/estadisticas          Métricas generales del negocio (solo administrador)
 """
 
+# Utilidades de Flask para blueprint, serialización JSON, lectura de peticiones y sesión
 from flask import Blueprint, jsonify, request, session
+# Tipos numéricos y temporales usados para serialización segura
 from decimal import Decimal
 import datetime
+# Constantes de roles administrativos y operativos del sistema
 from app.utils.decoradores import ID_ROL_ADMIN, ID_ROL_TRABAJADOR
 
+# Blueprint de la API REST versión 1 bajo el prefijo /api/v1
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _serializar(obj):
-    """Convierte tipos no serializables a JSON (Decimal, datetime)."""
+    """
+    Convierte tipos no serializables nativamente a JSON (`Decimal`, `datetime`, `date`).
+
+    Args:
+        obj (Any): Objeto Python que falló al serializarse con `json.dumps`.
+
+    Returns:
+        float | str: Representación numérica flotante o cadena ISO-8601.
+
+    Raises:
+        TypeError: Si el tipo del objeto no es soportado por el serializador.
+    """
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, (datetime.datetime, datetime.date)):
@@ -38,18 +53,50 @@ def _serializar(obj):
 
 
 def _ok(data, status=200):
+    """
+    Construye una respuesta JSON estandarizada de éxito.
+
+    Args:
+        data (Any): Carga útil (payload) a devolver bajo la clave `data`.
+        status (int): Código de estado HTTP (por defecto 200 OK).
+
+    Returns:
+        tuple[flask.Response, int]: Respuesta JSON y código HTTP.
+    """
     return jsonify({"ok": True, "data": data}), status
 
 
 def _error(mensaje, status=400):
+    """
+    Construye una respuesta JSON estandarizada de error.
+
+    Args:
+        mensaje (str): Descripción legible del error ocurrido.
+        status (int): Código de estado HTTP (por defecto 400 Bad Request).
+
+    Returns:
+        tuple[flask.Response, int]: Respuesta JSON y código HTTP.
+    """
     return jsonify({"ok": False, "error": mensaje}), status
 
 
 def _requiere_sesion():
+    """
+    Verifica si existe un usuario autenticado en la sesión actual de Flask.
+
+    Returns:
+        bool: True si `id_usuario` está presente en `session`, False en caso contrario.
+    """
     return "id_usuario" in session
 
 
 def _requiere_admin_o_trabajador():
+    """
+    Verifica si el usuario en sesión posee rol de administrador o trabajador.
+
+    Returns:
+        bool: True si `id_rol` coincide con `ID_ROL_ADMIN` o `ID_ROL_TRABAJADOR`.
+    """
     return session.get("id_rol") in (ID_ROL_ADMIN, ID_ROL_TRABAJADOR)
 
 
@@ -59,18 +106,25 @@ def _requiere_admin_o_trabajador():
 def listar_productos():
     """
     GET /api/v1/productos
-    Parámetros opcionales:
+    Devuelve la lista de productos activos agrupando sus variantes.
+
+    Parámetros opcionales (query string):
       ?q=<texto>         búsqueda por nombre o marca
       ?categoria=<id>    filtrar por id de categoría
+
+    Returns:
+        tuple[flask.Response, int]: Lista JSON de productos con sus variantes.
     """
     from app.models.producto import Producto
 
+    # Lee y normaliza los filtros opcionales de la URL
     busqueda = request.args.get("q", "").strip() or None
     categoria = request.args.get("categoria", type=int)
 
+    # Consulta filas planas (producto + variante) desde el modelo
     filas = Producto.listar_con_variantes(busqueda=busqueda, categoria=categoria)
 
-    # Agrupar variantes bajo cada producto
+    # Agrupar variantes bajo cada producto usando un diccionario indexado por id_producto
     productos = {}
     for fila in filas:
         pid = fila["id_producto"]
@@ -84,6 +138,7 @@ def listar_productos():
                 "categorias":       fila.get("categorias", ""),
                 "variantes":        []
             }
+        # Convierte el precio Decimal a float para serialización JSON segura
         productos[pid]["variantes"].append({
             "id_variante":   fila["id_variante"],
             "presentacion":  fila["presentacion"],
@@ -96,13 +151,24 @@ def listar_productos():
 
 @api_bp.route("/productos/<int:id_producto>")
 def detalle_producto(id_producto):
-    """GET /api/v1/productos/<id>"""
+    """
+    GET /api/v1/productos/<id>
+    Obtiene el detalle completo de un producto y sus variantes serializadas.
+
+    Args:
+        id_producto (int): ID del producto a consultar.
+
+    Returns:
+        tuple[flask.Response, int]: Objeto JSON del producto o error 404 si no existe.
+    """
     from app.models.producto import Producto, VarianteProducto
 
+    # Verifica que el producto exista
     producto = Producto.obtener_por_id(id_producto)
     if not producto:
         return _error("Producto no encontrado", 404)
 
+    # Obtiene y serializa todas las variantes asociadas al producto
     variantes = VarianteProducto.listar_por_producto(id_producto)
     variantes_serializadas = []
     for v in variantes:
@@ -128,7 +194,13 @@ def detalle_producto(id_producto):
 
 @api_bp.route("/categorias")
 def listar_categorias():
-    """GET /api/v1/categorias"""
+    """
+    GET /api/v1/categorias
+    Devuelve todas las categorías junto con el conteo de productos asociados.
+
+    Returns:
+        tuple[flask.Response, int]: Lista JSON de categorías.
+    """
     from app.models.categoria import Categoria
 
     categorias = Categoria.listar_con_conteo()
@@ -139,12 +211,20 @@ def listar_categorias():
 
 @api_bp.route("/ofertas")
 def listar_ofertas():
-    """GET /api/v1/ofertas — devuelve solo las ofertas activas"""
+    """
+    GET /api/v1/ofertas — devuelve solo las ofertas activas y vigentes.
+
+    Convierte importes `Decimal` a `float` y fechas a formato ISO-8601.
+
+    Returns:
+        tuple[flask.Response, int]: Lista JSON de ofertas activas.
+    """
     from app.models.oferta import Oferta
 
     ofertas = Oferta.listar_activas()
     resultado = []
     for o in ofertas:
+        # Normaliza campos numéricos y de fecha para evitar errores de serialización JSON
         resultado.append({
             "id_oferta":        o["id_oferta"],
             "titulo":           o.get("titulo") or o.get("nombre_oferta", ""),
@@ -166,15 +246,24 @@ def listar_ofertas():
 
 @api_bp.route("/carrito")
 def ver_carrito():
-    """GET /api/v1/carrito — items del carrito del usuario autenticado"""
+    """
+    GET /api/v1/carrito — devuelve los items del carrito del usuario autenticado
+    junto con los subtotales por línea y el total general.
+
+    Returns:
+        tuple[flask.Response, int]: Contenido del carrito o 401 si no hay sesión.
+    """
+    # Control de autenticación basado en sesión Flask
     if not _requiere_sesion():
         return _error("No autenticado", 401)
 
     from app.models.carrito import Carrito
 
+    # Obtiene el carrito activo del usuario (o crea uno nuevo si no existe)
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
     items = Carrito.obtener_items(carrito["id_carrito"])
 
+    # Serializa cada ítem calculando su subtotal y acumulando el total del carrito
     items_serializados = []
     total = 0
     for item in items:
@@ -201,11 +290,19 @@ def ver_carrito():
 def agregar_al_carrito():
     """
     POST /api/v1/carrito/agregar
-    Body JSON: { "id_variante": 3, "cantidad": 2 }
+    Agrega una cantidad específica de una variante de producto al carrito del usuario.
+
+    Body JSON esperado:
+      { "id_variante": 3, "cantidad": 2 }
+
+    Returns:
+        tuple[flask.Response, int]: Confirmación 201 Created o error 400/401/404.
     """
+    # Requiere usuario autenticado en sesión
     if not _requiere_sesion():
         return _error("No autenticado", 401)
 
+    # Parsea el cuerpo JSON de la petición
     data = request.get_json()
     if not data:
         return _error("Se requiere body JSON")
@@ -213,6 +310,7 @@ def agregar_al_carrito():
     id_variante = data.get("id_variante")
     cantidad = data.get("cantidad", 1)
 
+    # Validaciones de entrada: id_variante obligatorio y cantidad entero >= 1 (excluyendo bool)
     if not id_variante:
         return _error("Se requiere id_variante")
     if isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad < 1:
@@ -221,6 +319,7 @@ def agregar_al_carrito():
     from app.models.producto import VarianteProducto, Producto
     from app.models.carrito import Carrito, CarritoItem
 
+    # Verifica que la variante y su producto padre existan y estén activos
     variante = VarianteProducto.obtener_por_id(id_variante)
     if not variante:
         return _error("La variante del producto no existe", 404)
@@ -229,16 +328,19 @@ def agregar_al_carrito():
     if not producto or not producto.get("activo"):
         return _error("Este producto no está disponible", 400)
 
+    # Valida que exista stock disponible antes de consultar el carrito
     stock_actual = int(variante.get("stock") or 0)
     if stock_actual <= 0:
         return _error(f"El producto '{producto['nombre_producto']}' ({variante['presentacion']}) no está disponible por falta de stock", 400)
 
+    # Comprueba que la suma (ya en carrito + nueva cantidad) no supere el stock físico
     carrito = Carrito.obtener_o_crear(session["id_usuario"])
     cantidad_en_carrito = CarritoItem.obtener_cantidad(carrito["id_carrito"], id_variante)
     if cantidad_en_carrito + cantidad > stock_actual:
         disponibles = max(stock_actual - cantidad_en_carrito, 0)
         return _error(f"Stock insuficiente. Solo quedan {disponibles} unidad(es) disponible(s)", 400)
 
+    # Inserta o incrementa la cantidad en el carrito
     CarritoItem.agregar(carrito["id_carrito"], id_variante, cantidad)
 
     return _ok({"mensaje": "Producto agregado al carrito"}, 201)
@@ -248,7 +350,12 @@ def agregar_al_carrito():
 
 @api_bp.route("/cuenta/pedidos")
 def historial_pedidos():
-    """GET /api/v1/cuenta/pedidos — historial de pedidos del cliente autenticado"""
+    """
+    GET /api/v1/cuenta/pedidos — historial de pedidos del cliente autenticado.
+
+    Returns:
+        tuple[flask.Response, int]: Lista JSON de pedidos del usuario o 401.
+    """
     if not _requiere_sesion():
         return _error("No autenticado", 401)
 
@@ -271,12 +378,21 @@ def historial_pedidos():
 
 @api_bp.route("/inventario")
 def inventario():
-    """GET /api/v1/inventario — stock actual de todas las variantes"""
+    """
+    GET /api/v1/inventario — stock actual de todas las variantes activas.
+
+    Acceso restringido a administradores y trabajadores. Marca con
+    `alerta_stock = True` aquellas variantes con 5 o menos unidades.
+
+    Returns:
+        tuple[flask.Response, int]: Listado JSON de inventario o 403 si no tiene permisos.
+    """
     if not _requiere_admin_o_trabajador():
         return _error("Acceso denegado", 403)
 
     from app.utils.db import get_connection
 
+    # Consulta directa a la base de datos para obtener productos activos y sus variantes
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
@@ -291,6 +407,7 @@ def inventario():
     cursor.close()
     conn.close()
 
+    # Transforma cada fila agregando la bandera de alerta de stock crítico
     resultado = []
     for r in rows:
         resultado.append({
@@ -312,7 +429,16 @@ def inventario():
 
 @api_bp.route("/estadisticas")
 def estadisticas():
-    """GET /api/v1/estadisticas — métricas generales del negocio (solo para administrador)"""
+    """
+    GET /api/v1/estadisticas — métricas generales del negocio (solo para administrador).
+
+    Ejecuta consultas agregadas sobre pedidos, estados, top 5 productos más
+    vendidos, usuarios activos y variantes con stock crítico.
+
+    Returns:
+        tuple[flask.Response, int]: Diccionario JSON con KPIs del negocio o 403.
+    """
+    # Verifica estrictamente que el rol sea Administrador
     if session.get("id_rol") != ID_ROL_ADMIN:
         return _error("Acceso denegado — solo administrador", 403)
 
@@ -321,7 +447,7 @@ def estadisticas():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Total pedidos y ventas
+    # Total pedidos y ventas acumuladas
     cursor.execute("""
         SELECT COUNT(*) AS total_pedidos,
                COALESCE(SUM(total), 0) AS ventas_totales
@@ -329,7 +455,7 @@ def estadisticas():
     """)
     ventas = cursor.fetchone()
 
-    # Pedidos por estado
+    # Conteo de pedidos agrupados por estado
     cursor.execute("""
         SELECT es.nombre_estado, COUNT(*) AS cantidad
         FROM pedidos pe
@@ -338,7 +464,7 @@ def estadisticas():
     """)
     estados = cursor.fetchall()
 
-    # Top 5 productos más vendidos
+    # Top 5 productos/variantes más vendidos por unidades e ingresos
     cursor.execute("""
         SELECT p.nombre_producto, v.presentacion,
                SUM(pd.cantidad) AS unidades_vendidas,
@@ -352,11 +478,11 @@ def estadisticas():
     """)
     top_productos = cursor.fetchall()
 
-    # Total usuarios activos
+    # Total de usuarios activos en el sistema
     cursor.execute("SELECT COUNT(*) AS total FROM usuarios WHERE activo = TRUE")
     usuarios = cursor.fetchone()
 
-    # Productos con stock crítico (≤5)
+    # Cantidad de variantes activas con stock crítico (<= 5 unidades)
     cursor.execute("""
         SELECT COUNT(*) AS total
         FROM variantes_producto v
@@ -365,6 +491,7 @@ def estadisticas():
     """)
     stock_critico = cursor.fetchone()
 
+    # Libera cursor y conexión a la base de datos
     cursor.close()
     conn.close()
 
@@ -392,6 +519,12 @@ def estadisticas():
 
 @api_bp.app_errorhandler(404)
 def not_found_api(e):
+    """
+    Manejador global de errores 404 para devolver JSON en rutas `/api/*`.
+
+    Si la ruta no pertenece a la API, devuelve la excepción original para que
+    Flask la maneje con la plantilla HTML estándar.
+    """
     if request.path.startswith("/api/"):
         return _error("Endpoint no encontrado", 404)
     return e
@@ -399,6 +532,9 @@ def not_found_api(e):
 
 @api_bp.app_errorhandler(405)
 def method_not_allowed_api(e):
+    """
+    Manejador global de errores 405 (método no permitido) para rutas `/api/*`.
+    """
     if request.path.startswith("/api/"):
         return _error("Método HTTP no permitido", 405)
     return e

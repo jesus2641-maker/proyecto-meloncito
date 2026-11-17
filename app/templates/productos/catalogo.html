@@ -46,6 +46,12 @@
         </div>
     </form>
 
+    {% if error_bd %}
+    <div class="alert alert-danger mt-3 mb-0" role="alert">
+        {{ error_bd }}
+    </div>
+    {% endif %}
+
     {% if mensaje_busqueda %}
     <div class="alert alert-warning mt-3 mb-0" role="alert">
         {{ mensaje_busqueda }}
@@ -111,8 +117,16 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
+        {% if error_bd %}
+        <h3>No fue posible cargar el catálogo</h3>
+        <p>Ocurrió un problema de conexión con la base de datos. Intenta recargar la página en unos momentos.</p>
+        {% elif busqueda %}
+        <h3>No se encontraron productos para '{{ busqueda }}'</h3>
+        <p>Intenta con otros términos de búsqueda o filtros diferentes.</p>
+        {% else %}
         <h3>No se encontraron productos</h3>
         <p>Intenta con otros términos de búsqueda o filtros diferentes.</p>
+        {% endif %}
         <a href="{{ url_for('productos.catalogo') }}" class="btn btn-primary">Ver Todo el Catálogo</a>
     </div>
     {% endif %}

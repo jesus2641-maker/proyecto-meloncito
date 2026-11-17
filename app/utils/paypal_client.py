@@ -1,7 +1,12 @@
 """
 Cliente HTTP para PayPal REST API (Orders v2 y Payments v2).
-Implementado únicamente con urllib.request y json de la librería estándar.
-No registra ni expone tokens, secretos ni cuerpos completos de respuesta.
+
+Implementado únicamente con `urllib.request` y `json` de la librería estándar de Python
+para no añadir dependencias externas pesadas. Incluye:
+- Caché en memoria del token OAuth2 (`client_credentials`) con margen de expiración.
+- Idempotencia mediante el encabezado `PayPal-Request-ID`.
+- Manejo estructurado de errores (`PayPalError`) sin registrar ni exponer tokens,
+  secretos ni cuerpos completos de respuesta en los logs.
 """
 
 import base64
@@ -16,11 +21,15 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from config import Config, resolver_paypal_api_base, resolver_paypal_mode
 
+# Logger del módulo para registrar eventos HTTP/red sin datos sensibles
 logger = logging.getLogger(__name__)
 
+# Tiempo máximo de espera por petición HTTP hacia los servidores de PayPal
 TIMEOUT_SEGUNDOS = 10
+# Margen de seguridad para renovar el token OAuth2 antes de su vencimiento real
 MARGEN_EXPIRACION_SEGUNDOS = 60
 
+# Caché en memoria del token OAuth2 por proceso (evita pedir token en cada petición)
 _token_cache = {
     "access_token": None,
     "expira_en": 0.0,
@@ -29,7 +38,15 @@ _token_cache = {
 
 
 class PayPalError(Exception):
-    """Excepción para errores devueltos por PayPal o fallos de conexión HTTP."""
+    """
+    Excepción personalizada para errores devueltos por la API de PayPal o fallos HTTP/red.
+
+    Attributes:
+        mensaje (str): Descripción legible del error.
+        codigo (str): Código de error específico de PayPal (ej. `INSTRUMENT_DECLINED`)
+            o código interno (`NETWORK_ERROR`, `HTTP_422`, etc.).
+        status_code (int | None): Código de estado HTTP devuelto por PayPal si aplica.
+    """
 
     def __init__(self, mensaje, codigo="PAYPAL_ERROR", status_code=None):
         super().__init__(mensaje)
@@ -39,7 +56,11 @@ class PayPalError(Exception):
 
 
 def limpiar_cache_token():
-    """Limpia el token OAuth2 almacenado en memoria (útil para pruebas o cambio de credenciales)."""
+    """
+    Limpia el token OAuth2 almacenado en memoria.
+
+    Útil principalmente en pruebas unitarias o tras rotar credenciales en caliente.
+    """
     _token_cache["access_token"] = None
     _token_cache["expira_en"] = 0.0
     _token_cache["cache_key"] = None
@@ -47,12 +68,24 @@ def limpiar_cache_token():
 
 def obtener_url_base(modo=None, api_base=None):
     """
-    Obtiene la URL base de PayPal según PAYPAL_MODE ('sandbox' por defecto;
-    solo 'live' si se especifica explícitamente) o PAYPAL_API_BASE si está definida.
+    Determina la URL base de la API de PayPal a utilizar (`sandbox` o `live`).
+
+    Prioridad de resolución:
+    1. Parámetros explícitos `modo` o `api_base`.
+    2. Variable de entorno `PAYPAL_API_BASE` si está definida.
+    3. Variable de entorno `PAYPAL_MODE` o valores en `Config`.
+
+    Args:
+        modo (str | None): `'sandbox'` o `'live'` (opcional).
+        api_base (str | None): URL base personalizada (opcional).
+
+    Returns:
+        str: URL base sin barra final (ej. `'https://api-m.sandbox.paypal.com'`).
     """
     if api_base is not None or modo is not None:
         return resolver_paypal_api_base(modo=modo, api_base=api_base)
 
+    # Revisamos primero si hay override explícito por variable de entorno
     env_base = os.getenv("PAYPAL_API_BASE")
     if env_base and env_base.strip():
         return env_base.strip().rstrip("/")
@@ -63,12 +96,21 @@ def obtener_url_base(modo=None, api_base=None):
 
     if env_mode is not None:
         return resolver_paypal_api_base(modo=env_mode, api_base=env_base)
+    # Si Config tiene una URL custom (distinta a las estándar de PayPal), la respetamos
     if cfg_base and cfg_base not in ("https://api-m.sandbox.paypal.com", "https://api-m.paypal.com"):
         return cfg_base.rstrip("/")
     return resolver_paypal_api_base(modo=cfg_mode, api_base=None)
 
 
 def _obtener_credenciales():
+    """
+    Obtiene `client_id` y `client_secret` de PayPal desde `Config` o variables de entorno.
+
+    Soporta tanto `PAYPAL_SECRET` como `PAYPAL_CLIENT_SECRET` por compatibilidad.
+
+    Returns:
+        tuple[str, str]: Par `(client_id, client_secret)` sin espacios extremos.
+    """
     client_id = (getattr(Config, "PAYPAL_CLIENT_ID", None) or os.getenv("PAYPAL_CLIENT_ID", "") or "").strip()
     client_secret = (
         getattr(Config, "PAYPAL_SECRET", None)
@@ -81,21 +123,43 @@ def _obtener_credenciales():
 
 
 def obtener_base_url_app():
-    """Devuelve BASE_URL (por defecto http://localhost:5000 en local) sin barra final."""
+    """
+    Devuelve la URL base pública de la aplicación (`BASE_URL`) sin barra final.
+
+    Se usa para construir `return_url` y `cancel_url` en las órdenes de PayPal.
+    Por defecto usa `http://localhost:5000` en entorno local.
+
+    Returns:
+        str: URL base de la aplicación Flask.
+    """
     base = os.getenv("BASE_URL") or getattr(Config, "BASE_URL", None) or "http://localhost:5000"
     return str(base).strip().rstrip("/")
 
 
 def paypal_configurado():
-    """Devuelve True solo si tanto PAYPAL_CLIENT_ID como PAYPAL_CLIENT_SECRET están configurados."""
+    """
+    Indica si las credenciales mínimas de PayPal están presentes en el entorno.
+
+    Returns:
+        bool: `True` únicamente si tanto `PAYPAL_CLIENT_ID` como el secreto no están vacíos.
+    """
     client_id, client_secret = _obtener_credenciales()
     return bool(client_id and client_secret)
 
 
 def formatear_monto(monto):
     """
-    Convierte un monto numérico o Decimal al formato string de 2 decimales
-    requerido por PayPal Orders v2 (por ejemplo, '12.50').
+    Convierte un monto numérico o `Decimal` al formato string de 2 decimales
+    exigido por PayPal Orders v2 (por ejemplo, `'12.50'`).
+
+    Args:
+        monto (int | float | str | Decimal): Importe a formatear (debe ser > 0).
+
+    Returns:
+        str: Monto formateado con exactamente 2 decimales y punto decimal.
+
+    Raises:
+        ValueError: Si el monto es nulo, booleano, no numérico o menor/igual a cero.
     """
     if monto is None or isinstance(monto, bool):
         raise ValueError("El monto no puede ser nulo")
@@ -110,8 +174,15 @@ def formatear_monto(monto):
 
 def _extraer_error_paypal(raw_body, status_code=None):
     """
-    Extrae el código de error específico de PayPal (ej. INSTRUMENT_DECLINED,
-    ORDER_ALREADY_CAPTURED) y un mensaje seguro sin exponer todo el payload.
+    Extrae el código de error específico de PayPal (ej. `INSTRUMENT_DECLINED`,
+    `ORDER_ALREADY_CAPTURED`) y un mensaje seguro sin exponer el payload completo.
+
+    Args:
+        raw_body (str): Cuerpo crudo de la respuesta de error HTTP.
+        status_code (int | None): Código HTTP de la respuesta fallida.
+
+    Returns:
+        tuple[str, str]: Par `(mensaje_seguro, codigo_error)`.
     """
     codigo = f"HTTP_{status_code}" if status_code else "PAYPAL_API_ERROR"
     mensaje = "Error al comunicarse con PayPal"
@@ -127,10 +198,12 @@ def _extraer_error_paypal(raw_body, status_code=None):
     if not isinstance(data, dict):
         return mensaje, codigo
 
+    # PayPal usa `name`/`message` en API v2 y `error`/`error_description` en OAuth2
     name = data.get("name") or data.get("error")
     message = data.get("message") or data.get("error_description")
     details = data.get("details")
 
+    # Si existe el arreglo `details`, priorizamos el primer `issue` (código más granular)
     if isinstance(details, list) and details:
         primero = details[0] if isinstance(details[0], dict) else {}
         issue = primero.get("issue")
@@ -153,6 +226,24 @@ def _extraer_error_paypal(raw_body, status_code=None):
 
 
 def _ejecutar_peticion(url, method="POST", headers=None, raw_data=None):
+    """
+    Ejecuta una petición HTTP contra la API de PayPal usando `urllib.request`.
+
+    Centraliza el timeout, decodificación UTF-8, parseo JSON y traducción de
+    excepciones (`HTTPError`, `URLError`, `TimeoutError`) a `PayPalError`.
+
+    Args:
+        url (str): URL completa del endpoint de PayPal.
+        method (str): Método HTTP (`POST`, `GET`, etc.).
+        headers (dict | None): Encabezados HTTP de la petición.
+        raw_data (bytes | None): Cuerpo binario de la petición.
+
+    Returns:
+        dict: Respuesta JSON decodificada (o `{}` si el cuerpo está vacío).
+
+    Raises:
+        PayPalError: Ante códigos HTTP >= 300, JSON inválido, fallo de red o timeout.
+    """
     req_headers = dict(headers or {})
     req = urllib.request.Request(url=url, data=raw_data, headers=req_headers, method=method)
 
@@ -170,6 +261,7 @@ def _ejecutar_peticion(url, method="POST", headers=None, raw_data=None):
             except json.JSONDecodeError as exc:
                 raise PayPalError("Respuesta JSON inválida de PayPal", codigo="INVALID_JSON_RESPONSE", status_code=status) from exc
     except urllib.error.HTTPError as err:
+        # En urllib, los códigos 4xx/5xx lanzan HTTPError; leemos su cuerpo para extraer el `issue`
         cuerpo_error = ""
         try:
             if err.fp is not None:
@@ -189,18 +281,31 @@ def _ejecutar_peticion(url, method="POST", headers=None, raw_data=None):
 
 def obtener_token(request_id=None):
     """
-    Obtiene un access_token OAuth2 mediante POST {base}/v1/oauth2/token
-    con autenticación Basic (client_id:secret) y grant_type=client_credentials.
-    Guarda el token en memoria hasta 60 segundos antes de que expire.
+    Obtiene un `access_token` OAuth2 mediante `POST {base}/v1/oauth2/token`
+    con autenticación Basic (`client_id:secret`) y `grant_type=client_credentials`.
+
+    Guarda el token en memoria (`_token_cache`) asociado a `(base_url, client_id)`
+    hasta 60 segundos antes de su expiración para minimizar llamadas OAuth.
+
+    Args:
+        request_id (str | None): Valor opcional para el header `PayPal-Request-ID`.
+
+    Returns:
+        str: Token Bearer válido para autenticar llamadas a Orders v2 / Payments v2.
+
+    Raises:
+        PayPalError: Si faltan credenciales o PayPal no devuelve un `access_token`.
     """
     client_id, client_secret = _obtener_credenciales()
     if not client_id or not client_secret:
         raise PayPalError("PayPal no está configurado (faltan credenciales)", codigo="PAYPAL_NOT_CONFIGURED")
 
     base_url = obtener_url_base()
+    # La clave de caché incluye URL base y client_id para no mezclar Sandbox/Live
     cache_key = f"{base_url}|{client_id}"
     ahora = time.time()
 
+    # Si existe un token en caché para esta configuración y no ha vencido, lo reutilizamos
     if (
         _token_cache["access_token"]
         and _token_cache["cache_key"] == cache_key
@@ -208,6 +313,7 @@ def obtener_token(request_id=None):
     ):
         return _token_cache["access_token"]
 
+    # Codificamos `client_id:client_secret` en Base64 para HTTP Basic Auth
     credenciales_b64 = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
     headers = {
         "Authorization": f"Basic {credenciales_b64}",
@@ -234,6 +340,7 @@ def obtener_token(request_id=None):
     except (TypeError, ValueError):
         expires_in = 3600
 
+    # Almacenamos en caché restando el margen de seguridad para evitar usar un token al borde de expirar
     _token_cache["access_token"] = token
     _token_cache["expira_en"] = ahora + max(0, expires_in - MARGEN_EXPIRACION_SEGUNDOS)
     _token_cache["cache_key"] = cache_key
@@ -243,12 +350,28 @@ def obtener_token(request_id=None):
 
 def crear_orden(id_pedido, monto, moneda, request_id, return_url=None, cancel_url=None):
     """
-    Crea una orden en PayPal Orders v2:
-    POST {base}/v2/checkout/orders con intent CAPTURE, reference_id 'pedido-<id>',
-    custom_id '<id>', description 'Pedido #<id> Beer House', amount con value en
-    string de 2 decimales, shipping_preference NO_SHIPPING y URLs de retorno/cancelación
-    construidas con BASE_URL.
-    Devuelve el id de la orden.
+    Crea una orden de pago en PayPal Orders v2 (`POST {base}/v2/checkout/orders`).
+
+    Configura `intent="CAPTURE"`, `reference_id="pedido-<id>"`, `custom_id="<id>"`,
+    `description="Pedido #<id> Beer House"`, monto con 2 decimales y
+    `shipping_preference="NO_SHIPPING"`. Si PayPal rechaza el bloque
+    `payment_source.paypal.experience_context` con HTTP 400/422, reintenta con un
+    payload mínimo compatible.
+
+    Args:
+        id_pedido (int | str): Identificador interno del pedido en Beer House.
+        monto (Decimal | float | str): Importe a cobrar en la moneda indicada.
+        moneda (str): Código ISO de moneda de 3 letras (ej. `'USD'`).
+        request_id (str): Identificador de idempotencia (`PayPal-Request-ID`).
+        return_url (str | None): URL de retorno tras aprobar (opcional).
+        cancel_url (str | None): URL de retorno si el usuario cancela (opcional).
+
+    Returns:
+        str: Identificador de la orden creada en PayPal (`order_id`).
+
+    Raises:
+        ValueError: Si `request_id` está vacío o el monto es inválido.
+        PayPalError: Si PayPal rechaza la creación o no devuelve `id`.
     """
     if not request_id or not str(request_id).strip():
         raise ValueError("request_id es obligatorio para crear una orden en PayPal")
@@ -261,9 +384,11 @@ def crear_orden(id_pedido, monto, moneda, request_id, return_url=None, cancel_ur
     base_url = obtener_url_base()
     base_app_url = obtener_base_url_app()
 
+    # Construimos las URLs de retorno/cancelación por defecto si no se especificaron
     url_retorno = return_url or f"{base_app_url}/pagos/paypal/{id_pedido_str}/retorno"
     url_cancelacion = cancel_url or f"{base_app_url}/pagos/paypal/{id_pedido_str}/cancelado"
 
+    # Unidad de compra única vinculada al pedido mediante `custom_id` para validación posterior
     purchase_units = [
         {
             "reference_id": f"pedido-{id_pedido_str}",
@@ -305,6 +430,7 @@ def crear_orden(id_pedido, monto, moneda, request_id, return_url=None, cancel_ur
             raw_data=json.dumps(payload_inicial).encode("utf-8"),
         )
     except PayPalError as exc:
+        # Fallback: algunas cuentas/entornos rechazan `experience_context` (ej. localhost)
         if exc.status_code in (400, 422):
             logger.warning(
                 "PayPal respondió con error HTTP %s (%s) en creación de orden con experience_context; reintentando con payload mínimo",
@@ -333,10 +459,23 @@ def crear_orden(id_pedido, monto, moneda, request_id, return_url=None, cancel_ur
 
 def capturar_orden(order_id, request_id):
     """
-    Captura una orden aprobada en PayPal Orders v2:
-    POST {base}/v2/checkout/orders/{id}/capture con cuerpo {}.
-    Devuelve un dict normalizado {estado, capture_id, monto, moneda, custom_id}
-    extraído de purchase_units[0].payments.captures[0].
+    Captura fondos de una orden aprobada en PayPal Orders v2
+    (`POST {base}/v2/checkout/orders/{id}/capture`).
+
+    Normaliza la respuesta extrayendo los campos clave desde
+    `purchase_units[0].payments.captures[0]`.
+
+    Args:
+        order_id (str): Identificador de la orden en PayPal.
+        request_id (str): Clave de idempotencia (`PayPal-Request-ID`).
+
+    Returns:
+        dict: Diccionario normalizado con `estado`, `capture_id`, `monto`,
+            `moneda`, `custom_id` y opcionalmente `status_details` / `processor_response`.
+
+    Raises:
+        ValueError: Si `order_id` o `request_id` están vacíos.
+        PayPalError: Si PayPal falla o la estructura de la captura es incompleta.
     """
     if not order_id or not str(order_id).strip():
         raise ValueError("order_id es obligatorio para capturar una orden")
@@ -345,6 +484,7 @@ def capturar_orden(order_id, request_id):
 
     token = obtener_token()
     base_url = obtener_url_base()
+    # Escapamos el ID para evitar inyección de ruta en la URL
     order_id_limpio = urllib.parse.quote(str(order_id).strip(), safe="")
 
     headers = {
@@ -361,6 +501,7 @@ def capturar_orden(order_id, request_id):
         raw_data=b"{}",
     )
 
+    # Navegamos la estructura anidada estándar de Orders v2: purchase_units[0].payments.captures[0]
     purchase_units = data.get("purchase_units") or []
     if not purchase_units or not isinstance(purchase_units[0], dict):
         raise PayPalError("Respuesta de captura sin purchase_units", codigo="INVALID_CAPTURE_RESPONSE")
@@ -378,6 +519,7 @@ def capturar_orden(order_id, request_id):
     capture_id = cap0.get("id")
     monto = amount.get("value")
     moneda = amount.get("currency_code")
+    # `custom_id` puede venir en la captura o en la unidad de compra padre
     custom_id = cap0.get("custom_id") if cap0.get("custom_id") is not None else pu0.get("custom_id")
     status_details = cap0.get("status_details") or data.get("status_details")
     processor_response = cap0.get("processor_response") or data.get("processor_response")
@@ -399,9 +541,19 @@ def capturar_orden(order_id, request_id):
 
 def reembolsar_captura(capture_id, request_id):
     """
-    Reembolsa totalmente una captura en PayPal Payments v2:
-    POST {base}/v2/payments/captures/{capture_id}/refund con cuerpo {}.
-    Devuelve {estado, refund_id}.
+    Reembolsa totalmente una captura en PayPal Payments v2
+    (`POST {base}/v2/payments/captures/{capture_id}/refund`).
+
+    Args:
+        capture_id (str): Identificador de la captura a reembolsar.
+        request_id (str): Clave de idempotencia (`PayPal-Request-ID`).
+
+    Returns:
+        dict: Diccionario con `estado` y `refund_id`.
+
+    Raises:
+        ValueError: Si `capture_id` o `request_id` están vacíos.
+        PayPalError: Si PayPal rechaza el reembolso o no devuelve `id`.
     """
     if not capture_id or not str(capture_id).strip():
         raise ValueError("capture_id es obligatorio para reembolsar una captura")
@@ -419,6 +571,7 @@ def reembolsar_captura(capture_id, request_id):
         "PayPal-Request-ID": str(request_id).strip(),
     }
 
+    # Un cuerpo vacío `{}` indica a PayPal un reembolso total del monto capturado
     data = _ejecutar_peticion(
         url=f"{base_url}/v2/payments/captures/{capture_id_limpio}/refund",
         method="POST",

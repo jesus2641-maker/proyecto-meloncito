@@ -199,19 +199,26 @@ PAGO_EXPIRA_MINUTOS=30
 
 Este proyecto es de uso educativo.
 
-## Despliegue en Railway
+## Despliegue en Render
 
-La app se despliega con el `Dockerfile` (Railway lo detecta solo). Al arrancar,
-`start.sh` ejecuta `scripts/init_db.py`, que crea las tablas y carga el seed si
-la base está vacía (es idempotente), y luego levanta gunicorn en `$PORT`.
+La app se despliega en **Render** como **Web Service** (ya sea usando `docker/Dockerfile` o el entorno Python con el comando de inicio `sh scripts/start.sh`). Al arrancar, `scripts/start.sh` ejecuta `scripts/init_db.py`, que crea las tablas y carga el seed si la base está vacía (es idempotente), y luego levanta `gunicorn` en `$PORT`.
 
-### 1. Crear el proyecto
-1. En Railway: **New Project → Deploy from GitHub repo** y elige este repo.
-2. En el mismo proyecto: **+ New → Database → MySQL**.
+### 1. Crear el servicio
+1. En Render: **New + → Web Service** y conecta este repositorio de GitHub.
+2. Configura una base de datos MySQL externa (por ejemplo, **TiDB Cloud** o MySQL gestionado).
+3. En **Build & Deploy**:
+   - **Build Command** (si usas entorno Python nativo): `pip install -r requirements.txt`
+   - **Start Command**: `sh scripts/start.sh`
+   - *(Alternativa Docker)*: selecciona **Docker** y apunta al `docker/Dockerfile`.
 
-### 2. Variables del servicio de la app (pestaña *Variables*)
+### 2. Variables de entorno (pestaña *Environment*)
 ```
-DATABASE_URL=${{MySQL.MYSQL_URL}}
+DB_HOST=<host_de_tu_mysql_o_tidb>
+DB_PORT=4000
+DB_USER=<usuario_bd>
+DB_PASSWORD=<password_bd>
+DB_NAME=beerhouse_db
+BASE_URL=https://tu-app.onrender.com
 SECRET_KEY=<cadena aleatoria de 32+ caracteres>
 SESSION_COOKIE_SECURE=true
 TASA_COP_USD=4000
@@ -226,14 +233,13 @@ PAYPAL_CLIENT_SECRET=...
 PAYPAL_MODE=sandbox
 PAYPAL_CURRENCY=USD
 ```
-`${{MySQL.MYSQL_URL}}` es una referencia: Railway la reemplaza por la URL
-privada del servicio MySQL (el nombre debe coincidir con el del servicio).
+También puedes usar `DATABASE_URL=mysql://usuario:password@host:puerto/beerhouse_db` en lugar de las variables `DB_*`.
 
-Generar una SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))"`
+Generar una `SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex(32))"`
 
 ### 3. Ajustes del servicio (pestaña *Settings*)
-- **Networking → Generate Domain** para obtener la URL pública.
-- **Deploy → Healthcheck Path:** `/health` (responde 200 si la app y la BD están vivas).
+- Render asigna automáticamente la URL pública `https://<tu-servicio>.onrender.com` (configúrala en `BASE_URL`).
+- **Health Check Path:** `/health` (responde 200 si la app y la BD están vivas).
 
 ### Variables opcionales
 | Variable | Default | Uso |
@@ -244,5 +250,4 @@ Generar una SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))
 | `GUNICORN_TIMEOUT` | `60` | segundos |
 
 ### Conexión a la BD
-`config.py` acepta, en este orden: `DATABASE_URL`/`MYSQL_URL`, las variables
-`DATABASE_*` (incluye `DATABASE_PORT`) o las `MYSQL*` que inyecta Railway.
+`config.py` acepta, en este orden: `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`, `DATABASE_URL`/`MYSQL_URL`, o las variables de respaldo `DATABASE_*`/`MYSQL*`.
