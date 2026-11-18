@@ -38,6 +38,8 @@ def get_connection():
     """
     try:
         # Verificamos si estamos ejecutando dentro de un AppContext de Flask
+        # NOTA: `flask.g` dura solo lo que dura una petición HTTP; así reutilizamos la misma
+        # conexión en varios modelos durante una sola página y se cierra sola al terminar (close_db).
         if has_app_context():
             # Intentamos recuperar la conexión previamente cacheada en `g` para esta petición
             db_conn = g.get("db")

@@ -1,3 +1,4 @@
+{# Formulario de inicio de sesión: envía correo, contraseña y csrf_token a auth.login #}
 {% extends "base.html" %}
 {% block title %}Iniciar Sesión — Beer House Premium{% endblock %}
 {% block content %}
@@ -28,6 +29,18 @@
         min-width: 0;
         border-top-right-radius: 0 !important;
         border-bottom-right-radius: 0 !important;
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        box-shadow: none !important;
+    }
+
+    .input-group > .form-input:focus {
+        background-color: var(--bg-card);
+        border-color: var(--gold-primary);
+        color: var(--text-primary);
+        outline: none !important;
+        box-shadow: none !important;
     }
     
     .input-group > .btn-toggle-password {
@@ -47,6 +60,7 @@
         cursor: pointer;
         transition: var(--transition-smooth);
         touch-action: manipulation;
+        box-shadow: none !important;
     }
     
     .input-group > .btn-toggle-password:hover,
@@ -54,8 +68,10 @@
         color: var(--gold-primary);
         background: var(--bg-card);
         outline: none;
+        box-shadow: none !important;
     }
 
+    .input-group:focus-within > .btn-toggle-password,
     .input-group > .form-input:focus + .btn-toggle-password {
         border-color: var(--gold-primary);
     }

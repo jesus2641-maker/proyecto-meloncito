@@ -102,6 +102,8 @@ def agregar():
             redirección HTTP (formulario estándar).
     """
     # Detecta si el cliente espera una respuesta JSON (AJAX / Fetch API)
+    # NOTA: Esta ruta responde diferente si la petición viene por fetch/AJAX (devuelve JSON)
+    # o por un <form> HTML tradicional (redirige con mensaje flash).
     is_ajax = (
         request.is_json
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"

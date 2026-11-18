@@ -61,12 +61,14 @@ class Usuario:
         Returns:
             int: ID autogenerado del usuario creado.
         """
+        # NOTA: La columna `fecha_nacimiento` se agregó en una migración posterior; si la BD aún no la tiene,
+        # se captura el error 1054 y se inserta el usuario sin ese campo.
         import mysql.connector
         conn = get_connection()
         cursor = conn.cursor()
         try:
             try:
-                # Intentar inserción completa incluyendo fecha_nacimiento
+                # Inserta en la tabla `usuarios` incluyendo fecha_nacimiento
                 cursor.execute(
                     """INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, id_rol, fecha_nacimiento)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)""",
@@ -103,6 +105,7 @@ class Usuario:
         """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
+        # Consulta la tabla `usuarios` por email y devuelve la fila completa del usuario (o None)
         cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
         usuario = cursor.fetchone()
         cursor.close()
@@ -122,6 +125,7 @@ class Usuario:
         """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
+        # Consulta `usuarios` junto con `roles` para devolver los datos del usuario y su `nombre_rol`
         cursor.execute("""
             SELECT u.*, r.nombre_rol
             FROM usuarios u
@@ -200,6 +204,7 @@ class Usuario:
         """
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
+        # Consulta la tabla `roles` y devuelve todos los roles del sistema (cliente, admin, trabajador)
         cursor.execute("SELECT * FROM roles ORDER BY id_rol ASC")
         roles = cursor.fetchall()
         cursor.close()

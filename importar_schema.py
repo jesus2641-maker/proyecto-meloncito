@@ -1,3 +1,4 @@
+# Script de utilidad para cargar el archivo database/schema.sql en la base de datos (TiDB Cloud / MySQL).
 import os
 import sys
 import mysql.connector
@@ -5,7 +6,14 @@ from dotenv import load_dotenv
 
 
 def dividir_sentencias(sql_texto):
-    """Elimina comentarios de línea (-- ...) y divide el SQL por ';'."""
+    """
+    Limpia los comentarios SQL y separa el archivo en sentencias individuales.
+
+    Parámetros:
+        sql_texto (str): Contenido completo del archivo .sql.
+    Retorna:
+        list[str]: Lista con cada sentencia SQL lista para ejecutarse.
+    """
     lineas_limpias = []
     for linea in sql_texto.splitlines():
         if linea.strip().startswith("--"):
@@ -17,6 +25,15 @@ def dividir_sentencias(sql_texto):
 
 
 def main():
+    """
+    Lee las credenciales del .env, se conecta a la base de datos con SSL y ejecuta
+    todas las sentencias de database/schema.sql para crear las tablas.
+
+    Parámetros:
+        Ninguno.
+    Retorna:
+        None: Termina el proceso con código 1 si ocurre algún error.
+    """
     load_dotenv()
 
     db_host = os.getenv("DB_HOST")
@@ -42,6 +59,7 @@ def main():
 
     sentencias = dividir_sentencias(sql_texto)
 
+    # NOTA: TiDB Cloud exige conexión cifrada con SSL; si DB_SSL_CA está definido se valida el certificado.
     conn_cfg = {
         "host": db_host,
         "port": db_port,
@@ -62,6 +80,7 @@ def main():
         conn = mysql.connector.connect(**conn_cfg)
         cursor = conn.cursor()
 
+        # Ejecutamos sentencia por sentencia; si una falla, revertimos todo con rollback
         for idx, sentencia in enumerate(sentencias, start=1):
             print(f"\n--- Ejecutando sentencia {idx}/{len(sentencias)} ---")
             print(sentencia)
@@ -75,6 +94,7 @@ def main():
         conn.commit()
         print("\nCommit realizado correctamente.")
 
+        # Consultamos las tablas creadas para confirmar en consola que todo quedó bien
         cursor.execute("SHOW TABLES")
         tablas = [fila[0] for fila in cursor.fetchall()]
         print(f"\nTablas en `{db_name}` ({len(tablas)}):")

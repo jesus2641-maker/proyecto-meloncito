@@ -1,3 +1,7 @@
+"""
+Pruebas del módulo de compras a proveedores (creación con transacción, actualización de stock y validaciones).
+"""
+
 import unittest
 from decimal import Decimal
 from datetime import datetime

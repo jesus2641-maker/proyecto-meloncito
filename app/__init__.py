@@ -36,13 +36,16 @@ def create_app():
     # Detrás del proxy de Render (o cualquier PaaS) la petición llega por HTTP
     # interno; ProxyFix lee X-Forwarded-* para que Flask sepa que el cliente
     # usó HTTPS y el host real (necesario para url_for externos y cookies Secure).
+    # NOTA: Si se quita ProxyFix en producción, las cookies de sesión y los links de PayPal pueden fallar.
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # CSRF Protection - Protege formularios y endpoints POST contra ataques Cross-Site Request Forgery
+    # NOTA: Todas las peticiones POST (formularios y fetch/AJAX) deben enviar el token CSRF o Flask las rechaza.
     CSRFProtect(app)
 
     # Registrar cierre automático de la conexión de BD al finalizar cada petición (teardown_appcontext)
+    # NOTA: Depende de app/utils/db.py para cerrar la conexión guardada en `g` y no dejar conexiones abiertas.
     init_db_app(app)
 
     # Importar blueprints (módulos de rutas organizados por dominio funcional)

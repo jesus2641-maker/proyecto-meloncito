@@ -10,6 +10,10 @@ from functools import wraps
 from flask import session, redirect, url_for, flash, abort
 
 # Constantes con los IDs numéricos de roles definidos en la tabla `roles` de la BD
+# NOTA: Permisos por rol:
+# - ID_ROL_CLIENTE (1): compras en tienda, carrito, direcciones, métodos de pago y sus pedidos.
+# - ID_ROL_ADMIN (2): acceso total al panel /admin y también puede entrar a /trabajador.
+# - ID_ROL_TRABAJADOR (4): acceso al panel /trabajador (pedidos, inventario, consulta de clientes).
 ID_ROL_CLIENTE = 1
 ID_ROL_ADMIN = 2
 ID_ROL_TRABAJADOR = 4

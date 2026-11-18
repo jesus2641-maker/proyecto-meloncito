@@ -97,6 +97,8 @@ def verificar_permisos_admin():
     Returns:
         flask.Response | None: Redirección si no es admin, o None si está autorizado.
     """
+    # NOTA: Este hook protege TODAS las rutas de /admin de una sola vez;
+    # solo el rol Admin (id_rol=2) puede crear/editar/eliminar productos, usuarios, compras y cancelar con reembolso.
     id_rol_session = session.get("id_rol")
     if id_rol_session != ID_ROL_ADMIN:
         logger.warning("Acceso denegado al panel de administración")

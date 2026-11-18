@@ -18,7 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def resolver_paypal_mode(modo=None):
-    """Normaliza PAYPAL_MODE: solo 'live' si se escribe explícitamente, en otro caso 'sandbox'."""
+    """
+    Normaliza el modo de PayPal para evitar errores por mayúsculas o espacios.
+
+    Parámetros:
+        modo (str | None): Modo recibido manualmente; si es None, lee PAYPAL_MODE.
+    Retorna:
+        str: 'live' solo si se indicó explícitamente, o 'sandbox' para pruebas.
+    """
     valor = modo if modo is not None else os.getenv("PAYPAL_MODE", "sandbox")
     return "live" if str(valor or "").strip().lower() == "live" else "sandbox"
 
@@ -27,6 +34,12 @@ def resolver_paypal_api_base(modo=None, api_base=None):
     """
     Devuelve la URL base de la API de PayPal según PAYPAL_MODE,
     permitiendo sobreescribirla explícitamente con PAYPAL_API_BASE.
+
+    Parámetros:
+        modo (str | None): 'live' o 'sandbox'.
+        api_base (str | None): URL personalizada opcional.
+    Retorna:
+        str: URL base de PayPal (sin barra final).
     """
     override = api_base if api_base is not None else os.getenv("PAYPAL_API_BASE", "")
     if override and str(override).strip():
@@ -43,15 +56,20 @@ def resolver_db_config():
       1. DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME (estándar principal)
       2. DATABASE_URL o MYSQL_URL (opcional)
       3. Respaldo compatible con DATABASE_* / MYSQL*
+
+    Retorna:
+        dict: Diccionario con host, port, user, password y database.
     """
     def env(*nombres, default=""):
+        """Busca la primera variable de entorno que tenga valor."""
         for n in nombres:
             v = os.getenv(n)
             if v not in (None, ""):
                 return v
         return default
 
-    # Si no se definieron variables DB_* directas pero sí DATABASE_URL
+    # NOTA: Algunos servicios en la nube (como Railway o Render) entregan todo en una sola URL.
+    # Si no se definieron variables DB_* directas pero sí DATABASE_URL, la desarmamos aquí.
     if not os.getenv("DB_HOST"):
         url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL")
         if url and url.startswith(("mysql://", "mysql+mysqlconnector://", "mysql+pymysql://")):
@@ -80,6 +98,15 @@ def resolver_db_config():
 
 
 def _resolver_entero(nombre_env, default):
+    """
+    Lee una variable de entorno y la convierte a entero positivo.
+
+    Parámetros:
+        nombre_env (str): Nombre de la variable de entorno.
+        default (int): Valor por defecto si no existe o no es válida.
+    Retorna:
+        int: Número entero positivo.
+    """
     valor = os.getenv(nombre_env, str(default))
     try:
         num = int(str(valor).strip())

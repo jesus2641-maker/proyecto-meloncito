@@ -1,8 +1,10 @@
+{# Plantilla base de la tienda pública: incluye navbar, contador del carrito (cart_count), token CSRF para AJAX y mensajes flash #}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Token CSRF usado por peticiones JavaScript/fetch (como agregar productos al carrito) #}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Beer House — Premium Spirits{% endblock %}</title>
     <!-- Bootstrap 5 CSS (solo para utilidades de grid y responsive) -->

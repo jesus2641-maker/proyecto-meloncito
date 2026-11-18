@@ -33,6 +33,10 @@ from app.routes.edad import marcar_mayor_edad
 logger = logging.getLogger(__name__)
 
 # IDs de roles definidos en la base de datos
+# NOTA: Cada rol tiene permisos distintos en la aplicación:
+# - Cliente (1): navega el catálogo, gestiona su carrito, realiza pedidos y paga.
+# - Admin (2): control total (productos, categorías, ofertas, proveedores, compras, usuarios y reportes).
+# - Trabajador/Vendedor (4): gestiona pedidos asignados, consulta inventario/clientes y ve reportes básicos.
 ID_ROL_CLIENTE = 1
 ID_ROL_ADMIN = 2
 ID_ROL_TRABAJADOR = 4

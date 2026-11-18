@@ -46,6 +46,8 @@ def verificar_permisos_trabajador():
     Returns:
         flask.Response | None: Redirección al catálogo si no tiene permisos, o None si está autorizado.
     """
+    # NOTA: El Trabajador (id_rol=4) puede ver productos/clientes, actualizar stock y avanzar pedidos,
+    # pero NO puede cancelar pedidos ni crear/eliminar productos o usuarios (eso es exclusivo del Admin).
     from app.utils.decoradores import ID_ROL_TRABAJADOR, ID_ROL_ADMIN
     if session.get("id_rol") not in [ID_ROL_TRABAJADOR, ID_ROL_ADMIN]:
         flash("No tienes permisos para acceder a esta sección", "danger")
