@@ -119,8 +119,11 @@ class Config:
     """Clase de configuración principal de la aplicación Flask."""
 
     # Clave secreta para sesiones y CSRF (sin credenciales fijas en el código)
-    SECRET_KEY = os.getenv("SECRET_KEY") or os.urandom(32).hex()
-    if not os.getenv("SECRET_KEY"):
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    if not SECRET_KEY:
+        if os.getenv("RENDER") or (os.getenv("BASE_URL") or "").strip().startswith("https://"):
+            raise RuntimeError("Falta la variable SECRET_KEY en producción. Defínela en el panel Environment de Render.")
+        SECRET_KEY = os.urandom(32).hex()
         logger.warning("SECRET_KEY no está definida en el entorno; se generó una clave efímera temporal.")
 
     # URL base de la aplicación (en local: http://localhost:5000, en Render: https://tu-app.onrender.com)
