@@ -8,7 +8,7 @@ con pago PayPal pendiente.
 """
 
 # Utilidades de Flask para blueprint, renderizado, sesión, peticiones, redirecciones, mensajes y 404
-from flask import Blueprint, render_template, session, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, session, request, redirect, url_for, flash, abort, current_app
 # Modelos de datos relacionados con la cuenta del cliente
 from app.models.direccion import Direccion
 from app.models.metodo_pago import MetodoPago
@@ -136,9 +136,31 @@ def eliminar_direccion():
     id_usuario = session["id_usuario"]
     id_direccion = request.form.get("id_direccion", type=int)
 
-    if id_direccion:
-        Direccion.eliminar(id_direccion, id_usuario)
-        flash("Dirección eliminada correctamente", "info")
+    if id_direccion is None:
+        flash("No se recibió la dirección a eliminar. Intenta de nuevo.", "danger")
+        return redirect(url_for("cuenta.direcciones"))
+
+    direccion = Direccion.obtener_por_id(id_direccion)
+    if not direccion or direccion["id_usuario"] != id_usuario:
+        flash("No se encontró la dirección o no te pertenece.", "warning")
+        return redirect(url_for("cuenta.direcciones"))
+
+    if Direccion.esta_en_uso(id_direccion):
+        flash(
+            "Esta dirección ya está asociada a un pedido y no se puede eliminar. Puedes agregar una nueva dirección y marcarla como principal.",
+            "warning",
+        )
+        return redirect(url_for("cuenta.direcciones"))
+
+    try:
+        eliminado = Direccion.eliminar(id_direccion, id_usuario)
+        if eliminado:
+            flash("Dirección eliminada correctamente", "info")
+        else:
+            flash("No se encontró la dirección o no te pertenece.", "warning")
+    except Exception:
+        current_app.logger.exception("Error al eliminar dirección %s", id_direccion)
+        flash("No se pudo eliminar la dirección. Intenta de nuevo.", "danger")
 
     return redirect(url_for("cuenta.direcciones"))
 

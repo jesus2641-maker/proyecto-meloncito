@@ -387,6 +387,8 @@
     <!-- Sistema Unificado de Notificaciones y Validaciones -->
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     <script src="{{ url_for('static', filename='js/menu-movil.js') }}"></script>
+    {% include 'components/confirm_modal.html' %}
+    <script src="{{ url_for('static', filename='js/confirm-modal.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

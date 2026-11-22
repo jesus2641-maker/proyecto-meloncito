@@ -9227,3 +9227,55 @@ video {
     color: var(--danger);
     background: rgba(194, 74, 61, 0.12);
 }
+
+/* =====================================================
+   MODAL DE CONFIRMACIÓN PÚBLICO (BEER HOUSE)
+   ===================================================== */
+#confirmModal.modal-overlay {
+    z-index: 1060;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+}
+
+#confirmModal .modal-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-hover);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+#confirmModal .modal-header {
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+#confirmModal .modal-header h2 {
+    font-family: 'Playfair Display', serif;
+    color: var(--text-primary);
+}
+
+#confirmModal .modal-body p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 0;
+}
+
+#confirmModal .modal-footer {
+    border-top: 1px solid var(--border-subtle);
+}
+
+#confirmModal .modal-footer .btn {
+    padding: 12px 22px;
+    font-size: 0.82rem;
+    border-radius: 4px;
+}
+
+#confirmModal .btn-danger {
+    background: var(--danger);
+    color: var(--text-primary);
+    border: 1px solid var(--danger);
+}
+
+#confirmModal .btn-danger:hover {
+    background: #a83c30;
+    border-color: #a83c30;
+    color: var(--text-primary);
+}

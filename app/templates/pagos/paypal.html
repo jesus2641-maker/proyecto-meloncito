@@ -54,9 +54,9 @@
                 <p style="margin: 0 0 12px 0;">Cancelaste el proceso de pago. Tu pedido sigue reservado por 30 minutos; puedes reintentar cuando quieras o cancelar el pedido para liberar los productos.</p>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button type="button" class="btn btn-outline" style="padding: 6px 14px; font-size: 0.85rem;" onclick="document.getElementById('paypal-cancel-banner').style.display='none'">Continuar con PayPal</button>
-                    <form method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
+                    <form id="formCancelarPagoBanner" method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-ghost" style="padding: 6px 14px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" onclick="return confirm('¿Seguro que deseas cancelar este pedido? Se liberará el stock reservado.');">Cancelar Pedido</button>
+                        <button type="button" class="btn btn-ghost" style="padding: 6px 14px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" onclick="showConfirm('Cancelar pedido', 'Tu pedido se cancelará y el stock reservado volverá a estar disponible para otros clientes. ¿Deseas continuar?', function() { document.getElementById('formCancelarPagoBanner').submit(); });">Cancelar Pedido</button>
                     </form>
                 </div>
             </div>
@@ -175,9 +175,9 @@
                     </p>
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                         <a href="{{ url_for('cuenta.detalle_pedido', id_pedido=pedido.id_pedido) }}" class="btn btn-outline" style="font-size: 0.85rem; padding: 8px 16px;">Ver en Mis Pedidos</a>
-                        <form method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
+                        <form id="formCancelarPago" method="POST" action="{{ url_for('cuenta.cancelar_pedido', id_pedido=pedido.id_pedido) }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-ghost" style="font-size: 0.85rem; color: #9ca3af; padding: 8px 16px;" onclick="return confirm('¿Deseas cancelar el pedido y liberar el stock?');">Cancelar Pedido</button>
+                            <button type="button" class="btn btn-ghost" style="font-size: 0.85rem; color: #9ca3af; padding: 8px 16px;" onclick="showConfirm('Cancelar pedido', 'Tu pedido se cancelará y el stock reservado volverá a estar disponible para otros clientes. ¿Deseas continuar?', function() { document.getElementById('formCancelarPago').submit(); });">Cancelar Pedido</button>
                         </form>
                     </div>
                 </div>

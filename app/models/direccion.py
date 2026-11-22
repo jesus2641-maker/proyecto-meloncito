@@ -101,6 +101,30 @@ class Direccion:
         return direccion
 
     @staticmethod
+    def esta_en_uso(id_direccion):
+        """
+        Verifica si una dirección está asociada a al menos un pedido.
+
+        Args:
+            id_direccion (int): ID de la dirección a consultar.
+
+        Returns:
+            bool: True si existen pedidos que referencian la dirección, False en caso contrario.
+        """
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT COUNT(*) FROM pedidos WHERE id_direccion = %s",
+                (id_direccion,)
+            )
+            resultado = cursor.fetchone()
+            return bool(resultado and resultado[0] > 0)
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def eliminar(id_direccion, id_usuario):
         """
         Elimina una dirección verificando que pertenezca al usuario indicado.
