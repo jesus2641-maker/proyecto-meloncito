@@ -30,10 +30,11 @@
                 
                 <div class="form-group">
                     <label class="form-label">Producto *</label>
-                    <select name="id_producto" class="form-input" required onchange="cargarVariantes(this.value)">
+                    {% set selected_producto = (form_data.get('id_producto')|string) if form_data is defined and form_data else (oferta.id_producto|string if oferta and oferta.id_producto else '') %}
+                    <select name="id_producto" id="productoSelect" class="form-input" required onchange="cargarVariantes(this.value, '', true)">
                         <option value="">Selecciona un producto</option>
                         {% for prod in productos %}
-                        <option value="{{ prod.id_producto }}" {% if oferta and oferta.id_producto == prod.id_producto %}selected{% endif %}>
+                        <option value="{{ prod.id_producto }}" {% if selected_producto == (prod.id_producto|string) %}selected{% endif %}>
                             {{ prod.nombre_producto }} - {{ prod.marca }}
                         </option>
                         {% endfor %}
@@ -50,38 +51,39 @@
 
                 <div class="form-group">
                     <label class="form-label">Título de la Oferta *</label>
-                    <input type="text" name="titulo" class="form-input" placeholder="Ej. Weekend Premium, Happy Hour" value="{{ oferta.titulo if oferta else '' }}" required>
+                    <input type="text" name="titulo" class="form-input" placeholder="Ej. Weekend Premium, Happy Hour" value="{{ form_data.get('titulo') if form_data is defined and form_data else (oferta.titulo if oferta else '') }}" required>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Descripción (opcional)</label>
-                    <textarea name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la oferta...">{{ oferta.descripcion if oferta else '' }}</textarea>
+                    <textarea name="descripcion" rows="3" class="form-input" placeholder="Descripción breve de la oferta...">{{ form_data.get('descripcion') if form_data is defined and form_data else (oferta.descripcion if oferta and oferta.descripcion else '') }}</textarea>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Descuento (%) *</label>
-                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="6" name="descuento_porcentaje" class="form-input" placeholder="Ej. 25" value="{{ ('%.2f'|format(oferta.descuento_porcentaje|float)).rstrip('0').rstrip('.') if oferta and oferta.descuento_porcentaje is not none else '' }}" autocomplete="off" required>
+                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="6" name="descuento_porcentaje" id="descuentoInput" class="form-input" placeholder="Ej. 25" value="{{ form_data.get('descuento_porcentaje') if form_data is defined and form_data else (('%.2f'|format(oferta.descuento_porcentaje|float)).rstrip('0').rstrip('.') if oferta and oferta.descuento_porcentaje is not none else '') }}" autocomplete="off" required>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Precio de Oferta *</label>
-                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" name="precio_oferta" class="form-input" placeholder="Ej. 8500" value="{{ ('%.2f'|format(oferta.precio_oferta|float)).rstrip('0').rstrip('.') if oferta and oferta.precio_oferta is not none else '' }}" autocomplete="off" required>
+                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" name="precio_oferta" id="precioOfertaInput" class="form-input" placeholder="Ej. 8500" value="{{ form_data.get('precio_oferta') if form_data is defined and form_data else (('%.2f'|format(oferta.precio_oferta|float)).rstrip('0').rstrip('.') if oferta and oferta.precio_oferta is not none else '') }}" autocomplete="off" required>
+                    <small id="precioOfertaAyuda" class="text-muted" style="display: block; margin-top: 4px;">Elige una variante para calcular el precio automáticamente</small>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Fecha de Inicio (opcional)</label>
-                    <input type="datetime-local" name="fecha_inicio" class="form-input" value="{{ oferta.fecha_inicio.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_inicio else '' }}">
+                    <input type="datetime-local" name="fecha_inicio" id="fechaInicioInput" class="form-input" value="{{ form_data.get('fecha_inicio') if form_data is defined and form_data else (oferta.fecha_inicio.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_inicio else '') }}">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Fecha de Fin (opcional)</label>
-                    <input type="datetime-local" name="fecha_fin" class="form-input" value="{{ oferta.fecha_fin.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_fin else '' }}">
+                    <input type="datetime-local" name="fecha_fin" id="fechaFinInput" class="form-input" value="{{ form_data.get('fecha_fin') if form_data is defined and form_data else (oferta.fecha_fin.strftime('%Y-%m-%dT%H:%M') if oferta and oferta.fecha_fin else '') }}">
                 </div>
 
                 {% if oferta %}
                 <div class="form-group">
                     <label class="form-checkbox">
-                        <input type="checkbox" name="activa" {% if oferta.activa %}checked{% endif %}>
+                        <input type="checkbox" name="activa" {% if (form_data is defined and form_data and form_data.get('activa')) or ((form_data is not defined or not form_data) and oferta.activa) %}checked{% endif %}>
                         <span>Oferta Activa</span>
                     </label>
                 </div>
@@ -94,40 +96,116 @@
 </section>
 
 <script>
-function cargarVariantes(idProducto) {
-    if (!idProducto) {
-        document.getElementById('varianteSelect').innerHTML = '<option value="">Todas las variantes</option>';
+function actualizarAyudaPrecio() {
+    const varianteSelect = document.getElementById('varianteSelect');
+    const ayuda = document.getElementById('precioOfertaAyuda');
+    if (!varianteSelect || !ayuda) return;
+    if (!varianteSelect.value) {
+        ayuda.style.display = 'block';
+    } else {
+        ayuda.style.display = 'none';
+    }
+}
+
+function calcularPrecioOferta() {
+    const varianteSelect = document.getElementById('varianteSelect');
+    const descuentoInput = document.getElementById('descuentoInput');
+    const precioInput = document.getElementById('precioOfertaInput');
+    if (!varianteSelect || !descuentoInput || !precioInput) return;
+
+    actualizarAyudaPrecio();
+
+    if (!varianteSelect.value) {
         return;
     }
 
-    fetch(`/admin/api/productos/${idProducto}/variantes`)
+    const opcion = varianteSelect.options[varianteSelect.selectedIndex];
+    const precioBase = parseFloat(opcion ? opcion.getAttribute('data-precio') : '');
+    const descuento = parseFloat(descuentoInput.value);
+
+    if (!isNaN(precioBase) && precioBase > 0 && !isNaN(descuento) && descuento > 0 && descuento <= 100) {
+        const calculado = Math.round((precioBase * (1 - descuento / 100)) * 100) / 100;
+        precioInput.value = Number.isInteger(calculado) ? String(calculado) : parseFloat(calculado.toFixed(2)).toString();
+    }
+}
+
+function cargarVariantes(idProducto, selectedVarianteId, recalcular) {
+    const select = document.getElementById('varianteSelect');
+    if (!idProducto) {
+        select.innerHTML = '<option value="">Todas las variantes</option>';
+        actualizarAyudaPrecio();
+        return Promise.resolve();
+    }
+
+    return fetch(`/admin/api/productos/${idProducto}/variantes`)
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById('varianteSelect');
             select.innerHTML = '<option value="">Todas las variantes</option>';
             data.forEach(variante => {
-                select.innerHTML += `<option value="${variante.id_variante}">${variante.presentacion} - $${variante.precio}</option>`;
+                select.innerHTML += `<option value="${variante.id_variante}" data-precio="${variante.precio}">${variante.presentacion} - $${variante.precio}</option>`;
             });
+            if (selectedVarianteId) {
+                select.value = String(selectedVarianteId);
+            }
+            if (recalcular) {
+                calcularPrecioOferta();
+            } else {
+                actualizarAyudaPrecio();
+            }
         })
         .catch(error => {
             console.error('Error al cargar variantes:', error);
-            document.getElementById('varianteSelect').innerHTML = '<option value="">Error al cargar variantes</option>';
+            select.innerHTML = '<option value="">Error al cargar variantes</option>';
+            actualizarAyudaPrecio();
         });
 }
 
-// Cargar variantes si hay producto seleccionado
-{% if oferta and oferta.id_producto %}
-document.addEventListener('DOMContentLoaded', function() {
-    cargarVariantes({{ oferta.id_producto }});
-    {% if oferta.id_variante %}
-    setTimeout(() => {
-        document.getElementById('varianteSelect').value = {{ oferta.id_variante }};
-    }, 100);
-    {% endif %}
-});
-{% endif %}
+function obtenerFechaHoraLocal() {
+    const ahora = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())}T${pad(ahora.getHours())}:${pad(ahora.getMinutes())}`;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    const productoSelect = document.getElementById('productoSelect');
+    const varianteSelect = document.getElementById('varianteSelect');
+    const descuentoInput = document.getElementById('descuentoInput');
+    const fechaInicioInput = document.getElementById('fechaInicioInput');
+    const fechaFinInput = document.getElementById('fechaFinInput');
+
+    const selectedVarianteInicial = "{{ form_data.get('id_variante', '') if form_data is defined and form_data else (oferta.id_variante if oferta and oferta.id_variante else '') }}";
+    if (productoSelect && productoSelect.value) {
+        cargarVariantes(productoSelect.value, selectedVarianteInicial, false);
+    } else {
+        actualizarAyudaPrecio();
+    }
+
+    if (varianteSelect) {
+        varianteSelect.addEventListener('change', calcularPrecioOferta);
+        varianteSelect.addEventListener('input', calcularPrecioOferta);
+    }
+    if (descuentoInput) {
+        descuentoInput.addEventListener('change', calcularPrecioOferta);
+        descuentoInput.addEventListener('input', calcularPrecioOferta);
+    }
+
+    // Ayuda visual para fechas mínimas (la validación real se hace en el servidor)
+    const ahoraStr = obtenerFechaHoraLocal();
+    if (fechaInicioInput) {
+        fechaInicioInput.setAttribute('min', ahoraStr);
+        fechaInicioInput.addEventListener('change', function() {
+            if (fechaFinInput) {
+                fechaFinInput.setAttribute('min', this.value && this.value > ahoraStr ? this.value : ahoraStr);
+            }
+        });
+    }
+    if (fechaFinInput) {
+        const minFin = (fechaInicioInput && fechaInicioInput.value && fechaInicioInput.value > ahoraStr)
+            ? fechaInicioInput.value
+            : ahoraStr;
+        fechaFinInput.setAttribute('min', minFin);
+    }
+
     function limpiarDecimal(val, maxLen) {
         let limpio = String(val || '').replace(/[^0-9.]/g, '');
         const partes = limpio.split('.');

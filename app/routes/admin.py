@@ -18,7 +18,7 @@ import logging
 import re
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify, Response
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 # Modelos de dominio del sistema
 from app.models.producto import Producto, VarianteProducto
 from app.models.categoria import Categoria
@@ -1002,13 +1002,99 @@ def ofertas():
     return render_template("admin/ofertas/index.html", ofertas=lista_ofertas)
 
 
+def _validar_datos_oferta(form_data, oferta_existente=None):
+    """
+    Valida y normaliza los campos del formulario de ofertas (crear/editar).
+
+    Incluye validación de precio calculado con `Decimal` cuando hay variante y descuento,
+    y validación de fechas con `datetime.strptime(..., "%Y-%m-%dT%H:%M")`.
+
+    Returns:
+        tuple[dict | None, str | None]: `(datos_limpios, None)` si es válido,
+            o `(None, mensaje_error)` si falla alguna validación.
+    """
+    id_producto = form_data.get("id_producto", type=int)
+    id_variante = form_data.get("id_variante", type=int) or None
+    descuento_raw = (form_data.get("descuento_porcentaje") or "").strip()
+    precio_oferta_raw = (form_data.get("precio_oferta") or "").strip()
+    titulo = (form_data.get("titulo") or "").strip()
+    descripcion = (form_data.get("descripcion") or "").strip() or None
+    fecha_inicio_raw = (form_data.get("fecha_inicio") or "").strip()
+    fecha_fin_raw = (form_data.get("fecha_fin") or "").strip()
+
+    if not id_producto or not titulo:
+        return None, "El producto, descuento, precio y título son obligatorios"
+
+    precio_oferta = _parsear_precio(precio_oferta_raw)
+    if precio_oferta is None:
+        return None, "El precio de oferta debe ser mayor a cero y contener solo números válidos"
+
+    descuento_porcentaje = _parsear_precio(descuento_raw)
+    if descuento_porcentaje is None or descuento_porcentaje > 100:
+        return None, "El porcentaje de descuento debe ser un número válido entre 0.01 y 100"
+
+    # Validar en servidor que el precio enviado coincida con el descuento sobre la variante en BD
+    if id_variante and descuento_porcentaje is not None:
+        variante = VarianteProducto.obtener_por_id(id_variante)
+        if not variante:
+            return None, "La variante seleccionada no existe"
+        precio_base = Decimal(str(variante["precio"]))
+        descuento_dec = Decimal(str(descuento_porcentaje))
+        precio_esperado = (
+            precio_base * (Decimal("1") - descuento_dec / Decimal("100"))
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        precio_enviado = Decimal(str(precio_oferta)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if abs(precio_enviado - precio_esperado) > Decimal("0.01"):
+            return None, "El precio de oferta no corresponde al descuento aplicado"
+
+    # Parsear y validar fechas de vigencia
+    fecha_inicio = None
+    if fecha_inicio_raw:
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio_raw, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return None, "El formato de la fecha de inicio es inválido (usa AAAA-MM-DD HH:MM)"
+
+    fecha_fin = None
+    if fecha_fin_raw:
+        try:
+            fecha_fin = datetime.strptime(fecha_fin_raw, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return None, "El formato de la fecha de fin es inválido (usa AAAA-MM-DD HH:MM)"
+
+    ahora = datetime.now()
+    if fecha_fin is not None:
+        if fecha_inicio is not None and fecha_fin <= fecha_inicio:
+            return None, "La fecha de fin debe ser posterior a la fecha de inicio"
+
+        # En edición: si la oferta ya estaba vencida y no se cambió fecha_fin, no bloquear otros campos
+        fecha_fin_original = oferta_existente.get("fecha_fin") if oferta_existente else None
+        ya_vencida = bool(fecha_fin_original and fecha_fin_original <= ahora)
+        misma_fecha_fin = bool(
+            fecha_fin_original and fecha_fin == fecha_fin_original.replace(second=0, microsecond=0)
+        )
+        if fecha_fin <= ahora and not (ya_vencida and misma_fecha_fin):
+            return None, "La fecha de fin debe ser posterior a la fecha actual"
+
+    return {
+        "id_producto": id_producto,
+        "id_variante": id_variante,
+        "descuento_porcentaje": descuento_porcentaje,
+        "precio_oferta": precio_oferta,
+        "titulo": titulo,
+        "descripcion": descripcion,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+    }, None
+
+
 @admin_bp.route("/ofertas/nueva", methods=["GET", "POST"])
 def nueva_oferta():
     """
     Crea una nueva oferta promocional asociada a un producto (y variante opcional).
 
-    Valida producto, título, precio de oferta positivo y porcentaje de descuento
-    en el rango `(0, 100]`.
+    Valida producto, título, precio de oferta positivo, porcentaje de descuento
+    en el rango `(0, 100]`, correspondencia con el precio de la variante y fechas.
 
     Returns:
         flask.Response | str: Redirección o formulario HTML de oferta.
@@ -1016,36 +1102,27 @@ def nueva_oferta():
     productos = Producto.listar_admin()
     
     if request.method == "POST":
-        id_producto = request.form.get("id_producto", type=int)
-        id_variante = request.form.get("id_variante", type=int) or None
-        descuento_raw = request.form.get("descuento_porcentaje", "").strip()
-        precio_oferta_raw = request.form.get("precio_oferta", "").strip()
-        titulo = request.form.get("titulo", "").strip()
-        descripcion = request.form.get("descripcion", "").strip() or None
-        fecha_inicio = request.form.get("fecha_inicio") or None
-        fecha_fin = request.form.get("fecha_fin") or None
-
-        precio_oferta = _parsear_precio(precio_oferta_raw)
-        descuento_porcentaje = _parsear_precio(descuento_raw)
-
-        if not id_producto or not titulo:
-            flash("El producto, descuento, precio y título son obligatorios", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
-
-        if precio_oferta is None:
-            flash("El precio de oferta debe ser mayor a cero y contener solo números válidos", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
-
-        if descuento_porcentaje is None or descuento_porcentaje > 100:
-            flash("El porcentaje de descuento debe ser un número válido entre 0.01 y 100", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
+        datos, error = _validar_datos_oferta(request.form)
+        if error:
+            flash(error, "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos, form_data=request.form)
 
         try:
-            Oferta.crear(id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, fecha_inicio, fecha_fin)
-            flash(f"Oferta '{titulo}' creada", "success")
+            Oferta.crear(
+                datos["id_producto"],
+                datos["id_variante"],
+                datos["descuento_porcentaje"],
+                datos["precio_oferta"],
+                datos["titulo"],
+                datos["descripcion"],
+                datos["fecha_inicio"],
+                datos["fecha_fin"],
+            )
+            flash(f"Oferta '{datos['titulo']}' creada", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
             flash(f"Error al crear oferta: {str(e)}", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos, form_data=request.form)
 
     return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos)
 
@@ -1069,37 +1146,31 @@ def editar_oferta(id_oferta):
     productos = Producto.listar_admin()
 
     if request.method == "POST":
-        id_producto = request.form.get("id_producto", type=int)
-        id_variante = request.form.get("id_variante", type=int) or None
-        descuento_raw = request.form.get("descuento_porcentaje", "").strip()
-        precio_oferta_raw = request.form.get("precio_oferta", "").strip()
-        titulo = request.form.get("titulo", "").strip()
-        descripcion = request.form.get("descripcion", "").strip() or None
+        datos, error = _validar_datos_oferta(request.form, oferta_existente=oferta)
+        if error:
+            flash(error, "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos, form_data=request.form)
+
         activa = 1 if request.form.get("activa") else 0
-        fecha_inicio = request.form.get("fecha_inicio") or None
-        fecha_fin = request.form.get("fecha_fin") or None
-
-        precio_oferta = _parsear_precio(precio_oferta_raw)
-        descuento_porcentaje = _parsear_precio(descuento_raw)
-
-        if not id_producto or not titulo:
-            flash("El producto, descuento, precio y título son obligatorios", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
-
-        if precio_oferta is None:
-            flash("El precio de oferta debe ser mayor a cero y contener solo números válidos", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
-
-        if descuento_porcentaje is None or descuento_porcentaje > 100:
-            flash("El porcentaje de descuento debe ser un número válido entre 0.01 y 100", "danger")
-            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
 
         try:
-            Oferta.actualizar(id_oferta, id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, activa, fecha_inicio, fecha_fin)
-            flash(f"Oferta '{titulo}' actualizada", "success")
+            Oferta.actualizar(
+                id_oferta,
+                datos["id_producto"],
+                datos["id_variante"],
+                datos["descuento_porcentaje"],
+                datos["precio_oferta"],
+                datos["titulo"],
+                datos["descripcion"],
+                activa,
+                datos["fecha_inicio"],
+                datos["fecha_fin"],
+            )
+            flash(f"Oferta '{datos['titulo']}' actualizada", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
             flash(f"Error al actualizar oferta: {str(e)}", "danger")
+            return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos, form_data=request.form)
 
     return render_template("admin/ofertas/formulario.html", oferta=oferta, productos=productos)
 
