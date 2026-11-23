@@ -3,47 +3,56 @@
 {% block title %}Detalle de Pedido #{{ pedido.id_pedido }} — Admin — Beer House Premium{% endblock %}
 
 {% block admin_content %}
-<!-- Admin Order Detail Hero Section -->
-<section class="admin-hero">
-    <div class="container">
-        <div class="admin-hero-content">
-            <p class="section-subtitle">Detalle de Orden</p>
-            <h1>Pedido #{{ pedido.id_pedido }}</h1>
-            <a href="{{ url_for('admin.pedidos') }}" class="admin-back-link">&larr; Volver a Pedidos</a>
-            <p>Fecha: {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—' }}</p>
+<section class="container pd-page">
+    <!-- 1. ENCABEZADO -->
+    <header class="pd-header">
+        <div class="pd-header-info">
+            <p class="section-subtitle pd-eyebrow">Detalle de Orden</p>
+            <div class="pd-title-row">
+                <h1 class="pd-title">Detalles del pedido</h1>
+                <span class="status-badge status-{{ pedido.nombre_estado|replace(' ', '-')|lower }} pd-status-pill">
+                    {{ pedido.nombre_estado|capitalize }}
+                </span>
+            </div>
+            <div class="pd-meta">
+                <span class="pd-meta-item">
+                    <strong>Pedido #{{ pedido.id_pedido }}</strong>
+                </span>
+                <span class="pd-meta-sep" aria-hidden="true">•</span>
+                <span class="pd-meta-item">
+                    Fecha: {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'No registrado' }}
+                </span>
+            </div>
         </div>
-    </div>
-</section>
+        <div class="pd-header-actions">
+            <a href="{{ url_for('admin.pedidos') }}" class="btn btn-ghost pd-back-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Volver a pedidos
+            </a>
+        </div>
+    </header>
 
-<section class="container">
-    <div class="admin-actions">
-        <a href="{{ url_for('admin.pedidos') }}" class="btn btn-ghost">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Volver a Pedidos
-        </a>
-    </div>
-
-    <div class="admin-detail-layout">
-        <!-- COLUMNA IZQUIERDA: DETALLE DE PRODUCTOS -->
-        <div class="admin-detail-main">
-            <div class="admin-section">
-                <div class="admin-section-header">
+    <!-- 2 y 3. TABLA DE PRODUCTOS + TARJETA DE ESTADO -->
+    <div class="pd-layout">
+        <div class="pd-main">
+            <div class="pd-card">
+                <div class="pd-card-header">
                     <h2>Productos Solicitados ({{ detalles|length }})</h2>
                 </div>
 
-                <div class="admin-table-container">
-                    <table class="admin-table">
+                <div class="admin-table-container pd-table-wrap">
+                    <table class="admin-table pd-table">
                         <thead>
                             <tr>
                                 <th>Producto</th>
                                 <th>Presentación</th>
                                 <th>SKU</th>
-                                <th>Cantidad</th>
-                                <th>Precio Unitario</th>
-                                <th>Subtotal</th>
+                                <th class="pd-num">Cantidad</th>
+                                <th class="pd-num">Precio Unitario</th>
+                                <th class="pd-num">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,45 +65,41 @@
                                     </div>
                                 </td>
                                 <td><span class="badge badge-category">{{ item.presentacion }}</span></td>
-                                <td><small>{{ item.sku or '—' }}</small></td>
-                                <td><strong>{{ item.cantidad }}</strong></td>
-                                <td>${{ "{:,.0f}".format(item.precio_unitario) }}</td>
-                                <td class="table-amount">${{ "{:,.0f}".format(item.subtotal) }}</td>
+                                <td><small class="pd-mono">{{ item.sku or 'No registrado' }}</small></td>
+                                <td class="pd-num"><strong>{{ item.cantidad }}</strong></td>
+                                <td class="pd-num">${{ "{:,.0f}".format(item.precio_unitario) }}</td>
+                                <td class="pd-num table-amount">${{ "{:,.0f}".format(item.subtotal) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
 
-                <div class="order-total-section">
-                    <div class="order-total-row">
-                        <span class="order-total-label">Total de la Orden</span>
-                        <span class="order-total-amount">${{ "{:,.0f}".format(pedido.total) }}</span>
-                    </div>
+                <div class="pd-total-bar">
+                    <span class="pd-total-label">Total de la Orden</span>
+                    <span class="pd-total-amount">${{ "{:,.0f}".format(pedido.total) }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- COLUMNA DERECHA: INFORMACIÓN DEL CLIENTE Y GESTIÓN DE ESTADO -->
-        <div class="admin-detail-sidebar">
-            <!-- CAMBIAR ESTADO -->
-            <div class="admin-section admin-section-highlight">
-                <div class="admin-section-header">
+        <aside class="pd-sidebar">
+            <div class="pd-card pd-status-card">
+                <div class="pd-card-header">
                     <h2>Estado del Pedido</h2>
                 </div>
-                
+
                 {% if pedido.id_estado in (4, 5) %}
-                <p class="status-text status-{{ pedido.nombre_estado|replace(' ', '-')|lower }}">
+                <p class="status-text status-{{ pedido.nombre_estado|replace(' ', '-')|lower }} pd-final-status">
                     <strong>{{ pedido.nombre_estado|capitalize }}</strong>
                 </p>
                 {% else %}
                 {% set permitidos = {1: (1, 2, 5), 2: (2, 3, 5), 3: (3, 4, 5)}.get(pedido.id_estado, (pedido.id_estado,)) %}
-                <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}" class="premium-form">
+                <form method="POST" action="{{ url_for('admin.cambiar_estado_pedido', id_pedido=pedido.id_pedido) }}" class="premium-form pd-status-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="next" value="{{ url_for('admin.detalle_pedido', id_pedido=pedido.id_pedido) }}">
-                    <div class="form-group">
-                        <label class="form-label">Modificar Estado</label>
-                        <select id="id_estado" name="id_estado" class="filter-select">
+                    <div class="form-group pd-form-group">
+                        <label for="id_estado" class="form-label">Modificar Estado</label>
+                        <select id="id_estado" name="id_estado" class="filter-select pd-select">
                             {% for est in estados if est.id_estado in permitidos %}
                             <option value="{{ est.id_estado }}" {% if est.id_estado == pedido.id_estado %}selected{% endif %}>
                                 {{ est.nombre_estado|capitalize }}
@@ -102,97 +107,142 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button type="submit" class="btn btn-primary btn-block pd-submit-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 13 7 21"></polyline>
+                            <polyline points="17 21 17 13 13 13 13 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
                         </svg>
                         Actualizar Estado
                     </button>
                 </form>
                 {% endif %}
             </div>
+        </aside>
+    </div>
 
-            <!-- DATOS DEL CLIENTE Y ENTREGA -->
-            <div class="admin-section">
-                <div class="admin-section-header">
-                    <h2>Datos del Cliente</h2>
+    <!-- 4. INFORMACIÓN DEL CLIENTE EN TRES TARJETAS SEPARADAS -->
+    <div class="pd-info-grid">
+        <!-- Datos del cliente -->
+        <section class="pd-card pd-info-card">
+            <div class="pd-card-header pd-card-header-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <h2>Datos del Cliente</h2>
+            </div>
+            <div class="pd-kv-list">
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Nombre</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.usuario_nombre or pedido.usuario_apellido %}
+                            {{ pedido.usuario_nombre or '' }} {{ pedido.usuario_apellido or '' }}
+                        {% else %}
+                            <span class="pd-empty">No registrado</span>
+                        {% endif %}
+                    </span>
                 </div>
-                
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Nombre</span>
-                        <span class="info-value">{{ pedido.usuario_nombre }} {{ pedido.usuario_apellido }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Email</span>
-                        <span class="info-value">{{ pedido.usuario_email }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Teléfono</span>
-                        <span class="info-value">{{ pedido.usuario_telefono or 'No registrado' }}</span>
-                    </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Correo</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.usuario_email %}{{ pedido.usuario_email }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
                 </div>
-
-                <div class="info-section">
-                    <h3>Dirección de Entrega</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Alias</span>
-                            <span class="info-value">{{ pedido.dir_alias or 'Sin alias' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Dirección</span>
-                            <span class="info-value">{{ pedido.linea_direccion or 'No especificada' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Ciudad</span>
-                            <span class="info-value">{{ pedido.ciudad or '' }}{% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}</span>
-                        </div>
-                        {% if pedido.codigo_postal %}
-                        <div class="info-item">
-                            <span class="info-label">Código Postal</span>
-                            <span class="info-value">{{ pedido.codigo_postal }}</span>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="info-section">
-                    <h3>Método de Pago</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Tipo</span>
-                            <span class="info-value">{{ pedido.tipo_pago or 'No especificado' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Estado del Pago</span>
-                            <span class="info-value badge {% if pago and pago.estado == 'completado' %}badge-success{% elif pago and pago.estado == 'pendiente' %}badge-warning{% elif pago and pago.estado == 'reembolsado' %}badge-info{% else %}badge-category{% endif %}">
-                                {{ pago.estado|capitalize if pago else 'Pendiente' }}
-                            </span>
-                        </div>
-                        {% if pedido.detalle_pago %}
-                        <div class="info-item">
-                            <span class="info-label">Detalle</span>
-                            <span class="info-value">{{ pedido.detalle_pago }}</span>
-                        </div>
-                        {% endif %}
-                        {% if pago and pago.paypal_capture_id %}
-                        <div class="info-item">
-                            <span class="info-label">ID Captura PayPal</span>
-                            <span class="info-value" style="font-family: monospace; font-size: 0.85rem; color: #c5a059;">{{ pago.paypal_capture_id }}</span>
-                        </div>
-                        {% endif %}
-                        {% if pago and pago.paypal_order_id %}
-                        <div class="info-item">
-                            <span class="info-label">ID Orden PayPal</span>
-                            <span class="info-value" style="font-family: monospace; font-size: 0.85rem; color: #9ca3af;">{{ pago.paypal_order_id }}</span>
-                        </div>
-                        {% endif %}
-                    </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Teléfono</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.usuario_telefono %}{{ pedido.usuario_telefono }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- Dirección de entrega -->
+        <section class="pd-card pd-info-card">
+            <div class="pd-card-header pd-card-header-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <h2>Dirección de Entrega</h2>
+            </div>
+            <div class="pd-kv-list">
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Alias</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.dir_alias %}{{ pedido.dir_alias }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Dirección</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.linea_direccion %}{{ pedido.linea_direccion }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Ciudad</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.ciudad %}
+                            {{ pedido.ciudad }}{% if pedido.departamento %}, {{ pedido.departamento }}{% endif %}
+                        {% else %}
+                            <span class="pd-empty">No registrado</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Código Postal</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.codigo_postal %}{{ pedido.codigo_postal }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Método de pago -->
+        <section class="pd-card pd-info-card">
+            <div class="pd-card-header pd-card-header-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                    <line x1="1" y1="10" x2="23" y2="10"></line>
+                </svg>
+                <h2>Método de Pago</h2>
+            </div>
+            <div class="pd-kv-list">
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Tipo</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.tipo_pago %}{{ pedido.tipo_pago }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Estado del Pago</span>
+                    <span class="pd-kv-value">
+                        <span class="badge {% if pago and pago.estado == 'completado' %}badge-success{% elif pago and pago.estado == 'pendiente' %}badge-warning{% elif pago and pago.estado == 'reembolsado' %}badge-info{% else %}badge-category{% endif %}">
+                            {{ pago.estado|capitalize if pago and pago.estado else 'Pendiente' }}
+                        </span>
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">Detalle</span>
+                    <span class="pd-kv-value">
+                        {% if pedido.detalle_pago %}{{ pedido.detalle_pago }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">ID Captura PayPal</span>
+                    <span class="pd-kv-value pd-mono pd-gold">
+                        {% if pago and pago.paypal_capture_id %}{{ pago.paypal_capture_id }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+                <div class="pd-kv-item">
+                    <span class="pd-kv-label">ID Orden PayPal</span>
+                    <span class="pd-kv-value pd-mono pd-muted">
+                        {% if pago and pago.paypal_order_id %}{{ pago.paypal_order_id }}{% else %}<span class="pd-empty">No registrado</span>{% endif %}
+                    </span>
+                </div>
+            </div>
+        </section>
     </div>
 </section>
 {% endblock %}
