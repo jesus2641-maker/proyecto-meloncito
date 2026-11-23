@@ -72,10 +72,20 @@ class Carrito:
             FROM carrito_items ci
             JOIN variantes_producto v ON ci.id_variante = v.id_variante
             JOIN productos p ON v.id_producto = p.id_producto
-            LEFT JOIN ofertas o ON (o.id_variante = v.id_variante OR o.id_producto = p.id_producto)
+            LEFT JOIN ofertas o ON (o.id_variante = v.id_variante OR (o.id_variante IS NULL AND o.id_producto = p.id_producto))
                 AND o.activa = TRUE
                 AND (o.fecha_inicio IS NULL OR o.fecha_inicio <= NOW())
                 AND (o.fecha_fin IS NULL OR o.fecha_fin > NOW())
+                AND o.id_oferta = (
+                    SELECT o2.id_oferta
+                    FROM ofertas o2
+                    WHERE (o2.id_variante = v.id_variante OR (o2.id_variante IS NULL AND o2.id_producto = p.id_producto))
+                        AND o2.activa = TRUE
+                        AND (o2.fecha_inicio IS NULL OR o2.fecha_inicio <= NOW())
+                        AND (o2.fecha_fin IS NULL OR o2.fecha_fin > NOW())
+                    ORDER BY (o2.id_variante IS NOT NULL) DESC, o2.fecha_creacion DESC, o2.id_oferta DESC
+                    LIMIT 1
+                )
             WHERE ci.id_carrito = %s
         """, (id_carrito,))
         # Obtener todas las filas coincidentes
@@ -204,10 +214,20 @@ class CarritoItem:
             FROM carrito_items ci
             JOIN variantes_producto v ON ci.id_variante = v.id_variante
             JOIN productos p ON v.id_producto = p.id_producto
-            LEFT JOIN ofertas o ON (o.id_variante = v.id_variante OR o.id_producto = p.id_producto)
+            LEFT JOIN ofertas o ON (o.id_variante = v.id_variante OR (o.id_variante IS NULL AND o.id_producto = p.id_producto))
                 AND o.activa = TRUE
                 AND (o.fecha_inicio IS NULL OR o.fecha_inicio <= NOW())
                 AND (o.fecha_fin IS NULL OR o.fecha_fin > NOW())
+                AND o.id_oferta = (
+                    SELECT o2.id_oferta
+                    FROM ofertas o2
+                    WHERE (o2.id_variante = v.id_variante OR (o2.id_variante IS NULL AND o2.id_producto = p.id_producto))
+                        AND o2.activa = TRUE
+                        AND (o2.fecha_inicio IS NULL OR o2.fecha_inicio <= NOW())
+                        AND (o2.fecha_fin IS NULL OR o2.fecha_fin > NOW())
+                    ORDER BY (o2.id_variante IS NOT NULL) DESC, o2.fecha_creacion DESC, o2.id_oferta DESC
+                    LIMIT 1
+                )
             WHERE ci.id_item = %s
         """, (id_item,))
         item = cursor.fetchone()

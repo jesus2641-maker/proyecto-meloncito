@@ -235,9 +235,31 @@ def eliminar_metodo_pago():
     id_usuario = session["id_usuario"]
     id_metodo = request.form.get("id_metodo_pago", type=int)
 
-    if id_metodo:
-        MetodoPago.eliminar(id_metodo, id_usuario)
-        flash("Método de pago eliminado correctamente", "info")
+    if id_metodo is None:
+        flash("No se recibió el método de pago a eliminar. Intenta de nuevo.", "danger")
+        return redirect(url_for("cuenta.metodos_pago"))
+
+    metodo = MetodoPago.obtener_por_id(id_metodo)
+    if not metodo or metodo["id_usuario"] != id_usuario:
+        flash("No se encontró el método de pago o no te pertenece.", "warning")
+        return redirect(url_for("cuenta.metodos_pago"))
+
+    if MetodoPago.esta_en_uso(id_metodo):
+        flash(
+            "Este método de pago ya está asociado a un pedido y no se puede eliminar. Puedes agregar otro método y dejarlo como predeterminado.",
+            "warning",
+        )
+        return redirect(url_for("cuenta.metodos_pago"))
+
+    try:
+        eliminado = MetodoPago.eliminar(id_metodo, id_usuario)
+        if eliminado:
+            flash("Método de pago eliminado correctamente", "info")
+        else:
+            flash("No se encontró el método de pago o no te pertenece.", "warning")
+    except Exception:
+        current_app.logger.exception("Error al eliminar método de pago %s", id_metodo)
+        flash("No se pudo eliminar el método de pago. Intenta de nuevo.", "danger")
 
     return redirect(url_for("cuenta.metodos_pago"))
 

@@ -62,12 +62,9 @@
                 <div class="form-group">
                     <label class="form-label">Descuento (%) *</label>
                     <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="6" name="descuento_porcentaje" id="descuentoInput" class="form-input" placeholder="Ej. 25" value="{{ form_data.get('descuento_porcentaje') if form_data is defined and form_data else (('%.2f'|format(oferta.descuento_porcentaje|float)).rstrip('0').rstrip('.') if oferta and oferta.descuento_porcentaje is not none else '') }}" autocomplete="off" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Precio de Oferta *</label>
-                    <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="9" name="precio_oferta" id="precioOfertaInput" class="form-input" placeholder="Ej. 8500" value="{{ form_data.get('precio_oferta') if form_data is defined and form_data else (('%.2f'|format(oferta.precio_oferta|float)).rstrip('0').rstrip('.') if oferta and oferta.precio_oferta is not none else '') }}" autocomplete="off" required>
-                    <small id="precioOfertaAyuda" class="text-muted" style="display: block; margin-top: 4px;">Elige una variante para calcular el precio automáticamente</small>
+                    <small id="precioPreview" class="text-muted" style="display: block; margin-top: 6px; color: var(--gold-primary, #d4a853);">
+                        Se creará una oferta para cada presentación con este descuento
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -96,26 +93,14 @@
 </section>
 
 <script>
-function actualizarAyudaPrecio() {
-    const varianteSelect = document.getElementById('varianteSelect');
-    const ayuda = document.getElementById('precioOfertaAyuda');
-    if (!varianteSelect || !ayuda) return;
-    if (!varianteSelect.value) {
-        ayuda.style.display = 'block';
-    } else {
-        ayuda.style.display = 'none';
-    }
-}
-
-function calcularPrecioOferta() {
+function actualizarPreviewPrecio() {
     const varianteSelect = document.getElementById('varianteSelect');
     const descuentoInput = document.getElementById('descuentoInput');
-    const precioInput = document.getElementById('precioOfertaInput');
-    if (!varianteSelect || !descuentoInput || !precioInput) return;
-
-    actualizarAyudaPrecio();
+    const preview = document.getElementById('precioPreview');
+    if (!varianteSelect || !descuentoInput || !preview) return;
 
     if (!varianteSelect.value) {
+        preview.textContent = 'Se creará una oferta para cada presentación con este descuento';
         return;
     }
 
@@ -123,17 +108,29 @@ function calcularPrecioOferta() {
     const precioBase = parseFloat(opcion ? opcion.getAttribute('data-precio') : '');
     const descuento = parseFloat(descuentoInput.value);
 
-    if (!isNaN(precioBase) && precioBase > 0 && !isNaN(descuento) && descuento > 0 && descuento <= 100) {
-        const calculado = Math.round((precioBase * (1 - descuento / 100)) * 100) / 100;
-        precioInput.value = Number.isInteger(calculado) ? String(calculado) : parseFloat(calculado.toFixed(2)).toString();
+    if (isNaN(precioBase) || precioBase < 0) {
+        preview.textContent = 'Selecciona una variante válida para ver el precio con descuento';
+        return;
     }
+
+    if (isNaN(descuento) || descuento <= 0 || descuento > 100) {
+        preview.textContent = 'Ingresa un descuento entre 0.01 y 100 para calcular el precio con descuento';
+        return;
+    }
+
+    const calculado = Math.round((precioBase * (1 - descuento / 100)) * 100) / 100;
+    const formateado = calculado.toLocaleString('es-CO', {
+        minimumFractionDigits: Number.isInteger(calculado) ? 0 : 2,
+        maximumFractionDigits: 2
+    });
+    preview.textContent = `Precio con descuento: $${formateado}`;
 }
 
-function cargarVariantes(idProducto, selectedVarianteId, recalcular) {
+function cargarVariantes(idProducto, selectedVarianteId) {
     const select = document.getElementById('varianteSelect');
     if (!idProducto) {
         select.innerHTML = '<option value="">Todas las variantes</option>';
-        actualizarAyudaPrecio();
+        actualizarPreviewPrecio();
         return Promise.resolve();
     }
 
@@ -147,16 +144,12 @@ function cargarVariantes(idProducto, selectedVarianteId, recalcular) {
             if (selectedVarianteId) {
                 select.value = String(selectedVarianteId);
             }
-            if (recalcular) {
-                calcularPrecioOferta();
-            } else {
-                actualizarAyudaPrecio();
-            }
+            actualizarPreviewPrecio();
         })
         .catch(error => {
             console.error('Error al cargar variantes:', error);
             select.innerHTML = '<option value="">Error al cargar variantes</option>';
-            actualizarAyudaPrecio();
+            actualizarPreviewPrecio();
         });
 }
 
@@ -175,18 +168,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const selectedVarianteInicial = "{{ form_data.get('id_variante', '') if form_data is defined and form_data else (oferta.id_variante if oferta and oferta.id_variante else '') }}";
     if (productoSelect && productoSelect.value) {
-        cargarVariantes(productoSelect.value, selectedVarianteInicial, false);
+        cargarVariantes(productoSelect.value, selectedVarianteInicial);
     } else {
-        actualizarAyudaPrecio();
+        actualizarPreviewPrecio();
     }
 
     if (varianteSelect) {
-        varianteSelect.addEventListener('change', calcularPrecioOferta);
-        varianteSelect.addEventListener('input', calcularPrecioOferta);
+        varianteSelect.addEventListener('change', actualizarPreviewPrecio);
+        varianteSelect.addEventListener('input', actualizarPreviewPrecio);
     }
     if (descuentoInput) {
-        descuentoInput.addEventListener('change', calcularPrecioOferta);
-        descuentoInput.addEventListener('input', calcularPrecioOferta);
+        descuentoInput.addEventListener('change', actualizarPreviewPrecio);
+        descuentoInput.addEventListener('input', actualizarPreviewPrecio);
     }
 
     // Ayuda visual para fechas mínimas (la validación real se hace en el servidor)
@@ -215,8 +208,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return limpio.slice(0, maxLen || 9);
     }
 
-    document.querySelectorAll('input[name="precio_oferta"], input[name="descuento_porcentaje"]').forEach(function(input) {
-        const maxLen = parseInt(input.getAttribute('maxlength') || '9', 10);
+    document.querySelectorAll('input[name="descuento_porcentaje"]').forEach(function(input) {
+        const maxLen = parseInt(input.getAttribute('maxlength') || '6', 10);
         input.addEventListener('keydown', function(e) {
             if (['e', 'E', '+', '-'].includes(e.key) || (e.key === '.' && this.value.includes('.'))) {
                 e.preventDefault();
@@ -227,6 +220,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.value !== limpio) {
                 this.value = limpio;
             }
+            const num = parseFloat(this.value);
+            if (!isNaN(num) && num > 100) {
+                this.value = '100';
+            }
+            actualizarPreviewPrecio();
         });
         input.addEventListener('wheel', function(e) {
             e.preventDefault();

@@ -6,6 +6,8 @@ específicas en la tabla `ofertas`, incluyendo su creación, actualización,
 activación/desactivación y consulta de promociones vigentes.
 """
 
+from decimal import Decimal, ROUND_HALF_UP
+
 # Función para obtener una conexión activa a MySQL
 from app.utils.db import get_connection
 
@@ -105,6 +107,24 @@ class Oferta:
         return oferta
 
     @staticmethod
+    def calcular_precio_oferta(precio, descuento):
+        """
+        Calcula el precio de oferta a partir del precio base y el porcentaje de descuento.
+
+        Args:
+            precio (float | Decimal | str): Precio base de la variante.
+            descuento (float | Decimal | str): Porcentaje de descuento en (0, 100].
+
+        Returns:
+            Decimal: Precio promocional redondeado a 2 decimales con ROUND_HALF_UP.
+        """
+        precio_dec = Decimal(str(precio))
+        descuento_dec = Decimal(str(descuento))
+        return (
+            precio_dec * (Decimal("1") - descuento_dec / Decimal("100"))
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
     def crear(id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, fecha_inicio=None, fecha_fin=None):
         """
         Crea una nueva oferta en la base de datos.
@@ -134,6 +154,55 @@ class Oferta:
         cursor.close()
         conn.close()
         return nuevo_id
+
+    @staticmethod
+    def crear_por_variantes(id_producto, variantes, descuento, titulo, descripcion, fecha_inicio=None, fecha_fin=None):
+        """
+        Crea una oferta por cada variante del producto dentro de una sola transacción.
+
+        Si ocurre algún error en cualquiera de las inserciones, revierte toda la
+        transacción para no dejar ofertas parciales.
+
+        Args:
+            id_producto (int): ID del producto.
+            variantes (list[dict]): Lista de variantes con `id_variante` y `precio`.
+            descuento (Decimal | float | str): Porcentaje de descuento.
+            titulo (str): Título visible de la oferta.
+            descripcion (str | None): Descripción de la oferta.
+            fecha_inicio (datetime | str, optional): Fecha/hora de inicio.
+            fecha_fin (datetime | str, optional): Fecha/hora de fin.
+
+        Returns:
+            list[int]: Lista de IDs creados.
+        """
+        conn = get_connection()
+        cursor = conn.cursor()
+        ids_creados = []
+        try:
+            for variante in variantes:
+                precio_calculado = Oferta.calcular_precio_oferta(variante["precio"], descuento)
+                cursor.execute("""
+                    INSERT INTO ofertas (id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, fecha_inicio, fecha_fin)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    id_producto,
+                    variante["id_variante"],
+                    descuento,
+                    precio_calculado,
+                    titulo,
+                    descripcion,
+                    fecha_inicio,
+                    fecha_fin,
+                ))
+                ids_creados.append(cursor.lastrowid)
+            conn.commit()
+            return ids_creados
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
 
     @staticmethod
     def actualizar(id_oferta, id_producto, id_variante, descuento_porcentaje, precio_oferta, titulo, descripcion, activa, fecha_inicio=None, fecha_fin=None):

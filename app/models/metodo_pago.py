@@ -154,3 +154,27 @@ class MetodoPago:
         cursor.close()
         conn.close()
         return eliminado
+
+    @staticmethod
+    def esta_en_uso(id_metodo_pago):
+        """
+        Verifica si un método de pago está asociado a al menos un pedido.
+
+        Args:
+            id_metodo_pago (int): ID del método de pago a consultar.
+
+        Returns:
+            bool: True si existen pedidos que referencian el método de pago, False en caso contrario.
+        """
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT COUNT(*) FROM pedidos WHERE id_metodo_pago = %s",
+                (id_metodo_pago,)
+            )
+            resultado = cursor.fetchone()
+            return bool(resultado and resultado[0] > 0)
+        finally:
+            cursor.close()
+            conn.close()

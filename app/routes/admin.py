@@ -18,7 +18,7 @@ import logging
 import re
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, abort, jsonify, Response
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 # Modelos de dominio del sistema
 from app.models.producto import Producto, VarianteProducto
 from app.models.categoria import Categoria
@@ -1006,8 +1006,9 @@ def _validar_datos_oferta(form_data, oferta_existente=None):
     """
     Valida y normaliza los campos del formulario de ofertas (crear/editar).
 
-    Incluye validación de precio calculado con `Decimal` cuando hay variante y descuento,
-    y validación de fechas con `datetime.strptime(..., "%Y-%m-%dT%H:%M")`.
+    Ignora cualquier `precio_oferta` enviado por el cliente y lo calcula en el
+    servidor a partir del precio de la variante en BD y `descuento_porcentaje`
+    con `Decimal` y `ROUND_HALF_UP`.
 
     Returns:
         tuple[dict | None, str | None]: `(datos_limpios, None)` si es válido,
@@ -1016,36 +1017,43 @@ def _validar_datos_oferta(form_data, oferta_existente=None):
     id_producto = form_data.get("id_producto", type=int)
     id_variante = form_data.get("id_variante", type=int) or None
     descuento_raw = (form_data.get("descuento_porcentaje") or "").strip()
-    precio_oferta_raw = (form_data.get("precio_oferta") or "").strip()
     titulo = (form_data.get("titulo") or "").strip()
     descripcion = (form_data.get("descripcion") or "").strip() or None
     fecha_inicio_raw = (form_data.get("fecha_inicio") or "").strip()
     fecha_fin_raw = (form_data.get("fecha_fin") or "").strip()
 
     if not id_producto or not titulo:
-        return None, "El producto, descuento, precio y título son obligatorios"
+        return None, "El producto, descuento y título son obligatorios"
 
-    precio_oferta = _parsear_precio(precio_oferta_raw)
-    if precio_oferta is None:
-        return None, "El precio de oferta debe ser mayor a cero y contener solo números válidos"
-
-    descuento_porcentaje = _parsear_precio(descuento_raw)
-    if descuento_porcentaje is None or descuento_porcentaje > 100:
+    if not descuento_raw:
         return None, "El porcentaje de descuento debe ser un número válido entre 0.01 y 100"
 
-    # Validar en servidor que el precio enviado coincida con el descuento sobre la variante en BD
-    if id_variante and descuento_porcentaje is not None:
+    try:
+        descuento_dec = Decimal(descuento_raw)
+    except InvalidOperation:
+        return None, "El porcentaje de descuento debe ser un número válido entre 0.01 y 100"
+
+    if not descuento_dec.is_finite() or descuento_dec <= Decimal("0") or descuento_dec > Decimal("100"):
+        return None, "El porcentaje de descuento debe ser un número válido entre 0.01 y 100"
+
+    descuento_dec = descuento_dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    precio_oferta = None
+    variantes = None
+    if id_variante:
         variante = VarianteProducto.obtener_por_id(id_variante)
-        if not variante:
-            return None, "La variante seleccionada no existe"
-        precio_base = Decimal(str(variante["precio"]))
-        descuento_dec = Decimal(str(descuento_porcentaje))
-        precio_esperado = (
-            precio_base * (Decimal("1") - descuento_dec / Decimal("100"))
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        precio_enviado = Decimal(str(precio_oferta)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if abs(precio_enviado - precio_esperado) > Decimal("0.01"):
-            return None, "El precio de oferta no corresponde al descuento aplicado"
+        if not variante or int(variante["id_producto"]) != int(id_producto):
+            return None, "La variante seleccionada no pertenece al producto indicado"
+        precio_oferta = Oferta.calcular_precio_oferta(variante["precio"], descuento_dec)
+    elif oferta_existente is not None:
+        if oferta_existente.get("id_variante") and int(id_producto) != int(oferta_existente["id_producto"]):
+            return None, "No puedes cambiar el producto de una oferta asociada a una variante de otro producto"
+        precio_actual = oferta_existente.get("precio_oferta")
+        precio_oferta = Decimal(str(precio_actual)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if precio_actual is not None else Decimal("0.00")
+    else:
+        variantes = VarianteProducto.listar_por_producto(id_producto)
+        if not variantes:
+            return None, "El producto no tiene presentaciones con precio"
 
     # Parsear y validar fechas de vigencia
     fecha_inicio = None
@@ -1079,7 +1087,8 @@ def _validar_datos_oferta(form_data, oferta_existente=None):
     return {
         "id_producto": id_producto,
         "id_variante": id_variante,
-        "descuento_porcentaje": descuento_porcentaje,
+        "variantes": variantes,
+        "descuento_porcentaje": descuento_dec,
         "precio_oferta": precio_oferta,
         "titulo": titulo,
         "descripcion": descripcion,
@@ -1091,10 +1100,8 @@ def _validar_datos_oferta(form_data, oferta_existente=None):
 @admin_bp.route("/ofertas/nueva", methods=["GET", "POST"])
 def nueva_oferta():
     """
-    Crea una nueva oferta promocional asociada a un producto (y variante opcional).
-
-    Valida producto, título, precio de oferta positivo, porcentaje de descuento
-    en el rango `(0, 100]`, correspondencia con el precio de la variante y fechas.
+    Crea una nueva oferta promocional asociada a una variante o a todas las variantes
+    del producto, calculando el precio de oferta en servidor a partir del descuento.
 
     Returns:
         flask.Response | str: Redirección o formulario HTML de oferta.
@@ -1108,17 +1115,33 @@ def nueva_oferta():
             return render_template("admin/ofertas/formulario.html", oferta=None, productos=productos, form_data=request.form)
 
         try:
-            Oferta.crear(
-                datos["id_producto"],
-                datos["id_variante"],
-                datos["descuento_porcentaje"],
-                datos["precio_oferta"],
-                datos["titulo"],
-                datos["descripcion"],
-                datos["fecha_inicio"],
-                datos["fecha_fin"],
-            )
-            flash(f"Oferta '{datos['titulo']}' creada", "success")
+            if datos["id_variante"]:
+                Oferta.crear(
+                    datos["id_producto"],
+                    datos["id_variante"],
+                    datos["descuento_porcentaje"],
+                    datos["precio_oferta"],
+                    datos["titulo"],
+                    datos["descripcion"],
+                    datos["fecha_inicio"],
+                    datos["fecha_fin"],
+                )
+                if datos["precio_oferta"] == Decimal("0.00"):
+                    flash("Aviso: con 100% de descuento el precio de oferta quedó en $0.00.", "warning")
+                flash(f"Oferta '{datos['titulo']}' creada", "success")
+            else:
+                Oferta.crear_por_variantes(
+                    datos["id_producto"],
+                    datos["variantes"],
+                    datos["descuento_porcentaje"],
+                    datos["titulo"],
+                    datos["descripcion"],
+                    datos["fecha_inicio"],
+                    datos["fecha_fin"],
+                )
+                if datos["descuento_porcentaje"] == Decimal("100.00"):
+                    flash("Aviso: con 100% de descuento el precio de oferta quedó en $0.00.", "warning")
+                flash(f"Oferta '{datos['titulo']}' creada para {len(datos['variantes'])} presentaciones", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
             flash(f"Error al crear oferta: {str(e)}", "danger")
@@ -1166,6 +1189,8 @@ def editar_oferta(id_oferta):
                 datos["fecha_inicio"],
                 datos["fecha_fin"],
             )
+            if datos["precio_oferta"] == Decimal("0.00"):
+                flash("Aviso: con 100% de descuento el precio de oferta quedó en $0.00.", "warning")
             flash(f"Oferta '{datos['titulo']}' actualizada", "success")
             return redirect(url_for("admin.ofertas"))
         except Exception as e:
