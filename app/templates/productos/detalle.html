@@ -178,7 +178,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-title">{{ prod.nombre_producto }}</h3>
-                <p class="card-description">{{ prod.descripcion[:100] }}{% if prod.descripcion and prod.descripcion|length > 100 %}...{% endif %}</p>
+                <p class="card-description">{% if prod.descripcion %}{{ prod.descripcion[:100] }}{% if prod.descripcion|length > 100 %}...{% endif %}{% endif %}</p>
                 <div class="card-price">${{ "{:,.0f}".format(prod.precio_minimo) if prod.precio_minimo else '0.00' }}</div>
                 <a href="{{ url_for('productos.detalle', producto_id=prod.id_producto) }}" class="btn btn-outline">Ver</a>
             </div>

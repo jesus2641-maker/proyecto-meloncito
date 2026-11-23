@@ -57,7 +57,7 @@
                                 <div class="product-info">
                                     <strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ prod.nombre_producto }}</strong>
                                     {% if prod.descripcion %}
-                                    <small class="d-inline-block text-truncate" style="max-width: 250px;">{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}</small>
+                                    <small class="d-inline-block text-truncate" style="max-width: 250px;">{% if prod.descripcion %}{{ prod.descripcion[:60] }}{% if prod.descripcion|length > 60 %}...{% endif %}{% endif %}</small>
                                     {% endif %}
                                 </div>
                             </div>

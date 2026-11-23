@@ -267,7 +267,7 @@
                 </div>
                 <div class="card-content">
                     <h3 class="card-title">{{ oferta.titulo }}</h3>
-                    <p class="card-description">{{ oferta.descripcion[:80] }}{% if oferta.descripcion and oferta.descripcion|length > 80 %}...{% endif %}</p>
+                    <p class="card-description">{% if oferta.descripcion %}{{ oferta.descripcion[:80] }}{% if oferta.descripcion|length > 80 %}...{% endif %}{% endif %}</p>
                     <div class="price-container">
                         <span class="original-price">${{ "{:,.0f}".format(oferta.precio_original) if oferta.precio_original else '0.00' }}</span>
                         <span class="offer-price">${{ "{:,.0f}".format(oferta.precio_oferta) }}</span>
