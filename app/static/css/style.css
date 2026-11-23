@@ -9539,3 +9539,62 @@ video {
         padding: 18px;
     }
 }
+
+/* Ajustes de tabla de productos en detalle de pedido (.pd-productos) */
+.pd-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+}
+
+.pd-productos {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.pd-productos th,
+.pd-productos td {
+    white-space: normal;
+    word-break: break-word;
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.pd-productos .badge {
+    white-space: normal;
+    font-size: 0.72rem;
+    padding: 4px 8px;
+    display: inline-block;
+    line-height: 1.3;
+}
+
+.pd-productos td:nth-child(5),
+.pd-productos td:nth-child(6) {
+    font-size: 0.95rem;
+}
+
+.pd-productos td:last-child {
+    text-align: right;
+    font-weight: 600;
+}
+
+@media (min-width: 768px) {
+    .admin-table-container.pd-table-wrap {
+        overflow-x: visible;
+    }
+}
+
+@media (max-width: 1024px) {
+    .pd-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-table-container.pd-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pd-productos {
+        min-width: 600px;
+    }
+}

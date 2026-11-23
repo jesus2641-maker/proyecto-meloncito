@@ -10,9 +10,6 @@
             <p class="section-subtitle pd-eyebrow">Detalle de Orden</p>
             <div class="pd-title-row">
                 <h1 class="pd-title">Detalles del pedido</h1>
-                <span class="status-badge status-{{ pedido.nombre_estado|replace(' ', '-')|lower }} pd-status-pill">
-                    {{ pedido.nombre_estado|capitalize }}
-                </span>
             </div>
             <div class="pd-meta">
                 <span class="pd-meta-item">
@@ -44,7 +41,15 @@
                 </div>
 
                 <div class="admin-table-container pd-table-wrap">
-                    <table class="admin-table pd-table">
+                    <table class="admin-table pd-table pd-productos">
+                        <colgroup>
+                            <col style="width: 26%;">
+                            <col style="width: 16%;">
+                            <col style="width: 14%;">
+                            <col style="width: 10%;">
+                            <col style="width: 16%;">
+                            <col style="width: 18%;">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>Producto</th>
