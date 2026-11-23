@@ -26,7 +26,7 @@
         </div>
 
         <!-- FILTROS DE INVENTARIO -->
-        <div class="admin-filters">
+        <div class="admin-filters pi-filtros">
             <form method="GET" action="{{ url_for('trabajador.inventario') }}" class="filter-form">
                 <div class="filter-row">
                     <div class="filter-group">
@@ -87,33 +87,42 @@
             </form>
         </div>
 
-        <div class="admin-table-container table-responsive" style="width: 100%; max-height: 75vh; overflow-y: auto;">
-            <table class="admin-table align-middle w-100">
+        <div class="admin-table-container table-responsive pi-contenedor" style="width: 100%; max-height: 75vh; overflow-y: auto;">
+            <table class="admin-table align-middle w-100 pi-tabla">
+                <colgroup>
+                    <col style="width: 24%;">
+                    <col style="width: 14%;">
+                    <col style="width: 11%;">
+                    <col style="width: 9%;">
+                    <col style="width: 9%;">
+                    <col style="width: 11%;">
+                    <col style="width: 22%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">Presentación</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">Precio</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">Stock Actual</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">Stock Mínimo</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">SKU</th>
-                        <th class="text-nowrap" style="white-space: nowrap;">Actualizar Stock</th>
+                        <th>Presentación</th>
+                        <th>Precio</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>SKU</th>
+                        <th>Actualizar Stock</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in inventario %}
                     <tr>
-                        <td><strong class="d-inline-block text-truncate" style="max-width: 250px;">{{ item.nombre_producto }}</strong></td>
-                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.presentacion }}</td>
-                        <td class="text-nowrap" style="white-space: nowrap;">${{ "{:,.0f}".format(item.precio) }}</td>
-                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock }}</td>
-                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.stock_minimo }}</td>
-                        <td class="text-nowrap" style="white-space: nowrap;">{{ item.sku or '—' }}</td>
-                        <td class="text-nowrap" style="white-space: nowrap;">
-                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form d-inline-flex align-items-center gap-2" style="white-space: nowrap;">
+                        <td><strong>{{ item.nombre_producto }}</strong></td>
+                        <td>{{ item.presentacion }}</td>
+                        <td>${{ "{:,.0f}".format(item.precio) }}</td>
+                        <td>{{ item.stock }}</td>
+                        <td>{{ item.stock_minimo }}</td>
+                        <td>{{ item.sku or '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('trabajador.actualizar_stock') }}" class="inline-form d-inline-flex align-items-center flex-wrap gap-2 pi-stock-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="id_variante" value="{{ item.id_variante }}">
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" name="stock" value="{{ item.stock }}" autocomplete="off" required class="inline-input form-control form-control-sm" style="width: 85px;">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" name="stock" value="{{ item.stock }}" autocomplete="off" required class="inline-input form-control form-control-sm" style="width: 70px; max-width: 100%;">
                                 <button type="submit" class="btn btn-sm btn-primary text-nowrap">Actualizar</button>
                             </form>
                         </td>
