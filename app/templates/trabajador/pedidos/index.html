@@ -13,6 +13,17 @@
 </section>
 
 <section class="container my-4">
+    <!-- FILTROS POR ESTADO -->
+    <div class="admin-filter-bar">
+        <span class="filter-label">Filtrar por estado:</span>
+        <a href="{{ url_for('trabajador.pedidos') }}" class="filter-chip {% if not filtro_actual %}active{% endif %}">Todos</a>
+        {% for est in estados %}
+        <a href="{{ url_for('trabajador.pedidos', estado=est.nombre_estado) }}" class="filter-chip {% if filtro_actual == est.nombre_estado %}active{% endif %}">
+            {{ est.nombre_estado|capitalize }}
+        </a>
+        {% endfor %}
+    </div>
+
     <div class="admin-section mt-0 mb-5" style="width: 100%; max-width: 100%;">
         <div class="admin-section-header">
             <h2>Todos los Pedidos</h2>
@@ -61,7 +72,9 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center" style="padding: 40px;">No hay pedidos registrados</td>
+                        <td colspan="6" class="text-center" style="padding: 40px;">
+                            {% if filtro_actual %}No se encontraron pedidos con el filtro seleccionado{% else %}No hay pedidos registrados{% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
